@@ -2,9 +2,26 @@ import paramiko
 import yaml
 import os
 
+#-------------FONCTION PRINCIPALE-----------------#
+
+# Orchestre la récupération, l'analyse et la conformité de la configuration SSH.
+def check_ssh_configuration_compliance(server):
+    config_data = retrieve_ssh_configuration(server)
+    if config_data is None:
+        return
+    
+    parsed_config = parse_ssh_configuration(config_data)
+    compliance_results = check_anssi_compliance(parsed_config)
+    
+    if compliance_results:
+        generate_yaml_report(compliance_results)
+    else:
+        print("Aucune donnée de conformité n'a été générée.")
+        
+
 #-------------FONCTIONS OUTILS-----------------#
 
-# Charge les critères de l'ANSSI 
+# Charge les critères de l'ANSSI depuis un fichier YAML.
 def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
     try:
         if not os.path.exists(file_path):
@@ -17,26 +34,25 @@ def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH
             raise ValueError("Format invalide du fichier YAML : section 'ssh_criteria' manquante.")
 
         return data.get("ssh_criteria", {})
-
     except (yaml.YAMLError, FileNotFoundError, ValueError) as e:
         print(f"Erreur lors du chargement des critères : {e}")
         return {}
 
-# Exécute la commande sur le serveur 
-def execute_commands(serveur, commands):
-    if not isinstance(serveur, paramiko.SSHClient):
+# Exécute une liste de commandes sur le serveur via SSH.
+def execute_ssh_commands(server, commands):
+    if not isinstance(server, paramiko.SSHClient):
         print("Erreur : La connexion SSH est invalide.")
         return
-
+    
     try:
         for command in commands:
-            stdin, stdout, stderr = serveur.exec_command(command)
+            stdin, stdout, stderr = server.exec_command(command)
             stdout.read().decode()
             stderr.read().decode()
     except paramiko.SSHException as e:
         print(f"Erreur SSH lors de l'exécution des commandes : {e}")
 
-# Génère le rapport ssh_conformite.yaml
+# Génère un rapport YAML sur la conformité SSH.
 def generate_yaml_report(all_rules, filename="ssh_compliance_report.yaml"):
     try:
         output_dir = "GenerationRapport/RapportAnalyse"
@@ -50,24 +66,18 @@ def generate_yaml_report(all_rules, filename="ssh_compliance_report.yaml"):
 
             for rule, details in all_rules.items():
                 status = details.get("status", "Inconnu")
-                appliquer = details.get("appliquer", False)
+                apply = details.get("appliquer", False)
 
-                # Vérification de la validité de `appliquer`
-                if not isinstance(appliquer, bool):
-                    appliquer = False  # Valeur par défaut en cas d'erreur
-
+                if not isinstance(apply, bool):
+                    apply = False  
                 file.write(f"  {rule}:\n")
                 file.write(f"    status: \"{status}\"\n")
-                if appliquer:
-                    file.write(f"    appliquer: true  # Inutile de modifier, déjà appliqué\n")
-                else:
-                    file.write(f"    appliquer: false\n")
-
+                file.write(f"    appliquer: {'true' if apply else 'false'}\n")
     except (OSError, IOError) as e:
         print(f"Erreur lors de la génération du fichier YAML : {e}")
 
-# Compare les données de l'ANSSI et celles récupérées afin d'évaluer la conformité
-def check_compliance(config):
+# Compare la configuration SSH avec les critères de conformité ANSSI.
+def check_anssi_compliance(config):
     anssi_criteria = load_anssi_criteria()
     all_rules = {}
 
@@ -90,35 +100,31 @@ def check_compliance(config):
                 "status": f"Non conforme -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'",
                 "appliquer": False
             }
-
     return all_rules
 
-# Récupère la configuration SSH
-def dump_ssh_config(serveur):
-    if not isinstance(serveur, paramiko.SSHClient):
+# Récupère la configuration SSH du serveur.
+def retrieve_ssh_configuration(server):
+    if not isinstance(server, paramiko.SSHClient):
         print("Erreur : serveur SSH invalide.")
-        return
-
+        return None
     try:
-        stdin, stdout, stderr = serveur.exec_command("cat /etc/ssh/sshd_config")
+        stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config")
         config_data = stdout.read().decode()
-
+        
         if not config_data:
             raise ValueError("Fichier de configuration SSH vide ou inaccessible.")
-
-        parsed_config = {}
-        for line in config_data.split("\n"):
-            if line.strip() and not line.strip().startswith("#"):
-                key_value = line.split(None, 1)
-                if len(key_value) == 2:
-                    parsed_config[key_value[0]] = key_value[1]
-
-        compliance_results = check_compliance(parsed_config)
-
-        if compliance_results:
-            generate_yaml_report(compliance_results)
-        else:
-            print("⚠Aucune donnée de conformité n'a été générée.")
-
-    except (paramiko.SSHException, ValueError, AttributeError) as e:
+        
+        return config_data
+    except (paramiko.SSHException, ValueError) as e:
         print(f"Erreur lors de la récupération de la configuration SSH : {e}")
+        return None
+
+# Analyse le fichier de configuration SSH et retourne un dictionnaire.
+def parse_ssh_configuration(config_data):
+    parsed_config = {}
+    for line in config_data.split("\n"):
+        if line.strip() and not line.strip().startswith("#"):
+            key_value = line.split(None, 1)
+            if len(key_value) == 2:
+                parsed_config[key_value[0]] = key_value[1]
+    return parsed_config
