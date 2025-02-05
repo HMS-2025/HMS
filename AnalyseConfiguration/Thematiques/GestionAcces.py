@@ -4,11 +4,11 @@ import os
 import pwd
 import grp
 
-# Charger les références depuis reference_min.yaml
+# Charger les références depuis Reference_Min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
     """Charge le fichier Reference_Min.yaml et retourne son contenu."""
     try:
-        with open(file_path, "r") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data
     except Exception as e:
@@ -18,20 +18,29 @@ def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
 # Comparer les résultats de l'analyse avec les références
 def check_compliance(rule_id, rule_value, reference_data):
     """Vérifie si une règle est conforme en la comparant avec Reference_Min.yaml."""
-    expected_value = reference_data.get(rule_id, {}).get("expected", None)
+    expected_value = reference_data.get(rule_id, {}).get("expected", [])
 
-    # Comparaison des listes (ex: fichiers orphelins, comptes utilisateurs)
     if isinstance(expected_value, list):
-        # Si des fichiers orphelins existent et que l'on attend une liste vide, alors non conforme
-        return "Non conforme" if rule_value else "Conforme"
+        # Vérifie si des fichiers non conformes existent
+        non_compliant_items = [item for item in rule_value if item not in expected_value]
+        return {
+            "status": "Non conforme" if non_compliant_items else "Conforme",
+            "elements_detectes": non_compliant_items if non_compliant_items else "Aucun",
+            "elements_attendus": expected_value,
+            "appliquer": False if non_compliant_items else True
+        }
 
-    return "Conforme" if rule_value == expected_value else "Non conforme"
+    return {
+        "status": "Conforme" if rule_value == expected_value else "Non conforme",
+        "elements_detectes": rule_value,
+        "elements_attendus": expected_value,
+        "appliquer": rule_value == expected_value
+    }
 
 # Fonction principale pour analyser la gestion des accès
 def analyse_gestion_acces(serveur, niveau="min", reference_data=None):
     """Analyse la gestion des accès et génère un rapport YAML avec conformité."""
     report = {}
-    compliance_results = {}
 
     if reference_data is None:
         reference_data = load_reference_yaml()
@@ -39,38 +48,33 @@ def analyse_gestion_acces(serveur, niveau="min", reference_data=None):
     if niveau == "min":
         print("-> Vérification de la désactivation des comptes inutilisés (R30)")
         inactive_accounts = get_inactive_users()
-        report["inactive_accounts"] = inactive_accounts
-        compliance_results["R30"] = check_compliance("R30", inactive_accounts, reference_data)
-        
+        report["R30"] = check_compliance("R30", inactive_accounts, reference_data)
+
         print("-> Vérification des fichiers sans propriétaire (R53)")
         orphan_files = find_orphan_files("/")
-        report["orphan_files"] = orphan_files  # Ajouter la liste des fichiers trouvés dans le rapport
-        compliance_results["R53"] = check_compliance("R53", orphan_files, reference_data)
+        report["R53"] = check_compliance("R53", orphan_files, reference_data)
 
         print("-> Vérification des exécutables avec setuid/setgid (R56)")
         setuid_sgid_files = find_files_with_setuid_setgid()
-        report["setuid_sgid_files"] = setuid_sgid_files
-        compliance_results["R56"] = check_compliance("R56", setuid_sgid_files, reference_data)
-    
-    # Enregistrer le rapport
+        report["R56"] = check_compliance("R56", setuid_sgid_files, reference_data)
+
+    # Enregistrement du rapport
     save_yaml_report(report, "gestion_acces_minimal.yml")
 
     # Calcul du taux de conformité
-    total_rules = len(compliance_results)
-    conforming_rules = sum(1 for result in compliance_results.values() if result == "Conforme" or isinstance(result, dict) and result.get("Statut") == "Conforme")
-    compliance_percentage = (conforming_rules / total_rules) * 100
+    total_rules = len(report)
+    conforming_rules = sum(1 for result in report.values() if result["status"] == "Conforme")
+    compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 0
 
     # Affichage des résultats
     print("\n[Résultats de la conformité]")
-    for rule, status in compliance_results.items():
-        if isinstance(status, dict) and status.get("Statut") == "Non conforme":
-            print(f"- {rule}: {status['Statut']}")
-            print(f"  -> Problème détecté : {status['Détails']}")  # Affiche la liste des fichiers trouvés
-        else:
-            print(f"- {rule}: {status}")
+    for rule, status in report.items():
+        print(f"- {rule}: {status['status']}")
+        if status["status"] == "Non conforme":
+            print(f"  -> Éléments problématiques : {status['elements_detectes']}")
+            print(f"  -> Éléments attendus : {status['elements_attendus']}")
 
-    print(f"\nTaux de conformité du niveau minimal : {compliance_percentage:.2f}%")
-
+    print(f"\nTaux de conformité du niveau minimal (Gestion des accès) : {compliance_percentage:.2f}%")
 
 # R30 - Désactiver les comptes utilisateur inutilisés
 def get_standard_users():
@@ -115,7 +119,7 @@ def find_orphan_files(directory="/"):
 
 # R56 - Éviter l’usage d’exécutables avec les droits spéciaux setuid et setgid
 def find_files_with_setuid_setgid():
-    command = "find /tmp -type f \\\( -perm -4000 -o -perm -2000 \\\) -print 2>/dev/null"
+    command = "find /tmp -type f \\( -perm -4000 -o -perm -2000 \\) -print 2>/dev/null"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     files_with_suid_sgid = result.stdout.strip().split("\n")
     return [file for file in files_with_suid_sgid if file]
@@ -126,6 +130,6 @@ def save_yaml_report(data, output_file):
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
-    with open(output_path, "w") as file:
-        yaml.dump(data, file, default_flow_style=False)
+    with open(output_path, "w", encoding="utf-8") as file:
+        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
     print(f"Rapport généré : {output_path}")

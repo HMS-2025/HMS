@@ -49,5 +49,3 @@ def analyse_min(serveur):
     
     print("\n[Analyse] Utilisateurs...")
     analyse_utilisateurs(serveur, niveau="min", reference_data=reference_data)
-
-    print("\nAnalyse minimale terminée.")

@@ -1,9 +1,16 @@
-update_status:
-  Cron Updates: "Aucune t\xE2che cron d\xE9tect\xE9e pour les mises \xE0 jour"
-  DNF Automatic: "dnf-automatic non activ\xE9"
-  Unattended Upgrades: '/etc/apt/apt.conf.d/10periodic:APT::Periodic::Update-Package-Lists
-    "1";
-
-    /etc/apt/apt.conf.d/20auto-upgrades:APT::Periodic::Update-Package-Lists "1";
-
-    /etc/apt/apt.conf.d/20auto-upgrades:APT::Periodic::Unattended-Upgrade "1";'
+R61:
+  appliquer: false
+  status: Non conforme
+  éléments_attendus:
+    Cron Scripts: Présent
+    Cron Updates: Présent
+    DNF Automatic: activé
+    Systemd Timer: Présent
+    Unattended Upgrades: install ok installed
+  éléments_problématiques:
+    Cron Updates:
+      Attendu: Présent
+      Détecté: Aucune tâche cron détectée
+    DNF Automatic:
+      Attendu: activé
+      Détecté: dnf-automatic non activé

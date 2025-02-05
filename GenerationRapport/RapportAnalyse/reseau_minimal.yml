@@ -1,1 +1,9 @@
-active_services: "Aucun service r\xE9seau actif d\xE9tect\xE9"
+R80:
+  appliquer: true
+  services_attendus:
+  - ssh
+  - ntp
+  - dns
+  services_detectes: Aucun service actif détecté
+  services_non_conformes: Aucun
+  status: Conforme
