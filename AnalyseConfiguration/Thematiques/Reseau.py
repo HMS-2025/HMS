@@ -2,7 +2,6 @@ import paramiko
 import yaml
 import os
 
-# R80 - Réduire la surface d’attaque des services réseau
 def analyse_reseau(serveur, niveau="min"):
     """Analyse la configuration réseau et génère un rapport YAML."""
     report = {}
@@ -14,6 +13,7 @@ def analyse_reseau(serveur, niveau="min"):
     save_yaml_report(report, "reseau_minimal.yml")
     print("Analyse terminée. Rapport généré : reseau_minimal.yml")
 
+# R80 - Réduire la surface d’attaque des services réseau
 def get_active_services(serveur):
     try:
         command_services = "sudo netstat -tulnp | awk '{print $1, $4, $7}'"

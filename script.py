@@ -30,9 +30,7 @@ def main():
     analyse_SSH(client)
     
     # Exécuter l'analyse du niveau minimal
-    print("\n--- Début de l'analyse niveau MINIMAL ---\n")
     analyse_min(client)
-    print("\n--- Fin de l'analyse niveau MINIMAL ---\n")
 
     # Fermer la connexion SSH après l'analyse
     client.close()

@@ -1,0 +1,76 @@
+R30:
+  description: "Désactiver les comptes utilisateur inutilisés"
+  expected: []  # Liste vide = aucun compte inactif autorisé
+
+R53:
+  description: "Éviter les fichiers ou répertoires sans utilisateur ou sans groupe connu"
+  expected: []  # Aucun fichier orphelin ne doit être trouvé
+
+R56:
+  description: "Éviter l’usage d’exécutables avec les droits spéciaux setuid et setgid"
+  expected: []  # Aucun fichier ne doit avoir les permissions setuid/setgid
+
+R58:
+  description: "N’installer que les paquets strictement nécessaires"
+  expected:
+    - openssh-server
+    - curl
+    - vim  # Liste des paquets autorisés, tout autre paquet est non conforme
+
+R59:
+  description: "Utiliser des dépôts de paquets de confiance"
+  expected:
+    - "http://security.ubuntu.com/ubuntu"
+    - "http://archive.ubuntu.com/ubuntu"  # Seuls ces dépôts sont autorisés
+
+R61:
+  description: "Effectuer des mises à jour régulières"
+  expected:
+    unattended-upgrades: "install ok installed"
+    cron_updates: "Présent"
+    dnf_automatic: "activé"
+
+R31:
+  description: "Utiliser des mots de passe robustes"
+  expected:
+    pam_policy: "password requisite pam_pwquality.so retry=3 minlen=12 difok=3"
+    expiration_policy: "Maximum number of days between password change: 90"
+    faillock: "deny=3"
+
+R68:
+  description: "Protéger les mots de passe stockés"
+  expected:
+    shadow_permissions: "-rw-r----- 1 root shadow"
+    hashed_passwords: "Oui"
+    cleartext_passwords: "Non"
+    empty_passwords: "Aucun"
+    hash_algorithms:
+      - "$6$"  # SHA-512
+      - "$argon2$"
+      - "$scrypt$"
+      - "$pbkdf2$"
+
+R80:
+  description: "Réduire la surface d’attaque des services réseau"
+  expected:
+    allowed_services:
+      - ssh
+      - ntp
+      - dns
+    disallowed_services:
+      - netcat
+      - telnet
+      - ftp
+      - rlogin
+      - rexec  # Tout service réseau figurant ici est non conforme
+
+R62:
+  description: "Désactiver les services non nécessaires"
+  expected:
+    disallowed_services:
+      - cups
+      - bluetooth
+      - avahi-daemon
+      - rpcbind
+      - samba
+      - nfs  # Tous ces services doivent être désactivés

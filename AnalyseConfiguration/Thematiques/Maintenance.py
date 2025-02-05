@@ -11,9 +11,7 @@ def analyse_journalisation(serveur, niveau="min"):
     
     save_yaml_report(report, "journalisation_audit_minimal.yml")
     print(f"Analyse terminée. Rapport généré : journalisation_audit_minimal.yml")
-
-# Aucune fonction pour le niveau min
-
+    
 def analyse_maintenance(serveur, niveau="min"):
     """Analyse la maintenance du système en fonction du niveau spécifié et génère un unique rapport YAML."""
     report = {}
