@@ -1,5 +1,4 @@
-inactive_accounts: []
-orphan_files:
-- /var/snap/lxd/common/lxd/storage-pools/default/containers/HMS
-- /var/snap/lxd/common/lxd/storage-pools/default/containers/HMS/rootfs/tmp/fichier_sans_proprietaire
+inactive_accounts:
+- richard
+orphan_files: []
 setuid_sgid_files: []

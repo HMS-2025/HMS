@@ -1,5 +1,5 @@
 ssh:
-  hostname: "10.240.80.254"
+  hostname: "192.168.34.5"
   port: 22
   username: "ubuntu"
   key_path: "id_rsa"
