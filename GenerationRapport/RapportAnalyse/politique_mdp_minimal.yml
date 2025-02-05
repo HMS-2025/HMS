@@ -1,0 +1,15 @@
+password_policy:
+  Expiration Policy: "Last password change\t\t\t\t\t: Feb 03, 2025\nPassword expires\t\
+    \t\t\t\t: never\nPassword inactive\t\t\t\t\t: never\nAccount expires\t\t\t\t\t\
+    \t: never\nMinimum number of days between password change\t\t: 0\nMaximum number\
+    \ of days between password change\t\t: 99999\nNumber of days of warning before\
+    \ password expires\t: 7"
+  Faillock: '# deny = 3
+
+    # even_deny_root
+
+    # This option implies the `even_deny_root` option.
+
+    # the root account (the options `even_deny_root>` and'
+  PAM Policy: "password\t[success=1 default=ignore]\tpam_unix.so obscure sha512"
+  Pwquality Config: "Fichier pwquality.conf non trouv\xE9"
