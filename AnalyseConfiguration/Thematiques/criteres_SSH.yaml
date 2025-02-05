@@ -1,0 +1,27 @@
+ssh_criteria:
+  R1: { directive: "Protocol", expected_value: "2" }
+  R2: { directive: "PubkeyAuthentication", expected_value: "yes" }
+  R3: { directive: "PasswordAuthentication", expected_value: "no" }
+  R4: { directive: "ChallengeResponseAuthentication", expected_value: "no" }
+  R5: { directive: "PermitRootLogin", expected_value: "no" }
+  R6: { directive: "X11Forwarding", expected_value: "no" }
+  R7: { directive: "AllowTcpForwarding", expected_value: "no" }
+  R8: { directive: "MaxAuthTries", expected_value: "2" }
+  R9: { directive: "PermitEmptyPasswords", expected_value: "no" }
+  R10: { directive: "LoginGraceTime", expected_value: "30" }
+  R11: { directive: "UsePrivilegeSeparation", expected_value: "sandbox" }
+  R12: { directive: "AllowUsers", expected_value: "" }
+  R13: { directive: "AllowGroups", expected_value: "" }
+  R14: { directive: "Ciphers", expected_value: "aes256-ctr,aes192-ctr,aes128-ctr" }
+  R15: { directive: "MACs", expected_value: "hmac-sha2-512,hmac-sha2-256,hmac-sha1" }
+  R16: { directive: "PermitUserEnvironment", expected_value: "no" }
+  R17: { directive: "AllowAgentForwarding", expected_value: "no" }
+  R18: { directive: "StrictModes", expected_value: "yes" }
+  R19: { directive: "HostKey", expected_value: "/etc/ssh/ssh_host_rsa_key" }
+  R20: { directive: "KexAlgorithms", expected_value: "diffie-hellman-group-exchange-sha256" }
+  R21: { directive: "AuthorizedKeysFile", expected_value: ".ssh/authorized_keys" }
+  R22: { directive: "ClientAliveInterval", expected_value: "300" }
+  R23: { directive: "ClientAliveCountMax", expected_value: "0" }
+  R24: { directive: "LoginGraceTime", expected_value: "20" }
+  R25: { directive: "ListenAddress", expected_value: "192.168.1.1" }
+  R26: { directive: "Port", expected_value: "22" }
