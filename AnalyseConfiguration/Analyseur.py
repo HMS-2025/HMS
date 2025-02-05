@@ -1,10 +1,10 @@
-from AnalyseConfiguration.AnalyseSSH import dump_ssh_config
+from AnalyseConfiguration.AnalyseSSH import check_ssh_configuration_compliance
 from AnalyseConfiguration.Analyse_Min import analyse_min as analyse_min_level
 
 # Analyse SSH et analyse minimale
 def analyse_SSH(serveur):
     """Analyse la configuration SSH."""
-    dump_ssh_config(serveur)
+    check_ssh_configuration_compliance(serveur)
 
 def analyse_min(serveur):
     """Lance l'analyse du niveau minimal."""
