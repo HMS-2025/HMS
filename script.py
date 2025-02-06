@@ -49,20 +49,20 @@ def main():
                     passphrase=config.get("passphrase")
                 )
 
-                if not client:
-                    print("Échec de la connexion SSH")
-                    continue
-                
-                print("\n--- Début de l'analyse ---\n")
-
-                # Lancer l'analyse en fonction du choix de l'utilisateur
-                if choix_analyse == "1":
-                    print("\n[Analyse] Exécution de l'analyse globale...")
-                    analyse_min(client)  # Ajout des analyses futures ici
-
-                elif choix_analyse == "2":
-                    print("\n[Analyse] Exécution de l'analyse minimale...")
-                    analyse_min(client)
+    # Vérifier si la connexion SSH est établie
+    if not client:
+        print("Échec de la connexion SSH")
+        return
+    
+    print("Lors de l'exécution de ce script, la commande sudo sera exécutée.")
+    print("Veuillez donc vérifier que vous avez les droits nécessaires sur le système. (sudo | root)")
+    
+    # Exécuter l'analyse de la configuration SSH
+    print("\n--- Début de l'analyse SSH ---\n")
+    #analyse_SSH(client)
+    
+    # Exécuter l'analyse du niveau minimal
+    analyse_min(client)
 
                 elif choix_analyse == "3":
                     print("\n[Analyse] Exécution de l'analyse intermédiaire...")
