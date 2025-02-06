@@ -25,24 +25,35 @@ class SSH_TEST(unittest.TestCase):
         config_data = stdout.read().decode().strip()
 
         """ Mettre protocol sur 1 """
+        
         stdin, stdout, stderr = self.client.exec_command("echo 'Protocol 1' | sudo tee -a /etc/ssh/sshd_config ")
+        
         """ Test """
+        
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
         self.assertEqual(result['ssh']['R1'], "false", "Erreur : note")
         
         """ ----------- TEST -------------"""
+
         """ Clean """
+        
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
+
         """ Mettre protocol 2 """
+        
         stdin, stdout, stderr = self.client.exec_command("echo 'Protocol 2' | sudo tee -a /etc/ssh/sshd_config ; ")
         config_data = stdout.read().decode().strip()
+        
         """ Test """
+        
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
         self.assertEqual(result['ssh']['R1'], "true", "Erreur : note")
+        
         """ Clean """
+        
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
 
