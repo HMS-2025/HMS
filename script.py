@@ -24,7 +24,10 @@ def main():
     if not client:
         print("Échec de la connexion SSH")
         return
-
+    
+    print("Lors de l'exécution de ce script, la commande sudo sera exécutée.")
+    print("Veuillez donc vérifier que vous avez les droits nécessaires sur le système. (sudo | root)")
+    
     # Exécuter l'analyse de la configuration SSH
     print("\n--- Début de l'analyse SSH ---\n")
     analyse_SSH(client)
