@@ -126,6 +126,6 @@ def save_yaml_report(data, output_file):
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
-    with open(output_path, "a", encoding="utf-8") as file:
+    with open(output_path, "w", encoding="utf-8") as file:
         yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
     print(f"Rapport généré : {output_path}")
