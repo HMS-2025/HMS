@@ -1,6 +1,6 @@
 ssh:
-  hostname: "10.240.80.254"
+  hostname: "10.118.117.219"
   port: 22
-  username: "ubuntu"
+  username: "administrateur"
   key_path: "id_rsa"
   passphrase: "toto"

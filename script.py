@@ -1,6 +1,6 @@
 from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
-
+from Tests.run import SSH_TEST
 # Fonction principale du script
 # Charge la configuration SSH, établit la connexion et lance les analyses
 
@@ -27,10 +27,15 @@ def main():
 
     # Exécuter l'analyse de la configuration SSH
     print("\n--- Début de l'analyse SSH ---\n")
-    analyse_SSH(client)
+    #analyse_SSH(client)
     
     # Exécuter l'analyse du niveau minimal
-    analyse_min(client)
+    #analyse_min(client)
+
+    Tests= SSH_TEST(client)
+
+    Tests.run_tests()
+
 
     # Fermer la connexion SSH après l'analyse
     client.close()
