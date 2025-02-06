@@ -1,5 +1,7 @@
 from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
+from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendations
+from ApplicationRecommandations.AppRecommandationsMin import  apply_recommendations
 
 # Fonction principale du script
 # Charge la configuration SSH, établit la connexion et lance les analyses
