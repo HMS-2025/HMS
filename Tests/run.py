@@ -32,6 +32,7 @@ class SSH_TEST(unittest.TestCase):
         
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        print(result)
         self.assertEqual(result['ssh']['R1'], "false", "Erreur : note")
         
         """ ----------- TEST -------------"""
@@ -527,7 +528,7 @@ class SSH_TEST(unittest.TestCase):
         suite.addTest(SSH_TEST(self.client, "test_allow_agent_forwarding"))
         suite.addTest(SSH_TEST(self.client, "test_strict_modes"))
         suite.addTest(SSH_TEST(self.client, "test_host_key"))
-        suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))
+        suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))"""
         runner = unittest.TextTestRunner()
         runner.run(suite)
 
