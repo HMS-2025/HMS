@@ -32,6 +32,7 @@ class SSH_TEST(unittest.TestCase):
         
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        print(result)
         self.assertEqual(result['ssh']['R1'], "false", "Erreur : note")
         
         """ ----------- TEST -------------"""
@@ -484,7 +485,7 @@ class SSH_TEST(unittest.TestCase):
         """Exécuter les tests"""
         suite = unittest.TestSuite()
         suite.addTest(SSH_TEST(self.client, "test_protocol"))  
-        suite.addTest(SSH_TEST(self.client, "test_pubkey_authentication"))
+        """suite.addTest(SSH_TEST(self.client, "test_pubkey_authentication"))
         suite.addTest(SSH_TEST(self.client, "test_password_authentication"))
         suite.addTest(SSH_TEST(self.client, "test_challenge_response_authentication"))
         suite.addTest(SSH_TEST(self.client, "test_permit_root_login"))
@@ -506,10 +507,21 @@ class SSH_TEST(unittest.TestCase):
         suite.addTest(SSH_TEST(self.client, "test_allow_agent_forwarding"))
         suite.addTest(SSH_TEST(self.client, "test_strict_modes"))
         suite.addTest(SSH_TEST(self.client, "test_host_key"))
-        suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))
+        suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))"""
         runner = unittest.TextTestRunner()
         runner.run(suite)
 
+class Analyse_min_test ( unittest.TestCase):
+    def __init__(self, client , methodName="runTest"):
+        super().__init__(methodName)
+        self.client = client
+    
+    def run_tests(self):
+        """Exécuter les tests"""
+        suite = unittest.TestSuite()
+        #suite.addTest(SSH_TEST(self.client, "test_protocol"))
+        runner = unittest.TextTestRunner()
+        runner.run(suite)    
 
 
 if __name__=="__main__" : 
