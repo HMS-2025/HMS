@@ -49,107 +49,30 @@ def main():
                     passphrase=config.get("passphrase")
                 )
 
-                if not client:
-                    print("Échec de la connexion SSH")
-                    continue
-                
-                print("\n--- Début de l'analyse ---\n")
+    # Vérifier si la connexion SSH est établie
+    if not client:
+        print("Échec de la connexion SSH")
+        return
+    
+    print("Lors de l'exécution de ce script, la commande sudo sera exécutée.")
+    print("Veuillez donc vérifier que vous avez les droits nécessaires sur le système. (sudo | root)")
+    
+    # Exécuter l'analyse de la configuration SSH
+    print("\n--- Début de l'analyse SSH ---\n")
+    #analyse_SSH(client)
+    
+    # Exécuter l'analyse du niveau minimal
+    analyse_min(client)
 
-                # Lancer l'analyse en fonction du choix de l'utilisateur
-                if choix_analyse == "1":
-                    print("\n[Analyse] Exécution de l'analyse globale...")
-                    analyse_min(client)  # Ajout des analyses futures ici
+    
+    #Application des recommandation ssh   
+    #apply_selected_recommendationsSSH("testRecommandationSSH.yaml")       
+    #print("Application des recommandations de niveau minimal")
+    #apply_recommendationsMin("testRecommandationMin.yaml")
+    
 
-                elif choix_analyse == "2":
-                    print("\n[Analyse] Exécution de l'analyse minimale...")
-                    analyse_min(client)
-
-                elif choix_analyse == "3":
-                    print("\n[Analyse] Exécution de l'analyse intermédiaire...")
-                    analyse_moyen(client)  # Ajout de l'analyse intermédiaire
-
-                elif choix_analyse == "4":
-                    print("\n[Analyse] Exécution de l'analyse renforcée...")
-                    # Ajouter ici la fonction analyse_renforcee(client)
-
-                elif choix_analyse == "5":
-                    print("\n[Analyse] Exécution de l'analyse SSH uniquement...")
-                    analyse_SSH(client)
-
-                # Fermer la connexion après l'analyse
-                client.close()
-                print("\n--- Fin de l'analyse ---\n")
-
-            elif choix_analyse == "6":
-                continue
-
-        elif choix_menu == "2":  # Appliquer les recommandations générales
-            print("\n--- Début de l'application des recommandations générales ---\n")
-
-            # Charger la configuration SSH
-            config = load_config("ssh.yaml")
-            if not config:
-                print("Configuration invalide")
-                continue
-
-            # Établir la connexion SSH
-            client = ssh_connect(
-                hostname=config.get("hostname"),
-                port=config.get("port"),
-                username=config.get("username"),
-                key_path=config.get("key_path"),
-                passphrase=config.get("passphrase")
-            )
-
-            if not client:
-                print("Échec de la connexion SSH")
-                continue
-
-            # Appliquer les recommandations générales (niveau minimal)
-            #verification d'existance des rapports yaml de chaque thematiques
-            path_report = "./GenerationRapport/RapportAnalyse/"  # Dossier contenant les rapports
-
-            application_recommandations_min(path_report, client)
-
-            # Fermer la connexion après application
-            client.close()
-            print("\n--- Fin de l'application des recommandations générales ---\n")
-
-        elif choix_menu == "3":  # Appliquer les recommandations spécifiques SSH
-            print("\n--- Début de l'application des recommandations SSH ---\n")
-
-            # Charger la configuration SSH
-            config = load_config("ssh.yaml")
-            if not config:
-                print("Configuration invalide")
-                continue
-
-            # Établir la connexion SSH
-            client = ssh_connect(
-                hostname=config.get("hostname"),
-                port=config.get("port"),
-                username=config.get("username"),
-                key_path=config.get("key_path"),
-                passphrase=config.get("passphrase")
-            )
-
-            if not client:
-                print("Échec de la connexion SSH")
-                continue
-
-            # Appliquer uniquement les recommandations SSH
-            apply_selected_recommendationsSSH("testRecommandationSSH.yaml", client)
-
-            # Fermer la connexion après application
-            client.close()
-            print("\n--- Fin de l'application des recommandations SSH ---\n")
-
-        elif choix_menu == "4":  # Quitter
-            print("Fermeture du programme...")
-            sys.exit()
-
-        else:
-            print("Option invalide, veuillez choisir une option correcte.")
+    # Fermer la connexion SSH après l'analyse
+    client.close()
 
 # Point d'entrée du script
 if __name__ == "__main__":
