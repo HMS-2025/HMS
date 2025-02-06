@@ -118,8 +118,15 @@ def check_anssi_compliance(config):
         expected_value = criteria.get("expected_value", "Inconnu")
         actual_value = config.get(directive, "non défini")
 
+        # Règle 1 est toujours valide
+        if rule == "R1":
+            status = "Conforme"
+            apply = True
+            expected = ["Toujours valide"]
+            detected = "Automatiquement conforme car ubuntu 20.04 a SSH 2 de base."
+
         # Vérification spéciale pour AllowUsers et AllowGroups (doit être rempli)
-        if directive in ["AllowUsers", "AllowGroups"]:
+        elif directive in ["AllowUsers", "AllowGroups"]:
             if actual_value == "non défini" or actual_value.strip() == "":
                 status = f"Non conforme -> '{directive}' est vide ou non défini, il doit être renseigné."
                 apply = False
@@ -162,6 +169,7 @@ def check_anssi_compliance(config):
         }
 
     return all_rules
+
 
 def retrieve_ssh_configuration(server):
     if not isinstance(server, paramiko.SSHClient):
