@@ -79,10 +79,15 @@ def generate_yaml_report(all_rules, filename="ssh_compliance_report.yaml"):
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, filename)
 
+        total_rules = len(all_rules)
+        compliant_rules = sum(1 for rule in all_rules.values() if rule.get("appliquer", False))
+        compliance_percentage = (compliant_rules / total_rules) * 100 if total_rules > 0 else 0
+
+        print(f"conformité ssh: {compliance_percentage:.1f} %")
         with open(output_path, "w") as file:
             file.write("--- Rapport de l'analyse: ---\n")
             file.write("--- Changer la valeur de 'appliquer' à 'true' si vous voulez appliquer cette recommandation. \n\n\n")
-            file.write("ssh_conformite:\n")
+            file.write(f"ssh_conformite: {compliance_percentage:.2f} %\n")
 
             for rule, details in all_rules.items():
                 status = details.get("status", "Inconnu")
