@@ -58,7 +58,6 @@ def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH
         print(f"Erreur lors du chargement des critères : {e}")
         return {}
 
-
 # Exécute une liste de commandes sur le serveur via SSH.
 def execute_ssh_commands(server, commands):
     if not isinstance(server, paramiko.SSHClient):
@@ -88,12 +87,16 @@ def generate_yaml_report(all_rules, filename="ssh_compliance_report.yaml"):
             for rule, details in all_rules.items():
                 status = details.get("status", "Inconnu")
                 apply = details.get("appliquer", False)
+                expected = details.get("elements_attendus", [])
+                detected = details.get("elements_detectes", "Non défini")
 
                 if not isinstance(apply, bool):
-                    apply = False  
+                    apply = False
                 file.write(f"  {rule}:\n")
-                file.write(f"    status: \"{status}\"\n")
                 file.write(f"    appliquer: {'true' if apply else 'false'}\n")
+                file.write(f"    elements_attendus: {expected}\n")
+                file.write(f"    elements_detectes: {detected}\n")
+                file.write(f"    status: \"{status}\"\n")
     except (OSError, IOError) as e:
         print(f"Erreur lors de la génération du fichier YAML : {e}")
 
@@ -115,9 +118,13 @@ def check_anssi_compliance(config):
             if actual_value == "non défini" or actual_value.strip() == "":
                 status = f"Non conforme -> '{directive}' est vide ou non défini, il doit être renseigné."
                 apply = False
+                expected = criteria.get("expected_value", [])
+                detected = "Aucun"
             else:
                 status = f"Conforme -> '{directive}: {actual_value}'"
                 apply = True
+                expected = criteria.get("expected_value", [])
+                detected = actual_value
 
         # Comparaison spéciale pour les valeurs de temps (ex: LoginGraceTime)
         elif directive in ["LoginGraceTime", "ClientAliveInterval"]:
@@ -127,22 +134,29 @@ def check_anssi_compliance(config):
             if actual_seconds <= expected_seconds:
                 status = f"Conforme -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
                 apply = True
+                expected = expected_value
+                detected = actual_value
             else:
                 status = f"Non conforme -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
                 apply = False
+                expected = expected_value
+                detected = actual_value
 
         # Comparaison classique pour les autres directives
         else:
             apply = actual_value == expected_value
             status = f"{'Conforme' if apply else 'Non conforme'} -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
+            expected = expected_value
+            detected = actual_value
 
         all_rules[rule] = {
             "status": status,
-            "appliquer": apply
+            "appliquer": apply,
+            "elements_attendus": expected if isinstance(expected, list) else [expected],
+            "elements_detectes": detected
         }
 
     return all_rules
-
 
 def retrieve_ssh_configuration(server):
     if not isinstance(server, paramiko.SSHClient):
