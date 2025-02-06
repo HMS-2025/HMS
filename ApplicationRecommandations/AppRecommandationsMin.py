@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Chemin vers le fichier YAML
-YAML_FILE="recommandations.yaml"
+YAML_FILE="YAML_File.yaml"
 
 # Fonction pour verrouiller un compte utilisateur (R30)
 lock_user_account() {
@@ -63,7 +63,7 @@ apply_R31() {
         sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS   90/' "$LOGIN_DEFS"
         echo "La durée maximale de validité des mots de passe a été mise à jour à 90 jours."
     fi
-
+YAML_FILE
     # Appliquer la politique de verrouillage de compte (faillock)
     FAILLOCK_CONF="/etc/security/faillock.conf"
     if ! grep -q "^deny=" "$FAILLOCK_CONF"; then
