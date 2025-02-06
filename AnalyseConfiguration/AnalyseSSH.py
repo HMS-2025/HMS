@@ -1,6 +1,7 @@
 import paramiko
 import yaml
 import os
+import re
 
 #-------------FONCTION PRINCIPALE-----------------#
 
@@ -18,6 +19,25 @@ def check_ssh_configuration_compliance(server):
     else:
         print("Aucune donnée de conformité n'a été générée.")
         
+def convert_time_to_seconds(time_value):
+    """
+    Convertit une valeur de temps SSH (ex: '2m', '30s', '1h30m') en secondes.
+    """
+    if time_value.isdigit():
+        return int(time_value)  # Cas où c'est déjà un nombre en secondes
+
+    time_pattern = re.findall(r'(\d+)([hms])', time_value.lower())
+    
+    total_seconds = 0
+    for value, unit in time_pattern:
+        value = int(value)
+        if unit == "h":
+            total_seconds += value * 3600
+        elif unit == "m":
+            total_seconds += value * 60
+        elif unit == "s":
+            total_seconds += value
+    return total_seconds
 
 #-------------FONCTIONS OUTILS-----------------#
 
@@ -37,6 +57,7 @@ def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH
     except (yaml.YAMLError, FileNotFoundError, ValueError) as e:
         print(f"Erreur lors du chargement des critères : {e}")
         return {}
+
 
 # Exécute une liste de commandes sur le serveur via SSH.
 def execute_ssh_commands(server, commands):
@@ -76,7 +97,6 @@ def generate_yaml_report(all_rules, filename="ssh_compliance_report.yaml"):
     except (OSError, IOError) as e:
         print(f"Erreur lors de la génération du fichier YAML : {e}")
 
-# Compare la configuration SSH avec les critères de conformité ANSSI.
 def check_anssi_compliance(config):
     anssi_criteria = load_anssi_criteria()
     all_rules = {}
@@ -90,19 +110,40 @@ def check_anssi_compliance(config):
         expected_value = criteria.get("expected_value", "Inconnu")
         actual_value = config.get(directive, "non défini")
 
-        if actual_value == expected_value:
-            all_rules[rule] = {
-                "status": "Conforme",
-                "appliquer": True
-            }
+        # Vérification spéciale pour AllowUsers et AllowGroups (doit être rempli)
+        if directive in ["AllowUsers", "AllowGroups"]:
+            if actual_value == "non défini" or actual_value.strip() == "":
+                status = f"Non conforme -> '{directive}' est vide ou non défini, il doit être renseigné."
+                apply = False
+            else:
+                status = f"Conforme -> '{directive}: {actual_value}'"
+                apply = True
+
+        # Comparaison spéciale pour les valeurs de temps (ex: LoginGraceTime)
+        elif directive in ["LoginGraceTime", "ClientAliveInterval"]:
+            expected_seconds = convert_time_to_seconds(expected_value)
+            actual_seconds = convert_time_to_seconds(actual_value)
+
+            if actual_seconds <= expected_seconds:
+                status = f"Conforme -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
+                apply = True
+            else:
+                status = f"Non conforme -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
+                apply = False
+
+        # Comparaison classique pour les autres directives
         else:
-            all_rules[rule] = {
-                "status": f"Non conforme -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'",
-                "appliquer": False
-            }
+            apply = actual_value == expected_value
+            status = f"{'Conforme' if apply else 'Non conforme'} -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
+
+        all_rules[rule] = {
+            "status": status,
+            "appliquer": apply
+        }
+
     return all_rules
 
-# Récupère la configuration SSH du serveur.
+
 def retrieve_ssh_configuration(server):
     if not isinstance(server, paramiko.SSHClient):
         print("Erreur : serveur SSH invalide.")
@@ -111,13 +152,27 @@ def retrieve_ssh_configuration(server):
         stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config")
         config_data = stdout.read().decode()
         
+        stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config.d/*.conf 2>/dev/null")
+        extra_config_data = stdout.read().decode()
+        
         if not config_data:
             raise ValueError("Fichier de configuration SSH vide ou inaccessible.")
         
-        return config_data
+        full_config = merge_ssh_configurations(config_data, extra_config_data)
+        
+        return full_config
     except (paramiko.SSHException, ValueError) as e:
         print(f"Erreur lors de la récupération de la configuration SSH : {e}")
         return None
+
+def merge_ssh_configurations(base_config, extra_config):
+    parsed_config = parse_ssh_configuration(base_config)
+    extra_parsed_config = parse_ssh_configuration(extra_config)
+    
+    parsed_config.update(extra_parsed_config)
+    
+    merged_config = "\n".join([f"{k} {v}" for k, v in parsed_config.items()])
+    return merged_config
 
 # Analyse le fichier de configuration SSH et retourne un dictionnaire.
 def parse_ssh_configuration(config_data):
