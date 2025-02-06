@@ -56,16 +56,10 @@ R68:
 R80:
   description: "Réduire la surface d’attaque des services réseau"
   expected:
-    allowed_services:
-      - ssh
-      - ntp
-      - dns
-    disallowed_services:
-      - netcat
-      - telnet
-      - ftp
-      - rlogin
-      - rexec  # Tout service réseau figurant ici est non conforme
+    restricted_interfaces:
+      - "192.168.1.0/24"
+      - "10.0.0.0/24"
+
 
 R62:
   description: "Désactiver les services non nécessaires"

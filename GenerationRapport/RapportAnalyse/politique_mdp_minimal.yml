@@ -40,4 +40,4 @@ R68:
       Détecté: Non détecté
     shadow_permissions:
       Attendu: -rw-r----- 1 root shadow
-      Détecté: -rw-r----- 1 root shadow 981 Feb  5 13:45 /etc/shadow
+      Détecté: -rw-r----- 1 root shadow 955 Feb  6 12:07 /etc/shadow

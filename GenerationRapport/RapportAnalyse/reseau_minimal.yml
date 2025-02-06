@@ -1,9 +1,28 @@
 R80:
-  appliquer: true
-  services_attendus:
-  - ssh
-  - ntp
-  - dns
-  services_detectes: Aucun service actif détecté
-  services_non_conformes: Aucun
-  status: Conforme
+  appliquer: false
+  interfaces_autorisees:
+  - 10.0.0.0/24
+  - 192.168.1.0/24
+  interfaces_detectees:
+  - ''
+  - 0.0.0.0%lxdbr0
+  - fd42
+  - 127.0.0.54
+  - 10.168.90.1
+  - 0.0.0.0%lxcbr0
+  - 127.0.0.53%lo
+  - 127.0.0.1
+  - 10.0.3.1
+  - Local
+  interfaces_non_conformes:
+  - ''
+  - 0.0.0.0%lxdbr0
+  - fd42
+  - 127.0.0.54
+  - 10.168.90.1
+  - 127.0.0.53%lo
+  - Local
+  - 127.0.0.1
+  - 10.0.3.1
+  - 0.0.0.0%lxcbr0
+  status: Non conforme

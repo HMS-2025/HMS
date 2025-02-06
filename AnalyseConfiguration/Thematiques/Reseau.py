@@ -1,6 +1,7 @@
 import paramiko
 import yaml
 import os
+import subprocess
 
 # Charger les références depuis Reference_Min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
@@ -13,37 +14,44 @@ def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
         print(f"Erreur lors du chargement de Reference_Min.yaml : {e}")
         return {}
 
-# Comparer les services réseau actifs avec la liste des services autorisés/interdits
+# Vérification de conformité des interfaces réseau
 def check_compliance(rule_id, rule_value, reference_data):
-    """Vérifie si les services actifs sont conformes en fonction de Reference_Min.yaml."""
+    """Vérifie si les interfaces réseau sont conformes selon Reference_Min.yaml."""
     expected_value = reference_data.get(rule_id, {}).get("expected", {})
 
-    allowed_services = expected_value.get("allowed_services", [])
-    disallowed_services = expected_value.get("disallowed_services", [])
+    allowed_interfaces = set(expected_value.get("restricted_interfaces", []))
+    detected_interfaces = set(rule_value["interfaces_detectees"])
 
-    detected_services = rule_value  # Liste des services actifs détectés
-    non_compliant_services = [service for service in detected_services if service in disallowed_services]
-    
+    # Interfaces locales à exclure totalement des interfaces autorisées
+    local_interfaces = {
+        "127.0.0.1", "::1", "fe80::/10",
+        "127.0.0.53%lo", "127.0.0.54", "localhost"
+    }
+
+    # Interfaces non conformes = Tout ce qui est détecté mais non autorisé
+    non_compliant_interfaces = detected_interfaces - allowed_interfaces
+    non_compliant_interfaces.update(local_interfaces & detected_interfaces)
+
     return {
-        "status": "Non conforme" if non_compliant_services else "Conforme",
-        "services_detectes": detected_services if detected_services else "Aucun service actif détecté",
-        "services_non_conformes": non_compliant_services if non_compliant_services else "Aucun",
-        "services_attendus": allowed_services,
-        "appliquer": False if non_compliant_services else True
+        "status": "Non conforme" if non_compliant_interfaces else "Conforme",
+        "interfaces_autorisees": list(allowed_interfaces - local_interfaces),  # Exclut les locales
+        "interfaces_detectees": list(detected_interfaces),
+        "interfaces_non_conformes": list(non_compliant_interfaces) if non_compliant_interfaces else "Aucune",
+        "appliquer": False if non_compliant_interfaces else True
     }
 
 # Fonction principale pour analyser la configuration réseau
 def analyse_reseau(serveur, niveau="min", reference_data=None):
-    """Analyse les services réseau actifs et génère un rapport YAML avec conformité."""
+    """Analyse les interfaces réseau et génère un rapport YAML avec conformité."""
     report = {}
 
     if reference_data is None:
         reference_data = load_reference_yaml()
 
     if niveau == "min":
-        print("-> Vérification des services réseau actifs (R80)")
-        active_services = get_active_services(serveur)
-        report["R80"] = check_compliance("R80", active_services, reference_data)
+        print("-> Vérification des interfaces réseau actives (R80)")
+        detected_interfaces = get_network_interfaces()
+        report["R80"] = check_compliance("R80", {"interfaces_detectees": detected_interfaces}, reference_data)
 
     # Enregistrement du rapport
     save_yaml_report(report, "reseau_minimal.yml")
@@ -55,17 +63,25 @@ def analyse_reseau(serveur, niveau="min", reference_data=None):
 
     print(f"\nTaux de conformité du niveau minimal (Réseau) : {compliance_percentage:.2f}%")
 
-# R80 - Réduire la surface d’attaque des services réseau
-def get_active_services(serveur):
-    """Récupère la liste des services réseau actifs en écoutant sur les ports."""
+# R80 - Récupérer la liste des interfaces réseau à partir de `ss -tulnp`
+def get_network_interfaces():
+    """Récupère la liste des interfaces réseau en écoute sur le système et filtre les résultats."""
     try:
-        command_services = "sudo netstat -tulnp | awk '{print $7}' | cut -d'/' -f2 | sort -u"
-        stdin, stdout, stderr = serveur.exec_command(command_services)
-        active_services = stdout.read().decode().strip().split("\n")
-        active_services = [service for service in active_services if service]  # Filtrer les entrées vides
-        return active_services
+        # Exécuter la commande et récupérer les interfaces réseau en écoute
+        command = "ss -tulnp | awk '{print $5}' | cut -d':' -f1 | sort -u"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        interfaces = result.stdout.strip().split("\n")
+
+        # Nettoyage des résultats : suppression des vides, interfaces locales et doublons
+        cleaned_interfaces = set()
+        for iface in interfaces:
+            iface = iface.strip()
+            if iface and iface not in ["0.0.0.0", "::", "localhost"] and not iface.startswith("fe80::"):
+                cleaned_interfaces.add(iface.replace("[", "").replace("]", ""))
+
+        return list(cleaned_interfaces)
     except Exception as e:
-        print(f"Erreur lors de la récupération des services réseau actifs : {e}")
+        print(f"Erreur lors de la récupération des interfaces réseau : {e}")
         return []
 
 # Fonction d'enregistrement des rapports

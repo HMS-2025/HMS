@@ -1,5 +1,5 @@
 R62:
-  appliquer: false
+  appliquer: true
   services_attendus_a_retirer:
   - cups.service
   - bluetooth.service
@@ -7,6 +7,5 @@ R62:
   - rpcbind.service
   - samba.service
   - nfs.service
-  services_interdits_detectes:
-  - rpcbind.service
-  status: Non conforme
+  services_interdits_detectes: Aucun
+  status: Conforme
