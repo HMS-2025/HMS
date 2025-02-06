@@ -1,5 +1,16 @@
-inactive_accounts: []
-orphan_files:
-- /var/snap/lxd/common/lxd/storage-pools/default/containers/HMS
-- /var/snap/lxd/common/lxd/storage-pools/default/containers/HMS/rootfs/tmp/fichier_sans_proprietaire
-setuid_sgid_files: []
+R30:
+  appliquer: true
+  elements_attendus: []
+  elements_detectes: Aucun
+  status: Conforme
+R53:
+  appliquer: false
+  elements_attendus: []
+  elements_detectes:
+  - /var/snap/lxd/common/lxd/storage-pools/default/containers/HMS
+  status: Non conforme
+R56:
+  appliquer: true
+  elements_attendus: []
+  elements_detectes: Aucun
+  status: Conforme

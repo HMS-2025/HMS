@@ -26,9 +26,12 @@ R59:
 R61:
   description: "Effectuer des mises à jour régulières"
   expected:
-    unattended-upgrades: "install ok installed"
-    cron_updates: "Présent"
-    dnf_automatic: "activé"
+    Unattended Upgrades: "install ok installed"
+    Cron Updates: "Présent"
+    Cron Scripts: "Présent"
+    Systemd Timer: "Présent"
+    DNF Automatic: "activé"
+
 
 R31:
   description: "Utiliser des mots de passe robustes"
@@ -43,7 +46,7 @@ R68:
     shadow_permissions: "-rw-r----- 1 root shadow"
     hashed_passwords: "Oui"
     cleartext_passwords: "Non"
-    empty_passwords: "Aucun"
+    empty_passwords: []
     hash_algorithms:
       - "$6$"  # SHA-512
       - "$argon2$"
@@ -68,9 +71,9 @@ R62:
   description: "Désactiver les services non nécessaires"
   expected:
     disallowed_services:
-      - cups
-      - bluetooth
-      - avahi-daemon
-      - rpcbind
-      - samba
-      - nfs  # Tous ces services doivent être désactivés
+      - cups.service
+      - bluetooth.service
+      - avahi-daemon.service
+      - rpcbind.service
+      - samba.service
+      - nfs.service  # Tous ces services doivent être désactivés

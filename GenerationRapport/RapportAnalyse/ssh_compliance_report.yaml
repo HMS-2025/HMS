@@ -1,27 +1,83 @@
-ssh:
-  R1: 'false'
-  R2: 'false'
-  R3: 'false'
-  R4: 'true'
-  R5: 'false'
-  R6: 'false'
-  R7: 'false'
-  R8: 'false'
-  R9: 'false'
-  R10: 'false'
-  R11: 'false'
-  R12: 'false'
-  R13: 'false'
-  R14: 'false'
-  R15: 'false'
-  R16: 'false'
-  R17: 'false'
-  R18: 'false'
-  R19: 'false'
-  R20: 'false'
-  R21: 'false'
-  R22: 'false'
-  R23: 'false'
-  R24: 'false'
-  R25: 'false'
-  R26: 'false'
+--- Rapport de l'analyse: ---
+--- Changer la valeur de 'appliquer' à 'true' si vous voulez appliquer cette recommandation. 
+
+
+ssh_conformite:
+  R1:
+    status: "Non conforme -> 'Protocol: non défini' | attendu: 'Protocol: 2'"
+    appliquer: false
+  R2:
+    status: "Non conforme -> 'PubkeyAuthentication: non défini' | attendu: 'PubkeyAuthentication: yes'"
+    appliquer: false
+  R3:
+    status: "Non conforme -> 'PasswordAuthentication: non défini' | attendu: 'PasswordAuthentication: no'"
+    appliquer: false
+  R4:
+    status: "Conforme"
+    appliquer: true
+  R5:
+    status: "Non conforme -> 'PermitRootLogin: non défini' | attendu: 'PermitRootLogin: no'"
+    appliquer: false
+  R6:
+    status: "Non conforme -> 'X11Forwarding: yes' | attendu: 'X11Forwarding: no'"
+    appliquer: false
+  R7:
+    status: "Non conforme -> 'AllowTcpForwarding: non défini' | attendu: 'AllowTcpForwarding: no'"
+    appliquer: false
+  R8:
+    status: "Non conforme -> 'MaxAuthTries: non défini' | attendu: 'MaxAuthTries: 2'"
+    appliquer: false
+  R9:
+    status: "Non conforme -> 'PermitEmptyPasswords: non défini' | attendu: 'PermitEmptyPasswords: no'"
+    appliquer: false
+  R10:
+    status: "Non conforme -> 'LoginGraceTime: non défini' | attendu: 'LoginGraceTime: 30'"
+    appliquer: false
+  R11:
+    status: "Non conforme -> 'UsePrivilegeSeparation: non défini' | attendu: 'UsePrivilegeSeparation: sandbox'"
+    appliquer: false
+  R12:
+    status: "Non conforme -> 'AllowUsers: non défini' | attendu: 'AllowUsers: '"
+    appliquer: false
+  R13:
+    status: "Non conforme -> 'AllowGroups: non défini' | attendu: 'AllowGroups: '"
+    appliquer: false
+  R14:
+    status: "Non conforme -> 'Ciphers: non défini' | attendu: 'Ciphers: aes256-ctr,aes192-ctr,aes128-ctr'"
+    appliquer: false
+  R15:
+    status: "Non conforme -> 'MACs: non défini' | attendu: 'MACs: hmac-sha2-512,hmac-sha2-256,hmac-sha1'"
+    appliquer: false
+  R16:
+    status: "Non conforme -> 'PermitUserEnvironment: non défini' | attendu: 'PermitUserEnvironment: no'"
+    appliquer: false
+  R17:
+    status: "Non conforme -> 'AllowAgentForwarding: non défini' | attendu: 'AllowAgentForwarding: no'"
+    appliquer: false
+  R18:
+    status: "Non conforme -> 'StrictModes: non défini' | attendu: 'StrictModes: yes'"
+    appliquer: false
+  R19:
+    status: "Non conforme -> 'HostKey: non défini' | attendu: 'HostKey: /etc/ssh/ssh_host_rsa_key'"
+    appliquer: false
+  R20:
+    status: "Non conforme -> 'KexAlgorithms: non défini' | attendu: 'KexAlgorithms: diffie-hellman-group-exchange-sha256'"
+    appliquer: false
+  R21:
+    status: "Non conforme -> 'AuthorizedKeysFile: non défini' | attendu: 'AuthorizedKeysFile: .ssh/authorized_keys'"
+    appliquer: false
+  R22:
+    status: "Non conforme -> 'ClientAliveInterval: non défini' | attendu: 'ClientAliveInterval: 300'"
+    appliquer: false
+  R23:
+    status: "Non conforme -> 'ClientAliveCountMax: non défini' | attendu: 'ClientAliveCountMax: 0'"
+    appliquer: false
+  R24:
+    status: "Non conforme -> 'LoginGraceTime: non défini' | attendu: 'LoginGraceTime: 20'"
+    appliquer: false
+  R25:
+    status: "Non conforme -> 'ListenAddress: non défini' | attendu: 'ListenAddress: 192.168.1.1'"
+    appliquer: false
+  R26:
+    status: "Non conforme -> 'Port: non défini' | attendu: 'Port: 22'"
+    appliquer: false

@@ -1,1 +1,12 @@
-unnecessary_services: "Fonction non impl\xE9ment\xE9e"
+R62:
+  appliquer: false
+  services_attendus_a_retirer:
+  - cups.service
+  - bluetooth.service
+  - avahi-daemon.service
+  - rpcbind.service
+  - samba.service
+  - nfs.service
+  services_interdits_detectes:
+  - rpcbind.service
+  status: Non conforme
