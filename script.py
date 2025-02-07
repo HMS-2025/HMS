@@ -52,6 +52,8 @@ def main():
     #apply_recommendationsMin("testRecommandationMin.yaml")
     
 
+    Tests = Analyse_min_test(client)
+    Tests.run_tests()
     
     #Application des recommandation ssh    
     apply_selected_recommendations("testSSH.yaml")
