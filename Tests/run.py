@@ -23,11 +23,14 @@ class SSH_TEST(unittest.TestCase):
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
 
         """ Mettre protocol sur 1 """
         
         stdin, stdout, stderr = self.client.exec_command("echo 'Protocol 1' | sudo tee -a /etc/ssh/sshd_config ")
-        
+        exit_status = stdout.channel.recv_exit_status()
+
         """ Test """
         
         analyse_SSH(self.client)
@@ -41,12 +44,15 @@ class SSH_TEST(unittest.TestCase):
         
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
 
         """ Mettre protocol 2 """
         
         stdin, stdout, stderr = self.client.exec_command("echo 'Protocol 2' | sudo tee -a /etc/ssh/sshd_config ; ")
         config_data = stdout.read().decode().strip()
-        
+        exit_status = stdout.channel.recv_exit_status()
+
         """ Test """
         
         analyse_SSH(self.client)
@@ -485,7 +491,7 @@ class SSH_TEST(unittest.TestCase):
         """Exécuter les tests"""
         suite = unittest.TestSuite()
         suite.addTest(SSH_TEST(self.client, "test_protocol"))  
-        """suite.addTest(SSH_TEST(self.client, "test_pubkey_authentication"))
+        suite.addTest(SSH_TEST(self.client, "test_pubkey_authentication"))
         suite.addTest(SSH_TEST(self.client, "test_password_authentication"))
         suite.addTest(SSH_TEST(self.client, "test_challenge_response_authentication"))
         suite.addTest(SSH_TEST(self.client, "test_permit_root_login"))
@@ -507,7 +513,7 @@ class SSH_TEST(unittest.TestCase):
         suite.addTest(SSH_TEST(self.client, "test_allow_agent_forwarding"))
         suite.addTest(SSH_TEST(self.client, "test_strict_modes"))
         suite.addTest(SSH_TEST(self.client, "test_host_key"))
-        suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))"""
+        suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))
         runner = unittest.TextTestRunner()
         runner.run(suite)
 
@@ -515,14 +521,159 @@ class Analyse_min_test ( unittest.TestCase):
     def __init__(self, client , methodName="runTest"):
         super().__init__(methodName)
         self.client = client
-    
+
+    def test_gestion_acces_min (self) :
+
+        """ ----------- TEST : Détection des utilisateurs inactifs ------------- """
+
+        #Clean avant le test (supprimer d'éventuels utilisateurs de test existants)
+        stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user1 || true")
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user2 || true")
+        exit_status = stdout.channel.recv_exit_status()
+
+
+        #Ajouter des utilisateurs inactifs pour le test
+        stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/bash test_user1")
+        exit_status = stdout.channel.recv_exit_status()
+        stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/bash test_user2")
+        exit_status = stdout.channel.recv_exit_status()
+
+        # Vérifier que les utilisateurs inactifs sont bien détectés
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
+        
+        self.assertIn("test_user1", result["R30"]["elements_detectes"])
+        self.assertIn("test_user2", result["R30"]["elements_detectes"])
+
+        #Désactiver les comptes pour simuler des utilisateurs inactifs
+        stdin, stdout, stderr=self.client.exec_command("sudo passwd -l test_user1")
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo passwd -l test_user2")
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
+        
+        self.assertNotIn("test_user1", result["R30"]["elements_detectes"])
+        self.assertNotIn("test_user2", result["R30"]["elements_detectes"])
+
+        
+        #Clean après le test
+
+        stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user1")
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user2")
+        exit_status = stdout.channel.recv_exit_status()
+
+
+        """ ----------- TEST : Détection des fichiers sans utilisateur ni groupe ------------- """
+
+        #Création d'un fichier sans propriétaire ni groupe
+        stdin, stdout, stderr=self.client.exec_command("sudo touch /tmp/test_file_no_owner")
+        
+        stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/bash nouser")
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo groupadd nogroup")
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo chown nouser:nogroup /tmp/test_file_no_owner")  
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo userdel nouser || true") 
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo groupdel nogroup || true")  
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Exécution de l'analyse
+        analyse_min(self.client)
+
+        #Chargement des résultats
+        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
+
+        #Vérification que le fichier est bien détecté comme non conforme
+        self.assertIn("/tmp/test_file_no_owner", result["R53"]["elements_detectes"])
+        self.assertEqual(result["R53"]["status"], "Non conforme")
+
+        #Nettoyage après le test
+        stdin, stdout, stderr=self.client.exec_command("sudo rm -f /tmp/test_file_no_owner")
+        exit_status = stdout.channel.recv_exit_status()
+
+
+        """ ----------- TEST : Détection des fichiers avec setuid et setgid ------------- """
+
+        #Nettoyage avant le test (supprimer les fichiers de test s'ils existent)
+        stdin, stdout, stderr=self.client.exec_command("sudo rm -f /tmp/test_suid /tmp/test_sgid")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Création des fichiers avec setuid et setgid
+        stdin, stdout, stderr=self.client.exec_command("sudo touch /tmp/test_suid /tmp/test_sgid")
+        exit_status = stdout.channel.recv_exit_status()
+        
+        stdin, stdout, stderr=self.client.exec_command("sudo chmod u+s /tmp/test_suid")
+        exit_status = stdout.channel.recv_exit_status()
+        
+        stdin, stdout, stderr=self.client.exec_command("sudo chmod g+s /tmp/test_sgid")
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo chmod 755 /tmp/test_suid /tmp/test_sgid")  
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Exécution de l'analyse
+        analyse_min(self.client)
+
+        #Chargement des résultats
+        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
+
+        #Vérification que les fichiers sont bien détectés comme non conformes
+        self.assertIn("/tmp/test_suid", result["R56"]["elements_detectes"])
+        self.assertIn("/tmp/test_sgid", result["R56"]["elements_detectes"])
+        self.assertEqual(result["R56"]["status"], "Non conforme")
+
+        #Nettoyage après le test
+        stdin, stdout, stderr=self.client.exec_command("sudo rm -f /tmp/test_suid /tmp/test_sgid")
+        exit_status = stdout.channel.recv_exit_status()
+
+    def test_service_min (self) : 
+        """ ----------- TEST : Détection des fichiers avec setuid et setgid ------------- """
+
+        # Installation de service interdit 
+
+        stdin, stdout, stderr=self.client.exec_command("sudo apt update ; sudo apt install -y samba nfs-kernel-server")
+        exit_status = stdout.channel.recv_exit_status()
+        
+        
+        #Exécution de l'analyse
+        analyse_min(self.client)
+
+        #Chargement des résultats
+        result = load_config("GenerationRapport/RapportAnalyse/services_minimal.yml")
+
+        #Vérification que les fichiers sont bien détectés comme non conformes
+        self.assertIn("samba.service", result["R56"]["services_interdits_detectes"])
+        self.assertIn("nfs.service", result["R56"]["services_interdits_detectes"])
+        self.assertEqual(result["R56"]["status"], "Non conforme")
+
+        #Nettoyage après le test
+        stdin, stdout, stderr=self.client.exec_command("sudo apt remove --purge -y samba nfs-kernel-server")
+        exit_status = stdout.channel.recv_exit_status()
+
+
     def run_tests(self):
         """Exécuter les tests"""
         suite = unittest.TestSuite()
-        #suite.addTest(SSH_TEST(self.client, "test_protocol"))
+        suite.addTest(Analyse_min_test(self.client, "test_gestion_acces_min"))
+        suite.addTest(Analyse_min_test(self.client, "test_service_min"))
         runner = unittest.TextTestRunner()
         runner.run(suite)    
 
 
 if __name__=="__main__" : 
     print ( "TEST SSH")
+
+
