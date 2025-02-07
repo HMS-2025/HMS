@@ -1,0 +1,16 @@
+R30:
+  appliquer: false
+  elements_attendus: []
+  elements_detectes:
+  - richard
+  status: Non conforme
+R53:
+  appliquer: false
+  elements_attendus: []
+  elements_detectes: Aucun
+  status: Conforme
+R56:
+  appliquer: true
+  elements_attendus: []
+  elements_detectes: Aucun
+  status: Conforme
