@@ -1,164 +1,142 @@
-#!/bin/bash
+import subprocess
+import yaml
+import os
 
-# Chemin vers le fichier YAML
-YAML_FILE="YAML_File.yaml"
+def lock_user_account(user):
+    print(f"Verrouillage du compte utilisateur {user}...")
+    try:
+        subprocess.check_call(['sudo', 'passwd', '-l', user])
+    except subprocess.CalledProcessError:
+        print(f"Erreur lors du verrouillage du compte {user}")
+        exit(1)
 
-# Fonction pour verrouiller un compte utilisateur (R30)
-lock_user_account() {
-  local user="$1"
-  echo "Verrouillage du compte utilisateur $user..."
-  sudo passwd -l "$user" || { echo "Erreur lors du verrouillage du compte $user"; exit 1; }
-}
+def disable_user_shell(user):
+    print(f"Changement du shell pour l'utilisateur {user} à /usr/sbin/nologin...")
+    try:
+        subprocess.check_call(['sudo', 'usermod', '-s', '/usr/sbin/nologin', user])
+    except subprocess.CalledProcessError:
+        print(f"Erreur lors du changement du shell pour {user}")
+        exit(1)
 
-# Fonction pour changer le shell d'un utilisateur à /usr/sbin/nologin (R30)
-disable_user_shell() {
-  local user="$1"
-  echo "Changement du shell pour l'utilisateur $user à /usr/sbin/nologin..."
-  sudo usermod -s /usr/sbin/nologin "$user" || { echo "Erreur lors du changement du shell pour $user"; exit 1; }
-}
+def delete_user_account(user):
+    print(f"Suppression du compte utilisateur {user}...")
+    try:
+        subprocess.check_call(['sudo', 'userdel', '-r', user])
+    except subprocess.CalledProcessError:
+        print(f"Erreur lors de la suppression du compte {user}")
+        exit(1)
 
-# Fonction pour supprimer un compte utilisateur (R30)
-delete_user_account() {
-  local user="$1"
-  echo "Suppression du compte utilisateur $user..."
-  sudo userdel -r "$user" || { echo "Erreur lors de la suppression du compte $user"; exit 1; }
-}
+def apply_R30(yaml_file):
+    with open(yaml_file, 'r') as file:
+        data = yaml.safe_load(file)
+    
+    users_detected = data.get('R30', {}).get('elements_detectes', [])
+    if not users_detected:
+        print("Aucun utilisateur à désactiver dans la règle R30.")
+        return
+    
+    for user in users_detected:
+        # Exemple de verrouillage du compte, tu peux choisir l'action à appliquer ici
+        lock_user_account(user)
 
-# Fonction pour appliquer la règle R30 : Désactiver les comptes inutilisés
-apply_R30() {
-  # Lire la liste des utilisateurs dans 'elements_detectes' depuis le fichier YAML
-  users_detected=$(yq eval '.R30.elements_detectes[]' "$YAML_FILE")
-  
-  if [ -z "$users_detected" ]; then
-    echo "Aucun utilisateur à désactiver dans la règle R30."
-    return
-  fi
+def apply_R31():
+    print("Application de la politique de mots de passe robustes...")
+    try:
+        pam_file = "/etc/pam.d/common-password"
+        with open(pam_file, 'r+') as file:
+            if "pam_pwquality.so" not in file.read():
+                file.write("\npassword requisite pam_pwquality.so retry=3 minlen=12 difok=3\n")
+                print(f"Ajout de la politique pam_pwquality.so dans {pam_file}")
+            else:
+                print("La politique pam_pwquality.so est déjà présente.")
+        
+        login_defs = "/etc/login.defs"
+        with open(login_defs, 'r+') as file:
+            lines = file.readlines()
+            for i, line in enumerate(lines):
+                if line.startswith("PASS_MAX_DAYS"):
+                    lines[i] = "PASS_MAX_DAYS   90\n"
+                    break
+            else:
+                lines.append("PASS_MAX_DAYS   90\n")
+            
+            with open(login_defs, 'w') as file_out:
+                file_out.writelines(lines)
+            print("La durée maximale de validité des mots de passe a été définie à 90 jours.")
+        
+        faillock_conf = "/etc/security/faillock.conf"
+        with open(faillock_conf, 'r+') as file:
+            lines = file.readlines()
+            for i, line in enumerate(lines):
+                if line.startswith("deny="):
+                    lines[i] = "deny=3\n"
+                    break
+            else:
+                lines.append("deny=3\n")
+            
+            with open(faillock_conf, 'w') as file_out:
+                file_out.writelines(lines)
+            print("Le nombre de tentatives échouées avant verrouillage a été défini à 3.")
+    
+    except Exception as e:
+        print(f"Erreur lors de l'application de la politique de mots de passe robustes: {e}")
+        exit(1)
 
-  # Applique les actions de désactivation sur chaque utilisateur détecté
-  for user in $users_detected; do
-    # Verrouiller le compte ou changer le shell ou supprimer le compte
-    lock_user_account "$user"  # Exemple, tu peux choisir l'action à appliquer
-  done
-}
- 
-# Fonction pour appliquer la règle R31 : Utiliser des mots de passe robustes
-apply_R31() {
-    echo "Application de la politique de mots de passe robustes..."
+def apply_R56(elements_detectes):
+    print("Désactivation des permissions setuid et setgid sur les fichiers suivants :")
+    for file in elements_detectes:
+        if os.path.isfile(file):
+            print(f"Modification des permissions sur : {file}")
+            subprocess.check_call(['chmod', 'u-s,g-s', file])
+        else:
+            print(f"Fichier non trouvé : {file}")
+    print("Les permissions setuid et setgid ont été supprimées sur les fichiers listés.")
 
-    # Définir la politique PAM dans /etc/pam.d/common-password
-    PAM_FILE="/etc/pam.d/common-password"
-    if ! grep -q "pam_pwquality.so" "$PAM_FILE"; then
-        echo "Ajout de la politique pam_pwquality.so dans $PAM_FILE"
-        echo "password requisite pam_pwquality.so retry=3 minlen=12 difok=3" >> "$PAM_FILE"
-    else
-        echo "La politique pam_pwquality.so est déjà présente."
-    fi
+def apply_R58():
+    allowed_packages = ["openssh-server", "curl", "vim"]
+    installed_packages = subprocess.check_output(['dpkg', '-l'], universal_newlines=True)
+    
+    for pkg in installed_packages.splitlines():
+        pkg_name = pkg.split()[1]
+        if pkg_name not in allowed_packages:
+            print(f"Le paquet {pkg_name} n'est pas autorisé. Suppression en cours...")
+            subprocess.check_call(['sudo', 'apt-get', 'remove', '--purge', '-y', pkg_name])
 
-    # Appliquer la politique d'expiration des mots de passe dans /etc/login.defs
-    LOGIN_DEFS="/etc/login.defs"
-    if ! grep -q "^PASS_MAX_DAYS" "$LOGIN_DEFS"; then
-        echo "PASS_MAX_DAYS   90" >> "$LOGIN_DEFS"
-        echo "La durée maximale de validité des mots de passe a été définie à 90 jours."
-    else
-        sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS   90/' "$LOGIN_DEFS"
-        echo "La durée maximale de validité des mots de passe a été mise à jour à 90 jours."
-    fi
-YAML_FILE
-    # Appliquer la politique de verrouillage de compte (faillock)
-    FAILLOCK_CONF="/etc/security/faillock.conf"
-    if ! grep -q "^deny=" "$FAILLOCK_CONF"; then
-        echo "deny=3" >> "$FAILLOCK_CONF"
-        echo "Le nombre de tentatives échouées avant verrouillage a été défini à 3."
-    else
-        sed -i 's/^deny=.*/deny=3/' "$FAILLOCK_CONF"
-        echo "Le nombre de tentatives échouées avant verrouillage a été mis à 3."
-    fi
-}
+def apply_R59():
+    allowed_repos = ["http://security.ubuntu.com/ubuntu", "http://archive.ubuntu.com/ubuntu"]
+    sources_files = ["/etc/apt/sources.list"] + [f for f in os.listdir("/etc/apt/sources.list.d") if f.endswith('.list')]
+    
+    for file in sources_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+        
+        with open(file, 'w') as f:
+            for line in lines:
+                if any(repo in line for repo in allowed_repos):
+                    f.write(line)
+                else:
+                    print(f"Le dépôt non autorisé trouvé : {line}. Suppression de la ligne...")
+    print("Les dépôts non autorisés ont été supprimés.")
 
-# Fonction pour appliquer la règle R56 : Désactiver les fichiers exécutables avec les droits spéciaux setuid et setgid
-apply_R56() {
-  # Assumons que "elements_detectes" contient une liste de fichiers avec setuid ou setgid
-  echo "Désactivation des permissions setuid et setgid sur les fichiers suivants :"
-
-  # Parcours des fichiers dans elements_detectes
-  for file in "${elements_detectes[@]}"; do
-    if [ -f "$file" ]; then
-      # Vérifier et supprimer les permissions setuid et setgid sur chaque fichier
-      echo "Modification des permissions sur : $file"
-      chmod u-s,g-s "$file"
-    else
-      echo "Fichier non trouvé : $file"
-    fi
-  done
-
-  echo "Les permissions setuid et setgid ont été supprimées sur les fichiers listés."
-}
-
-# Fonction pour appliquer la règle R58 : N'installer que les paquets nécessaires
-apply_R58() {
-  # Paquets autorisés
-  allowed_packages=("openssh-server" "curl" "vim")
-
-  # Lister les paquets installés
-  installed_packages=$(dpkg -l | grep '^ii' | awk '{print $2}')
-
-  for pkg in $installed_packages; do
-    # Vérifier si le paquet est dans la liste des paquets autorisés
-    if [[ ! " ${allowed_packages[@]} " =~ " ${pkg} " ]]; then
-      echo "Le paquet $pkg n'est pas autorisé. Suppression en cours..."
-      sudo apt-get remove --purge -y "$pkg" || { echo "Erreur lors de la suppression du paquet $pkg"; exit 1; }
-    fi
-  done
-}
-
-# Fonction pour appliquer la règle R59 : Utiliser des dépôts de paquets de confiance
-apply_R59() {
-  # Dépôts autorisés
-  allowed_repos=("http://security.ubuntu.com/ubuntu" "http://archive.ubuntu.com/ubuntu")
-
-  # Fichiers de sources APT
-  sources_files=("/etc/apt/sources.list" /etc/apt/sources.list.d/*)
-
-  # Parcourir tous les fichiers de sources
-  for file in "${sources_files[@]}"; do
-    if [[ -f "$file" ]]; then
-      echo "Vérification des dépôts dans le fichier $file"
-      
-      # Lire chaque ligne du fichier
-      while read -r line; do
-        # Si la ligne ne correspond pas à un dépôt autorisé
-        if [[ ! " ${allowed_repos[@]} " =~ " ${line} " ]]; then
-          echo "Le dépôt non autorisé trouvé : $line. Suppression de la ligne..."
-          # Supprimer la ligne contenant le dépôt non autorisé
-          sudo sed -i "/${line//\//\\/}/d" "$file" || { echo "Erreur lors de la suppression de la ligne"; exit 1; }
-        fi
-      done < "$file"
-    fi
-  done
-}
-
-
-
-# Fonction pour appliquer la règle R61 : Effectuer des mises à jour régulières
-apply_R61() {
-  echo "Vérification des mises à jour automatiques..."
-  
-  # Vérifier Unattended Upgrades
-  dpkg-query -l | grep "unattended-upgrades" || { echo "Unattended Upgrades n'est pas installé."; exit 1; }
-
-  # Vérifier les mises à jour via cron
-  cron_check=$(grep -i "cron" /etc/cron.d/*)
-  if [[ -z "$cron_check" ]]; then
-    echo "Cron pour les mises à jour non configuré."
-    exit 1
-  fi
-
-  # Vérification des timers systemd
-  systemd-timers=$(systemctl list-timers)
-  if [[ -z "$systemd-timers" ]]; then
-    echo "Timers systemd non trouvés pour les mises à jour."
-    exit 1
-  fi
+def apply_R61():
+    print("Vérification des mises à jour régulières...")
+    # Vérifier Unattended Upgrades
+    try:
+        subprocess.check_call(['dpkg-query', '-l', '|', 'grep', 'unattended-upgrades'])
+    except subprocess.CalledProcessError:
+        print("Unattended Upgrades n'est pas installé.")
+    
+    # Vérifier les mises à jour via cron
+    cron_check = subprocess.check_output(['grep', '-i', 'cron', '/etc/cron.d/*'], universal_newlines=True)
+    if not cron_check:
+        print("Cron pour les mises à jour non configuré.")
+        exit(1)
+    
+    # Vérification des timers systemd
+    systemd_timers = subprocess.check_output(['systemctl', 'list-timers'], universal_newlines=True)
+    if not systemd_timers:
+        print("Timers systemd non trouvés pour les mises à jour.")
+        exit(1)
 
     print("Mises à jour régulières configurées.")
 
