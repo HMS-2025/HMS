@@ -27,6 +27,7 @@ def delete_user_account(user):
         exit(1)
 
 def apply_R30(yaml_file):
+    print("Application de la recommandation R30")
     with open(yaml_file, 'r') as file:
         data = yaml.safe_load(file)
     
@@ -40,6 +41,7 @@ def apply_R30(yaml_file):
         lock_user_account(user)
 
 def apply_R31():
+    print("Application de la recommandation R31")
     print("Application de la politique de mots de passe robustes...")
     try:
         pam_file = "/etc/pam.d/common-password"
@@ -83,6 +85,7 @@ def apply_R31():
         exit(1)
 
 def apply_R56(elements_detectes):
+    print("Application de la recommandation R56")
     print("Désactivation des permissions setuid et setgid sur les fichiers suivants :")
     for file in elements_detectes:
         if os.path.isfile(file):
@@ -93,6 +96,7 @@ def apply_R56(elements_detectes):
     print("Les permissions setuid et setgid ont été supprimées sur les fichiers listés.")
 
 def apply_R58():
+    print("Application de la recommandation R58")
     allowed_packages = ["openssh-server", "curl", "vim"]
     installed_packages = subprocess.check_output(['dpkg', '-l'], universal_newlines=True)
     
@@ -103,6 +107,7 @@ def apply_R58():
             subprocess.check_call(['sudo', 'apt-get', 'remove', '--purge', '-y', pkg_name])
 
 def apply_R59():
+    print("Application de la recommandation R59")
     allowed_repos = ["http://security.ubuntu.com/ubuntu", "http://archive.ubuntu.com/ubuntu"]
     sources_files = ["/etc/apt/sources.list"] + [f for f in os.listdir("/etc/apt/sources.list.d") if f.endswith('.list')]
     
@@ -119,6 +124,7 @@ def apply_R59():
     print("Les dépôts non autorisés ont été supprimés.")
 
 def apply_R61():
+    print("Application de la recommandation R61")
     print("Vérification des mises à jour régulières...")
     # Vérifier Unattended Upgrades
     try:
@@ -141,6 +147,7 @@ def apply_R61():
     print("Mises à jour régulières configurées.")
 
 def apply_R62():
+    print("Application de la recommandation R62")
     services_to_disable = [
         "cups.service", "bluetooth.service", "avahi-daemon.service", 
         "rpcbind.service", "samba.service", "nfs.service"
@@ -156,6 +163,7 @@ def apply_R62():
             print(f"Le service {service} est déjà désactivé.")
 
 def apply_R68():
+    print("Application de la recommandation R68")
     print("Restreindre les droits d'accès sur /etc/shadow")
     subprocess.check_call(['sudo', 'chmod', '640', '/etc/shadow'])
     subprocess.check_call(['sudo', 'chown', 'root:shadow', '/etc/shadow'])
@@ -164,6 +172,7 @@ def apply_R68():
     subprocess.check_call(['sudo', 'sed', '-i', 's/^\([^\:]*\:[^\:]*\):/\\1:$6$/', '/etc/shadow'])
 
 def apply_R80():
+    print("Application de la recommandation R80")
     allowed_services = ["ssh", "ntp", "dns"]
     disallowed_services = ["netcat", "telnet", "ftp", "rlogin", "rexec"]
     
@@ -206,7 +215,7 @@ def apply_rule(rule_name, yaml_file):
     else:
         print(f"Règle inconnue : {rule_name}")
 
-def apply_recommendations(yaml_file):
+def apply_recommendationsMin(yaml_file):
     with open(yaml_file, 'r') as file:
         data = yaml.safe_load(file)
     

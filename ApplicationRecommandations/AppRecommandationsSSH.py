@@ -49,7 +49,7 @@ def apply_command(command):
     except subprocess.CalledProcessError:
         return False
 
-def apply_selected_recommendations(yaml_file):
+def apply_selected_recommendationsSSH(yaml_file):
     """Appliquer les recommandations sélectionnées et mettre à jour le fichier YAML"""
     # Charger la configuration YAML
     config = load_yaml(yaml_file)
@@ -70,4 +70,4 @@ def apply_selected_recommendations(yaml_file):
     save_yaml(yaml_file, config)
 
 # Exemple d'utilisation
-# apply_selected_recommendations('file.yaml')
+# apply_selected_recommendationsSSH('file.yaml')
