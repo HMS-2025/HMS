@@ -23,11 +23,14 @@ class SSH_TEST(unittest.TestCase):
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
 
         """ Mettre protocol sur 1 """
         
         stdin, stdout, stderr = self.client.exec_command("echo 'Protocol 1' | sudo tee -a /etc/ssh/sshd_config ")
-        
+        exit_status = stdout.channel.recv_exit_status()
+
         """ Test """
         
         analyse_SSH(self.client)
@@ -41,12 +44,15 @@ class SSH_TEST(unittest.TestCase):
         
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
 
         """ Mettre protocol 2 """
         
         stdin, stdout, stderr = self.client.exec_command("echo 'Protocol 2' | sudo tee -a /etc/ssh/sshd_config ; ")
         config_data = stdout.read().decode().strip()
-        
+        exit_status = stdout.channel.recv_exit_status()
+
         """ Test """
         
         analyse_SSH(self.client)
@@ -528,7 +534,7 @@ class SSH_TEST(unittest.TestCase):
         suite.addTest(SSH_TEST(self.client, "test_allow_agent_forwarding"))
         suite.addTest(SSH_TEST(self.client, "test_strict_modes"))
         suite.addTest(SSH_TEST(self.client, "test_host_key"))
-        suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))"""
+        suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))
         runner = unittest.TextTestRunner()
         runner.run(suite)
 
