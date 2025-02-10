@@ -1,6 +1,6 @@
-import subprocess
 import yaml
 import os
+import paramiko
 
 # Charger les références depuis Reference_Min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
@@ -53,7 +53,7 @@ def check_compliance(rule_id, rule_value, reference_data):
         "appliquer": False if non_compliant_items else True
     }
 
-
+# Fonction principale pour analyser la maintenance
 def analyse_maintenance(serveur, niveau="min", reference_data=None):
     """Analyse la maintenance du système et génère un rapport YAML avec conformité."""
     report = {}
@@ -63,11 +63,11 @@ def analyse_maintenance(serveur, niveau="min", reference_data=None):
 
     if niveau == "min":
         print("-> Vérification des paquets installés (R58)")
-        installed_packages = check_installed_packages()
+        installed_packages = check_installed_packages(serveur, reference_data)
         report["R58"] = check_compliance("R58", {"unnecessary_packages": installed_packages}, reference_data)
 
         print("-> Vérification des dépôts de paquets de confiance (R59)")
-        trusted_repositories = check_trusted_repositories()
+        trusted_repositories = check_trusted_repositories(serveur)
         report["R59"] = check_compliance("R59", {"trusted_repositories": trusted_repositories}, reference_data)
 
     # Enregistrement du rapport
@@ -81,26 +81,23 @@ def analyse_maintenance(serveur, niveau="min", reference_data=None):
     print(f"\nTaux de conformité du niveau minimal (Maintenance) : {compliance_percentage:.2f}%")
 
 # R58 - N’installer que les paquets strictement nécessaires
-def check_installed_packages():
-    """Récupère la liste des paquets installés et identifie ceux qui sont non nécessaires."""
-    necessary_packages = [
-        'openssh-server',
-        'curl',
-        'vim',
-    ]
-    command = "dpkg --get-selections | grep -v deinstall"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    installed_packages = result.stdout.splitlines()
+def check_installed_packages(serveur, reference_data):
+    """Récupère la liste des paquets installés et identifie ceux qui sont non nécessaires en fonction de Reference_Min.yaml."""
+    expected_packages = reference_data.get("R58", {}).get("expected", [])
 
-    unnecessary_packages = [pkg.split()[0] for pkg in installed_packages if pkg.split()[0] not in necessary_packages]
+    command = "dpkg --get-selections | grep -v deinstall"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    installed_packages = stdout.read().decode().strip().split("\n")
+
+    unnecessary_packages = [pkg.split()[0] for pkg in installed_packages if pkg.split()[0] not in expected_packages]
     return unnecessary_packages if unnecessary_packages else "Aucun paquet non nécessaire détecté"
 
 # R59 - Utiliser des dépôts de paquets de confiance
-def check_trusted_repositories():
+def check_trusted_repositories(serveur):
     """Vérifie les dépôts de paquets configurés sur le système."""
     command = "grep -E '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    repositories = result.stdout.strip().split("\n")
+    stdin, stdout, stderr = serveur.exec_command(command)
+    repositories = stdout.read().decode().strip().split("\n")
     return repositories if repositories else "Aucun dépôt détecté"
 
 # Fonction d'enregistrement des rapports

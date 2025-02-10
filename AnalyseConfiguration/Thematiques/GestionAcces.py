@@ -1,8 +1,6 @@
-import subprocess
 import yaml
 import os
-import pwd
-import grp
+import paramiko
 
 # Charger les références depuis Reference_Min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
@@ -10,32 +8,39 @@ def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
-        return reference_data
+        return reference_data or {}
     except Exception as e:
         print(f"Erreur lors du chargement de Reference_Min.yaml : {e}")
         return {}
 
-# Comparer les résultats de l'analyse avec les références
+# Vérification de conformité adaptée pour chaque règle
 def check_compliance(rule_id, rule_value, reference_data):
-    """Vérifie si une règle est conforme en la comparant avec Reference_Min.yaml."""
+    """Vérifie la conformité en fonction de la règle donnée."""
     expected_value = reference_data.get(rule_id, {}).get("expected", [])
 
-    if isinstance(expected_value, list):
-        # Vérifie si des fichiers non conformes existent
-        non_compliant_items = [item for item in rule_value if item not in expected_value]
-        return {
-            "status": "Non conforme" if non_compliant_items else "Conforme",
-            "elements_detectes": non_compliant_items if non_compliant_items else "Aucun",
-            "elements_attendus": expected_value,
-            "appliquer": False if non_compliant_items else True
-        }
+    if not isinstance(expected_value, list):
+        expected_value = []
 
-    return {
-        "status": "Conforme" if rule_value == expected_value else "Non conforme",
-        "elements_detectes": rule_value,
-        "elements_attendus": expected_value,
-        "appliquer": rule_value == expected_value
+    compliance_result = {
+        "status": "Conforme" if not rule_value else "Non conforme",
+        "appliquer": False if rule_value else True,
     }
+
+    # Adaptation des clés selon la règle
+    if rule_id == "R30":
+        compliance_result["comptes_inactifs_detectes"] = rule_value if rule_value else "Aucun"
+        compliance_result["comptes_attendus"] = expected_value
+    elif rule_id == "R53":
+        compliance_result["fichiers_orphelins_detectes"] = rule_value if rule_value else "Aucun"
+        compliance_result["fichiers_attendus"] = expected_value
+    elif rule_id == "R56":
+        compliance_result["fichiers_suid_sgid_detectes"] = rule_value if rule_value else "Aucun"
+        compliance_result["fichiers_attendus"] = expected_value
+    else:
+        compliance_result["elements_detectes"] = rule_value if rule_value else "Aucun"
+        compliance_result["elements_attendus"] = expected_value
+
+    return compliance_result
 
 # Fonction principale pour analyser la gestion des accès
 def analyse_gestion_acces(serveur, niveau="min", reference_data=None):
@@ -47,15 +52,15 @@ def analyse_gestion_acces(serveur, niveau="min", reference_data=None):
 
     if niveau == "min":
         print("-> Vérification de la désactivation des comptes inutilisés (R30)")
-        inactive_accounts = get_inactive_users()
+        inactive_accounts = get_inactive_users(serveur)
         report["R30"] = check_compliance("R30", inactive_accounts, reference_data)
 
         print("-> Vérification des fichiers sans propriétaire (R53)")
-        orphan_files = find_orphan_files("/")
+        orphan_files = find_orphan_files(serveur)
         report["R53"] = check_compliance("R53", orphan_files, reference_data)
 
         print("-> Vérification des exécutables avec setuid/setgid (R56)")
-        setuid_sgid_files = find_files_with_setuid_setgid()
+        setuid_sgid_files = find_files_with_setuid_setgid(serveur)
         report["R56"] = check_compliance("R56", setuid_sgid_files, reference_data)
 
     # Enregistrement du rapport
@@ -71,58 +76,54 @@ def analyse_gestion_acces(serveur, niveau="min", reference_data=None):
     for rule, status in report.items():
         print(f"- {rule}: {status['status']}")
         if status["status"] == "Non conforme":
-            print(f"  -> Éléments problématiques : {status['elements_detectes']}")
-            print(f"  -> Éléments attendus : {status['elements_attendus']}")
+            print(f"  -> Éléments problématiques : {status.get('comptes_inactifs_detectes', 'Aucun')}")
+            print(f"  -> Éléments attendus : {status.get('comptes_attendus', 'Aucun')}")
 
     print(f"\nTaux de conformité du niveau minimal (Gestion des accès) : {compliance_percentage:.2f}%")
 
 # R30 - Désactiver les comptes utilisateur inutilisés
-def get_standard_users():
+def get_standard_users(serveur):
+    """Récupère les utilisateurs standards (UID >= 1000) sur le serveur distant, sauf 'nobody'."""
     command = "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1}' /etc/passwd"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    return set(result.stdout.strip().split("\n"))
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return set(filter(None, stdout.read().decode().strip().split("\n")))
 
-def get_active_users():
-    who_command = "who | awk '{print $1}'"
-    w_command = "w -h | awk '{print $1}'"
-    who_result = subprocess.run(who_command, shell=True, capture_output=True, text=True)
-    w_result = subprocess.run(w_command, shell=True, capture_output=True, text=True)
-    who_users = set(who_result.stdout.strip().split("\n"))
-    w_users = set(w_result.stdout.strip().split("\n"))
-    return who_users.union(w_users)
+def get_recent_users(serveur):
+    """Récupère les utilisateurs ayant une connexion récente (moins de 60 jours) sur le serveur distant."""
+    command = "lastlog -b 60 | awk 'NR>1 {print $1}' | sort | uniq"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return set(filter(None, stdout.read().decode().strip().split("\n")))
 
-def get_recent_users():
-    command = "last -n 50 | awk '{print $1}' | sort | uniq"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    return set(result.stdout.strip().split("\n"))
+def get_disabled_users(serveur):
+    """Récupère la liste des comptes désactivés dans /etc/shadow."""
+    command = "awk -F: '($2 ~ /^!|^\*/) {print $1}' /etc/shadow"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return set(filter(None, stdout.read().decode().strip().split("\n")))
 
-def get_inactive_users():
-    standard_users = get_standard_users()
-    active_users = get_active_users()
-    recent_users = get_recent_users()
-    inactive_users = standard_users - active_users - recent_users
+def get_inactive_users(serveur):
+    """Récupère la liste des utilisateurs standards qui ne sont ni actifs, ni récemment connectés et qui ne sont pas désactivés."""
+    standard_users = get_standard_users(serveur)
+    recent_users = get_recent_users(serveur)
+    disabled_users = get_disabled_users(serveur)
+
+    # Comptes inactifs depuis plus de 60 jours, excluant les comptes déjà désactivés
+    inactive_users = (standard_users - recent_users) - disabled_users
+
     return list(inactive_users)
 
 # R53 - Éviter les fichiers ou répertoires sans utilisateur ou sans groupe connu
-def find_orphan_files(directory="/"):
-    """Recherche les fichiers et répertoires sans utilisateur ni groupe connu."""
-    command = f"sudo find {directory} -xdev \\( -nouser -o -nogroup \\) -print 2>/dev/null"
-    
-    try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
-        orphan_files = result.stdout.strip().split("\n")
-        
-        return [file for file in orphan_files if file]  # Supprime les entrées vides
-    except subprocess.CalledProcessError as e:
-        print(f"[ERREUR] Problème lors de l'exécution de find: {e}")
-        return []
+def find_orphan_files(serveur):
+    """Recherche les fichiers et répertoires sans utilisateur ni groupe connu sur la machine distante."""
+    command = "sudo find / -xdev \\( -nouser -o -nogroup \\) -print 2>/dev/null"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return list(filter(None, stdout.read().decode().strip().split("\n")))
 
 # R56 - Éviter l’usage d’exécutables avec les droits spéciaux setuid et setgid
-def find_files_with_setuid_setgid():
+def find_files_with_setuid_setgid(serveur):
+    """Recherche les fichiers avec setuid ou setgid sur la machine distante."""
     command = "find /tmp -type f \\( -perm -4000 -o -perm -2000 \\) -print 2>/dev/null"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    files_with_suid_sgid = result.stdout.strip().split("\n")
-    return [file for file in files_with_suid_sgid if file]
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return list(filter(None, stdout.read().decode().strip().split("\n")))
 
 # Fonction d'enregistrement des rapports
 def save_yaml_report(data, output_file):

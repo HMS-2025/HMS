@@ -1,16 +1,22 @@
 R30:
   appliquer: true
-  elements_attendus: []
-  elements_detectes: Aucun
+  comptes_attendus: []
+  comptes_inactifs_detectes: Aucun
   status: Conforme
 R53:
   appliquer: false
-  elements_attendus: []
-  elements_detectes:
-  - /var/snap/lxd/common/lxd/storage-pools/default/containers/HMS
+  fichiers_attendus: []
+  fichiers_orphelins_detectes:
+  - /home/file
+  - /home/file/.bashrc
+  - /home/file/.profile
+  - /home/file/test_orphelin.txt
+  - /home/file/.bash_logout
+  - /home/file/.bash_history
+  - /home/ubuntu/test_orphelin
   status: Non conforme
 R56:
   appliquer: true
-  elements_attendus: []
-  elements_detectes: Aucun
+  fichiers_attendus: []
+  fichiers_suid_sgid_detectes: Aucun
   status: Conforme

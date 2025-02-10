@@ -42,11 +42,11 @@ def check_compliance(rule_id, rule_value, reference_data):
     }
 
 # Récupérer la liste des services actifs sur une machine distante via SSH
-def get_active_services(client):
+def get_active_services(serveur):
     """Récupère la liste des services actifs sur le serveur distant."""
     try:
         command_services = "systemctl list-units --type=service --state=running | awk '{print $1}'"
-        stdin, stdout, stderr = client.exec_command(command_services)
+        stdin, stdout, stderr = serveur.exec_command(command_services)
         active_services = stdout.read().decode().strip().split("\n")
         active_services = [service.strip() for service in active_services if service and not service.startswith("LOAD")]
         return active_services
@@ -55,7 +55,7 @@ def get_active_services(client):
         return []
 
 # Fonction principale d'analyse de conformité
-def analyse_services(client, niveau="min", reference_data=None):
+def analyse_services(serveur, niveau="min", reference_data=None):
     """Analyse les services actifs et génère un rapport YAML avec conformité."""
     report = {}
     compliance_results = {}
@@ -65,7 +65,7 @@ def analyse_services(client, niveau="min", reference_data=None):
 
     if niveau == "min":
         print("-> Vérification des services non nécessaires (R62)")
-        active_services = get_active_services(client)
+        active_services = get_active_services(serveur)
         compliance_results["R62"] = check_compliance("R62", active_services, reference_data)
 
     report["R62"] = compliance_results["R62"]
@@ -87,14 +87,14 @@ def analyse_services(client, niveau="min", reference_data=None):
     print(f"\nTaux de conformité du niveau minimal (Services) : {compliance_percentage:.2f}%")
 
 # Désactiver les services non nécessaires
-def disable_unnecessary_services(client):
+def disable_unnecessary_services(serveur):
     """Désactive les services non nécessaires sur un serveur distant."""
     necessary_services = load_necessary_services()
     if not necessary_services:
         print("Aucun service nécessaire défini. Vérifiez le fichier de configuration.")
         return
 
-    active_services = get_active_services(client)
+    active_services = get_active_services(serveur)
     if not active_services:
         print("Aucun service actif trouvé.")
         return
@@ -109,8 +109,8 @@ def disable_unnecessary_services(client):
 
         for service in unnecessary_services:
             try:
-                # client.exec_command(f"systemctl stop {service}")
-                # client.exec_command(f"systemctl disable {service}")
+                # serveur.exec_command(f"systemctl stop {service}")
+                # serveur.exec_command(f"systemctl disable {service}")
                 print(f"Service désactivé : {service}")
                 report_data["unnecessary_services"].append(service)
             except Exception as e:
