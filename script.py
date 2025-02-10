@@ -2,7 +2,7 @@ from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import  apply_recommendationsMin
-
+from Tests.run import SSH_TEST , Analyse_min_test
 # Fonction principale du script
 # Charge la configuration SSH, établit la connexion et lance les analyses
 
@@ -35,8 +35,10 @@ def main():
     #analyse_SSH(client)
     
     # Exécuter l'analyse du niveau minimal
-    analyse_min(client)
+    #analyse_min(client)
 
+    Tests = Analyse_min_test(client)
+    Tests.run_tests()
     
     #Application des recommandation ssh   
     #apply_selected_recommendationsSSH("testRecommandationSSH.yaml")       

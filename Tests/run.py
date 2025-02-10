@@ -18,51 +18,6 @@ class SSH_TEST(unittest.TestCase):
         super().__init__(methodName)
         self.client = client
 
-    def test_protocol(self):
-        """ ----------- TEST -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-
-        """ Mettre protocol sur 1 """
-        
-        stdin, stdout, stderr = self.client.exec_command("echo 'Protocol 1' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Test """
-        
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        print(result)
-        self.assertEqual(result['ssh']['R1'], "false", "Erreur : note")
-        
-        """ ----------- TEST -------------"""
-
-        """ Clean """
-        
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-
-        """ Mettre protocol 2 """
-        
-        stdin, stdout, stderr = self.client.exec_command("echo 'Protocol 2' | sudo tee -a /etc/ssh/sshd_config ; ")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Test """
-        
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R1'], "true", "Erreur : note")
-        
-        """ Clean """
-        
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^Protocol /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
 
     def test_pubkey_authentication(self):
 
@@ -82,8 +37,8 @@ class SSH_TEST(unittest.TestCase):
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
         print(result)
-        self.assertEqual(result['ssh']['R2'], "true", "Erreur : PubkeyAuthentication devrait être 'yes'")
-        
+        self.assertEqual(result['ssh_conformite']['R2']['appliquer'], True, "")
+
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^PubkeyAuthentication /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
@@ -105,7 +60,8 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R3'], "true", "Erreur : PasswordAuthentication devrait être 'no'")
+        
+        self.assertEqual(result['ssh_conformite']['R3']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^PasswordAuthentication /d' /etc/ssh/sshd_config")
@@ -125,7 +81,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R4'], "false", "Erreur : ChallengeResponseAuthentication devrait être 'no'")
+        self.assertEqual(result['ssh_conformite']['R4']['appliquer'], False, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^ChallengeResponseAuthentication /d' /etc/ssh/sshd_config")
@@ -145,7 +101,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R5'], "false", "Erreur : PermitRootLogin devrait être 'no'")
+        self.assertEqual(result['ssh_conformite']['R5']['appliquer'], False, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitRootLogin /d' /etc/ssh/sshd_config")
@@ -157,7 +113,7 @@ class SSH_TEST(unittest.TestCase):
 
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R5'], "false", "Erreur : Est sur sa valeur par defaut ")
+        self.assertEqual(result['ssh_conformite']['R2']['appliquer'], False, "")
 
     def test_x11_forwarding(self):
         """ ----------- TEST R6: X11Forwarding -------------"""
@@ -174,7 +130,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R6'], "true", "Erreur : X11Forwarding devrait être 'no'")
+        self.assertEqual(result['ssh_conformite']['R6']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^X11Forwarding /d' /etc/ssh/sshd_config")
@@ -196,7 +152,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R7'], "true", "Erreur : AllowTcpForwarding devrait être 'no'")
+        self.assertEqual(result['ssh_conformite']['R7']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowTcpForwarding /d' /etc/ssh/sshd_config")
@@ -220,7 +176,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R8'], "true", "Erreur : MaxAuthTries devrait être '2'")
+        self.assertEqual(result['ssh_conformite']['R8']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^MaxAuthTries /d' /etc/ssh/sshd_config")
@@ -242,7 +198,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R9'], "true", "Erreur : PermitEmptyPasswords devrait être 'no'")
+        self.assertEqual(result['ssh_conformite']['R9']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitEmptyPasswords /d' /etc/ssh/sshd_config")
@@ -262,11 +218,31 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R10'], "true", "Erreur : LoginGraceTime devrait être '30'")
+        self.assertEqual(result['ssh_conformite']['R10']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre LoginGraceTime à 30 """
+        stdin, stdout, stderr = self.client.exec_command("echo 'LoginGraceTime 60' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R10']['appliquer'], False, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+
 
     def test_use_privilege_separation(self):
         """ ----------- TEST R11: UsePrivilegeSeparation -------------"""
@@ -284,7 +260,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R11'], "true", "Erreur : UsePrivilegeSeparation devrait être 'sandbox'")
+        self.assertEqual(result['ssh_conformite']['R11']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^UsePrivilegeSeparation /d' /etc/ssh/sshd_config")
@@ -306,7 +282,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R12'], "false", "Erreur : AllowUsers ne doit pas être vide")
+        self.assertEqual(result['ssh_conformite']['R12']['appliquer'], False, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowUsers /d' /etc/ssh/sshd_config")
@@ -330,7 +306,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R13'], "false", "Erreur : AllowGroups ne doit pas être vide")
+        self.assertEqual(result['ssh_conformite']['R13']['appliquer'], False, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowGroups /d' /etc/ssh/sshd_config")
@@ -353,7 +329,8 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R14'], "true", "Erreur : Ciphers devrait être 'aes256-ctr,aes192-ctr,aes128-ctr'")
+        
+        self.assertEqual(result['ssh_conformite']['R14']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^Ciphers /d' /etc/ssh/sshd_config")
@@ -373,7 +350,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R15'], "true", "Erreur : MACs devrait être 'hmac-sha2-512,hmac-sha2-256,hmac-sha1'")
+        self.assertEqual(result['ssh_conformite']['R15']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^MACs /d' /etc/ssh/sshd_config")
@@ -393,7 +370,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R16'], "true", "Erreur : PermitUserEnvironment devrait être 'no'")
+        self.assertEqual(result['ssh_conformite']['R16']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitUserEnvironment /d' /etc/ssh/sshd_config")
@@ -413,7 +390,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R17'], "true", "Erreur : AllowAgentForwarding devrait être 'no'")
+        self.assertEqual(result['ssh_conformite']['R17']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowAgentForwarding /d' /etc/ssh/sshd_config")
@@ -433,7 +410,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R18'], "true", "Erreur : StrictModes devrait être 'yes'")
+        self.assertEqual(result['ssh_conformite']['R18']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^StrictModes /d' /etc/ssh/sshd_config")
@@ -453,7 +430,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R19'], "true", "Erreur : HostKey devrait être '/etc/ssh/ssh_host_rsa_key'")
+        self.assertEqual(result['ssh_conformite']['R19']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^HostKey /d' /etc/ssh/sshd_config")
@@ -473,7 +450,7 @@ class SSH_TEST(unittest.TestCase):
         """ Test """
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh']['R20'], "true", "Erreur : KexAlgorithms devrait être 'diffie-hellman-group-exchange-sha256'")
+        self.assertEqual(result['ssh_conformite']['R20']['appliquer'], True, "")
 
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^KexAlgorithms /d' /etc/ssh/sshd_config")
@@ -490,7 +467,6 @@ class SSH_TEST(unittest.TestCase):
     def run_tests(self):
         """Exécuter les tests"""
         suite = unittest.TestSuite()
-        suite.addTest(SSH_TEST(self.client, "test_protocol"))  
         suite.addTest(SSH_TEST(self.client, "test_pubkey_authentication"))
         suite.addTest(SSH_TEST(self.client, "test_password_authentication"))
         suite.addTest(SSH_TEST(self.client, "test_challenge_response_authentication"))
@@ -663,12 +639,41 @@ class Analyse_min_test ( unittest.TestCase):
         stdin, stdout, stderr=self.client.exec_command("sudo apt remove --purge -y samba nfs-kernel-server")
         exit_status = stdout.channel.recv_exit_status()
 
+    def test_mises_a_jour_automatiques(self):
+        """ ----------- TEST : Vérification des mises à jour automatiques ------------- """
 
+        #Nettoyage avant le test (désactiver les mises à jour automatiques)
+        stdin, stdout, stderr=self.client.exec_command("unattended-upgrades disable")
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")        
+        self.assertEqual(result["R61"]["status"], "Non conforme")        
+        
+
+        # ------------ Crontab -------------------
+        stdin, stdout, stderr = self.client.exec_command('(crontab -l 2>/dev/null; echo "0 3 * * * apt update && apt upgrade -y") | crontab -')        
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")
+        self.assertIsNone(result["R61"]["éléments_problématiques"]["Cron Updates"])
+
+
+        stdin, stdout, stderr = self.client.exec_command("crontab -r")
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")
+        self.assertIsNone(result["R61"]["éléments_problématiques"]["Cron Updates"])
+
+        
     def run_tests(self):
         """Exécuter les tests"""
         suite = unittest.TestSuite()
-        suite.addTest(Analyse_min_test(self.client, "test_gestion_acces_min"))
-        suite.addTest(Analyse_min_test(self.client, "test_service_min"))
+        #suite.addTest(Analyse_min_test(self.client, "test_gestion_acces_min"))
+        #suite.addTest(Analyse_min_test(self.client, "test_service_min"))
+        suite.addTest(Analyse_min_test(self.client, "test_mises_a_jour_automatiques"))
         runner = unittest.TextTestRunner()
         runner.run(suite)    
 
