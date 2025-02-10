@@ -2,29 +2,8 @@ import sys
 from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
-from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
-from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen
-
-# Fonction pour afficher le menu principal
-def afficher_menu():
-    print("\n===== Menu Principal =====")
-    print("1 - Exécuter une analyse")
-    print("2 - Appliquer les recommandations")
-    print("3 - Appliquer les recommandations SSH")
-    print("4 - Quitter")
-    return input("Sélectionnez une option (1-4) : ")
-
-# Fonction pour afficher les niveaux d'analyse
-def selectionner_niveau_analyse():
-    print("\n===== Sélection du niveau d'analyse =====")
-    print("1 - Analyse globale")
-    print("2 - Analyse minimale")
-    print("3 - Analyse intermédiaire")
-    print("4 - Analyse renforcée")
-    print("5 - Analyse de la configuration SSH uniquement")
-    print("6 - Retour au menu principal")
-    return input("Sélectionnez une option (1-6) : ")
-
+from ApplicationRecommandations.AppRecommandationsMin import  apply_recommendationsMin
+from Tests.run import SSH_TEST , Analyse_min_test
 # Fonction principale du script
 def main():
     while True:
@@ -62,8 +41,10 @@ def main():
     #analyse_SSH(client)
     
     # Exécuter l'analyse du niveau minimal
-    analyse_min(client)
+    #analyse_min(client)
 
+    Tests = Analyse_min_test(client)
+    Tests.run_tests()
     
     #Application des recommandation ssh   
     #apply_selected_recommendationsSSH("testRecommandationSSH.yaml")       
