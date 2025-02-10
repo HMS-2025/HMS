@@ -119,11 +119,11 @@ def find_orphan_files(serveur):
     return list(filter(None, stdout.read().decode().strip().split("\n")))
 
 # R56 - Éviter l’usage d’exécutables avec les droits spéciaux setuid et setgid
-def find_files_with_setuid_setgid(serveur):
-    """Recherche les fichiers avec setuid ou setgid sur la machine distante."""
-    command = "find /tmp -type f \\( -perm -4000 -o -perm -2000 \\) -print 2>/dev/null"
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return list(filter(None, stdout.read().decode().strip().split("\n")))
+def find_files_with_setuid_setgid():
+    command = "find / -type f -perm /6000 -print 2>/dev/null"    
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    files_with_suid_sgid = result.stdout.strip().split("\n")
+    return [file for file in files_with_suid_sgid if file]
 
 # Fonction d'enregistrement des rapports
 def save_yaml_report(data, output_file):

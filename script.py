@@ -1,15 +1,17 @@
 import sys
 from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
-#from ApplicationRecommandations.Application import appliquer_recommandations
+from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
+from ApplicationRecommandations.AppRecommandationsMin import apply_recommendationsMin
 
 # Fonction pour afficher le menu principal
 def afficher_menu():
     print("\n===== Menu Principal =====")
     print("1 - Exécuter une analyse")
     print("2 - Appliquer les recommandations")
-    print("3 - Quitter")
-    return input("Sélectionnez une option (1-3) : ")
+    print("3 - Appliquer les recommandations SSH")
+    print("4 - Quitter")
+    return input("Sélectionnez une option (1-4) : ")
 
 # Fonction pour afficher les niveaux d'analyse
 def selectionner_niveau_analyse():
@@ -55,8 +57,7 @@ def main():
                 # Lancer l'analyse en fonction du choix de l'utilisateur
                 if choix_analyse == "1":
                     print("\n[Analyse] Exécution de l'analyse globale...")
-                    analyse_min(client) #faudra modifier en appelant les 3 fonctions ici
-                    # Ajouter ici les analyses intermédiaires et renforcées si nécessaire
+                    analyse_min(client)  # Ajout des analyses futures ici
 
                 elif choix_analyse == "2":
                     print("\n[Analyse] Exécution de l'analyse minimale...")
@@ -81,9 +82,9 @@ def main():
             elif choix_analyse == "6":
                 continue
 
-        elif choix_menu == "2":  # Appliquer les recommandations
-            print("\n--- Début de l'application des recommandations ---\n")
-            
+        elif choix_menu == "2":  # Appliquer les recommandations générales
+            print("\n--- Début de l'application des recommandations générales ---\n")
+
             # Charger la configuration SSH
             config = load_config("ssh.yaml")
             if not config:
@@ -103,14 +104,43 @@ def main():
                 print("Échec de la connexion SSH")
                 continue
 
-            #appliquer_recommandations(client)
+            # Appliquer les recommandations générales (niveau minimal)
+            apply_recommendationsMin("testRecommandationMin.yaml", client)
 
             # Fermer la connexion après application
             client.close()
+            print("\n--- Fin de l'application des recommandations générales ---\n")
 
-            print("\n--- Fin de l'application des recommandations ---\n")
+        elif choix_menu == "3":  # Appliquer les recommandations spécifiques SSH
+            print("\n--- Début de l'application des recommandations SSH ---\n")
 
-        elif choix_menu == "3":  # Quitter
+            # Charger la configuration SSH
+            config = load_config("ssh.yaml")
+            if not config:
+                print("Configuration invalide")
+                continue
+
+            # Établir la connexion SSH
+            client = ssh_connect(
+                hostname=config.get("hostname"),
+                port=config.get("port"),
+                username=config.get("username"),
+                key_path=config.get("key_path"),
+                passphrase=config.get("passphrase")
+            )
+
+            if not client:
+                print("Échec de la connexion SSH")
+                continue
+
+            # Appliquer uniquement les recommandations SSH
+            apply_selected_recommendationsSSH("testRecommandationSSH.yaml", client)
+
+            # Fermer la connexion après application
+            client.close()
+            print("\n--- Fin de l'application des recommandations SSH ---\n")
+
+        elif choix_menu == "4":  # Quitter
             print("Fermeture du programme...")
             sys.exit()
 
