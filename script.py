@@ -33,6 +33,7 @@ def main():
     # Exécuter l'analyse de la configuration SSH
     print("\n--- Début de l'analyse SSH ---\n")
     #analyse_SSH(client)
+    #analyse_SSH(client)
     
     # Exécuter l'analyse du niveau minimal
     #analyse_min(client)

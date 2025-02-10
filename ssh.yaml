@@ -2,5 +2,7 @@ ssh:
   hostname: "10.168.90.126"
   port: 22
   username: "administrateur"
+  username: "administrateur"
   key_path: "id_rsa"
   passphrase: "toto"
+
