@@ -39,7 +39,8 @@ def main():
 
     
     #Application des recommandation ssh   
-    #apply_selected_recommendationsSSH("testRecommandationSSH.yaml")       
+    apply_selected_recommendationsSSH("testRecommandationSSH.yaml",client)       
+    
     #print("Application des recommandations de niveau minimal")
     #apply_recommendationsMin("testRecommandationMin.yaml")
     
