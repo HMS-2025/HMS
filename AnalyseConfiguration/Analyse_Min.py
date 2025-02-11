@@ -17,6 +17,7 @@ def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
             reference_data = yaml.safe_load(file)
         return reference_data
     except Exception as e:
+        # toto
         print(f"Erreur lors du chargement de Reference_Min.yaml : {e}")
         return {}
 
