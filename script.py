@@ -3,7 +3,7 @@ from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
-
+from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen
 
 # Fonction pour afficher le menu principal
 def afficher_menu():
@@ -66,7 +66,7 @@ def main():
 
                 elif choix_analyse == "3":
                     print("\n[Analyse] Exécution de l'analyse intermédiaire...")
-                    # Ajouter ici la fonction analyse_intermediaire(client)
+                    analyse_moyen(client)  # Ajout de l'analyse intermédiaire
 
                 elif choix_analyse == "4":
                     print("\n[Analyse] Exécution de l'analyse renforcée...")
