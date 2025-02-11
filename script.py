@@ -1,26 +1,32 @@
+import sys
 from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import  apply_recommendationsMin
 from Tests.run import SSH_TEST , Analyse_min_test
 # Fonction principale du script
-# Charge la configuration SSH, établit la connexion et lance les analyses
-
 def main():
-    # Charger la configuration depuis le fichier YAML
-    config = load_config("ssh.yaml")
-    if not config:
-        print("Configuration invalide")
-        return
+    while True:
+        choix_menu = afficher_menu()
 
-    # Établir la connexion SSH avec les paramètres de configuration
-    client = ssh_connect(
-        hostname=config.get("hostname"),
-        port=config.get("port"),
-        username=config.get("username"),
-        key_path=config.get("key_path"),
-        passphrase=config.get("passphrase")
-    )
+        if choix_menu == "1":  # Exécuter une analyse
+            choix_analyse = selectionner_niveau_analyse()
+
+            if choix_analyse in ["1", "2", "3", "4", "5"]:
+                # Charger la configuration SSH
+                config = load_config("ssh.yaml")
+                if not config:
+                    print("Configuration invalide")
+                    continue
+
+                # Établir la connexion SSH
+                client = ssh_connect(
+                    hostname=config.get("hostname"),
+                    port=config.get("port"),
+                    username=config.get("username"),
+                    key_path=config.get("key_path"),
+                    passphrase=config.get("passphrase")
+                )
 
     # Vérifier si la connexion SSH est établie
     if not client:

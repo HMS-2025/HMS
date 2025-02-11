@@ -2,82 +2,134 @@
 --- Changer la valeur de 'appliquer' à 'true' si vous voulez appliquer cette recommandation. 
 
 
-ssh_conformite:
+ssh_conformite: 23.08 %
   R1:
-    status: "Non conforme -> 'Protocol: non défini' | attendu: 'Protocol: 2'"
-    appliquer: false
-  R2:
-    status: "Non conforme -> 'PubkeyAuthentication: non défini' | attendu: 'PubkeyAuthentication: yes'"
-    appliquer: false
-  R3:
-    status: "Non conforme -> 'PasswordAuthentication: non défini' | attendu: 'PasswordAuthentication: no'"
-    appliquer: false
-  R4:
-    status: "Conforme"
     appliquer: true
+    elements_attendus: ['Toujours valide']
+    elements_detectes: Automatiquement conforme car ubuntu 20.04 a SSH 2 de base.
+    status: "Conforme"
+  R2:
+    appliquer: false
+    elements_attendus: ['yes']
+    elements_detectes: non défini
+    status: "Non conforme -> 'PubkeyAuthentication: non défini' | attendu: 'PubkeyAuthentication: yes'"
+  R3:
+    appliquer: true
+    elements_attendus: ['no']
+    elements_detectes: no
+    status: "Conforme -> 'PasswordAuthentication: no' | attendu: 'PasswordAuthentication: no'"
+  R4:
+    appliquer: true
+    elements_attendus: ['no']
+    elements_detectes: no
+    status: "Conforme -> 'ChallengeResponseAuthentication: no' | attendu: 'ChallengeResponseAuthentication: no'"
   R5:
+    appliquer: false
+    elements_attendus: ['no']
+    elements_detectes: non défini
     status: "Non conforme -> 'PermitRootLogin: non défini' | attendu: 'PermitRootLogin: no'"
-    appliquer: false
   R6:
+    appliquer: false
+    elements_attendus: ['no']
+    elements_detectes: yes
     status: "Non conforme -> 'X11Forwarding: yes' | attendu: 'X11Forwarding: no'"
-    appliquer: false
   R7:
+    appliquer: false
+    elements_attendus: ['no']
+    elements_detectes: non défini
     status: "Non conforme -> 'AllowTcpForwarding: non défini' | attendu: 'AllowTcpForwarding: no'"
-    appliquer: false
   R8:
+    appliquer: false
+    elements_attendus: ['2']
+    elements_detectes: non défini
     status: "Non conforme -> 'MaxAuthTries: non défini' | attendu: 'MaxAuthTries: 2'"
-    appliquer: false
   R9:
+    appliquer: false
+    elements_attendus: ['no']
+    elements_detectes: non défini
     status: "Non conforme -> 'PermitEmptyPasswords: non défini' | attendu: 'PermitEmptyPasswords: no'"
-    appliquer: false
   R10:
-    status: "Non conforme -> 'LoginGraceTime: non défini' | attendu: 'LoginGraceTime: 30'"
-    appliquer: false
+    appliquer: true
+    elements_attendus: ['30']
+    elements_detectes: non défini
+    status: "Conforme -> 'LoginGraceTime: non défini' | attendu: 'LoginGraceTime: 30'"
   R11:
+    appliquer: false
+    elements_attendus: ['sandbox']
+    elements_detectes: non défini
     status: "Non conforme -> 'UsePrivilegeSeparation: non défini' | attendu: 'UsePrivilegeSeparation: sandbox'"
-    appliquer: false
   R12:
-    status: "Non conforme -> 'AllowUsers: non défini' | attendu: 'AllowUsers: '"
     appliquer: false
+    elements_attendus: ['']
+    elements_detectes: Aucun
+    status: "Non conforme -> 'AllowUsers' est vide ou non défini, il doit être renseigné."
   R13:
-    status: "Non conforme -> 'AllowGroups: non défini' | attendu: 'AllowGroups: '"
     appliquer: false
+    elements_attendus: ['']
+    elements_detectes: Aucun
+    status: "Non conforme -> 'AllowGroups' est vide ou non défini, il doit être renseigné."
   R14:
+    appliquer: false
+    elements_attendus: ['aes256-ctr,aes192-ctr,aes128-ctr']
+    elements_detectes: non défini
     status: "Non conforme -> 'Ciphers: non défini' | attendu: 'Ciphers: aes256-ctr,aes192-ctr,aes128-ctr'"
-    appliquer: false
   R15:
+    appliquer: false
+    elements_attendus: ['hmac-sha2-512,hmac-sha2-256,hmac-sha1']
+    elements_detectes: non défini
     status: "Non conforme -> 'MACs: non défini' | attendu: 'MACs: hmac-sha2-512,hmac-sha2-256,hmac-sha1'"
-    appliquer: false
   R16:
+    appliquer: false
+    elements_attendus: ['no']
+    elements_detectes: non défini
     status: "Non conforme -> 'PermitUserEnvironment: non défini' | attendu: 'PermitUserEnvironment: no'"
-    appliquer: false
   R17:
+    appliquer: false
+    elements_attendus: ['no']
+    elements_detectes: non défini
     status: "Non conforme -> 'AllowAgentForwarding: non défini' | attendu: 'AllowAgentForwarding: no'"
-    appliquer: false
   R18:
+    appliquer: false
+    elements_attendus: ['yes']
+    elements_detectes: non défini
     status: "Non conforme -> 'StrictModes: non défini' | attendu: 'StrictModes: yes'"
-    appliquer: false
   R19:
+    appliquer: false
+    elements_attendus: ['/etc/ssh/ssh_host_rsa_key']
+    elements_detectes: non défini
     status: "Non conforme -> 'HostKey: non défini' | attendu: 'HostKey: /etc/ssh/ssh_host_rsa_key'"
-    appliquer: false
   R20:
+    appliquer: false
+    elements_attendus: ['diffie-hellman-group-exchange-sha256']
+    elements_detectes: non défini
     status: "Non conforme -> 'KexAlgorithms: non défini' | attendu: 'KexAlgorithms: diffie-hellman-group-exchange-sha256'"
-    appliquer: false
   R21:
+    appliquer: false
+    elements_attendus: ['.ssh/authorized_keys']
+    elements_detectes: non défini
     status: "Non conforme -> 'AuthorizedKeysFile: non défini' | attendu: 'AuthorizedKeysFile: .ssh/authorized_keys'"
-    appliquer: false
   R22:
-    status: "Non conforme -> 'ClientAliveInterval: non défini' | attendu: 'ClientAliveInterval: 300'"
-    appliquer: false
+    appliquer: true
+    elements_attendus: ['300']
+    elements_detectes: non défini
+    status: "Conforme -> 'ClientAliveInterval: non défini' | attendu: 'ClientAliveInterval: 300'"
   R23:
+    appliquer: false
+    elements_attendus: ['0']
+    elements_detectes: non défini
     status: "Non conforme -> 'ClientAliveCountMax: non défini' | attendu: 'ClientAliveCountMax: 0'"
-    appliquer: false
   R24:
-    status: "Non conforme -> 'LoginGraceTime: non défini' | attendu: 'LoginGraceTime: 20'"
-    appliquer: false
+    appliquer: true
+    elements_attendus: ['20']
+    elements_detectes: non défini
+    status: "Conforme -> 'LoginGraceTime: non défini' | attendu: 'LoginGraceTime: 20'"
   R25:
+    appliquer: false
+    elements_attendus: ['192.168.1.1']
+    elements_detectes: non défini
     status: "Non conforme -> 'ListenAddress: non défini' | attendu: 'ListenAddress: 192.168.1.1'"
-    appliquer: false
   R26:
-    status: "Non conforme -> 'Port: non défini' | attendu: 'Port: 22'"
     appliquer: false
+    elements_attendus: ['22']
+    elements_detectes: non défini
+    status: "Non conforme -> 'Port: non défini' | attendu: 'Port: 22'"

@@ -1,5 +1,6 @@
 import yaml
 import os
+import paramiko
 
 # Charger les références depuis Reference_Min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
@@ -12,14 +13,25 @@ def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
         print(f"Erreur lors du chargement de Reference_Min.yaml : {e}")
         return {}
 
-# Comparer les résultats de l'analyse avec les références (préparé pour les niveaux futurs)
+# Exécuter une commande sur le serveur distant et récupérer la sortie
+def execute_remote_command(serveur, command, default_output="Non détecté"):
+    """Exécute une commande distante et normalise la sortie."""
+    try:
+        stdin, stdout, stderr = serveur.exec_command(command)
+        output = stdout.read().decode().strip()
+        return output if output else default_output
+    except Exception as e:
+        print(f"Erreur lors de l'exécution de la commande : {command} -> {e}")
+        return default_output
+
+# Comparer les résultats de l'analyse avec les références
 def check_compliance(rule_id, rule_value, reference_data):
     """Vérifie si une règle est conforme en la comparant avec Reference_Min.yaml."""
     expected_value = reference_data.get(rule_id, {}).get("expected", {})
 
     non_compliant_items = {}
 
-    # Comparer chaque sous-règle (utile pour les niveaux futurs)
+    # Comparer chaque sous-règle
     for key, expected in expected_value.items():
         detected = rule_value.get(key, "Non détecté")
         if detected != expected:
