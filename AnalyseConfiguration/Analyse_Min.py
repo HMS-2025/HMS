@@ -7,6 +7,7 @@ from AnalyseConfiguration.Thematiques.Reseau import analyse_reseau
 from AnalyseConfiguration.Thematiques.Maintenance import analyse_maintenance
 from AnalyseConfiguration.Thematiques.JournalisationAudit import analyse_journalisation
 from AnalyseConfiguration.Thematiques.Utilisateurs import analyse_utilisateurs
+from AnalyseConfiguration.Thematiques.Systeme import analyse_systeme
 
 # Charger les références depuis reference_min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
@@ -49,3 +50,6 @@ def analyse_min(serveur):
     
     print("\n[Analyse] Utilisateurs...")
     analyse_utilisateurs(serveur, niveau="min", reference_data=reference_data)
+
+    print("\n[Analyse] Système...")
+    analyse_systeme(serveur, niveau="min", reference_data=reference_data)
