@@ -2,7 +2,8 @@ import sys
 from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
-from ApplicationRecommandations.AppRecommandationsMin import apply_recommendationsMin
+from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
+
 
 # Fonction pour afficher le menu principal
 def afficher_menu():
@@ -105,7 +106,10 @@ def main():
                 continue
 
             # Appliquer les recommandations générales (niveau minimal)
-            apply_recommendationsMin("testRecommandationMin.yaml", client)
+            #verification d'existance des rapports yaml de chaque thematiques
+            path_report = "./GenerationRapport/RapportAnalyse/"  # Dossier contenant les rapports
+
+            #application_recommandations_min(path_report, client)
 
             # Fermer la connexion après application
             client.close()
