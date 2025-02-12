@@ -2,6 +2,58 @@ import paramiko
 import yaml
 import os
 
+# Charger les références depuis Reference_min.yaml
+def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
+    """Charge le fichier Reference_min.yaml et retourne son contenu."""
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            reference_data = yaml.safe_load(file)
+        return reference_data
+    except Exception as e:
+        print(f"Erreur lors du chargement de Reference_min.yaml : {e}")
+        return {}
+
+# Comparer les résultats de l'analyse avec les références
+def check_compliance(rule_id, rule_value, reference_data):
+    """Vérifie si une règle est conforme en la comparant avec Reference_min.yaml."""
+    expected_value = reference_data.get(rule_id, {}).get("expected", {})
+
+    non_compliant_items = {}
+
+    # Si expected_value est une liste, on vérifie les différences
+    if isinstance(expected_value, list):
+        detected_values = rule_value.get("unnecessary_packages", [])  # Assurez-vous que rule_value est une liste
+        if not isinstance(detected_values, list):
+            detected_values = []
+
+        non_compliant_items["unnecessary_packages"] = [
+            pkg for pkg in detected_values if pkg not in expected_value
+        ]
+
+        return {
+            "status": "Non conforme" if non_compliant_items["unnecessary_packages"] else "Conforme",
+            "éléments_problématiques": non_compliant_items if non_compliant_items["unnecessary_packages"] else "Aucun",
+            "éléments_attendus": expected_value,
+            "appliquer": False if non_compliant_items["unnecessary_packages"] else True
+        }
+
+    # Comparer chaque sous-règle si expected_value est un dictionnaire
+    for key, expected in expected_value.items():
+        detected = rule_value.get(key, "Non détecté")
+        if detected != expected:
+            non_compliant_items[key] = {
+                "Détecté": detected,
+                "Attendu": expected
+            }
+
+    return {
+        "status": "Non conforme" if non_compliant_items else "Conforme",
+        "éléments_problématiques": non_compliant_items if non_compliant_items else "Aucun",
+        "éléments_attendus": expected_value,
+        "appliquer": False if non_compliant_items else True
+    }
+
+# Fonction principale pour analyser la maintenance
 def analyse_maintenance(serveur, niveau="min", reference_data=None):
     """Analyse la maintenance du système et génère un rapport YAML avec conformité."""
     report = {}
