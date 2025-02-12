@@ -43,7 +43,7 @@ def analyse_moyen(serveur):
     analyse_reseau(serveur, niveau="moyen", reference_data=reference_data)
     
     print("\n[Analyse] Maintenance (niveau moyen)...")
-    analyse_maintenance(serveur, niveau="moyen", reference_data=reference_data)
+    analyse_maintenance(serveur, niveau="moyen")
     
     print("\n[Analyse] Journalisation et Audit (niveau moyen)...")
     analyse_journalisation(serveur, niveau="moyen", reference_data=reference_data)
