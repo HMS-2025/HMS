@@ -1,59 +1,7 @@
+import paramiko
 import yaml
 import os
-import paramiko
 
-# Charger les références depuis Reference_Min.yaml
-def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
-    """Charge le fichier Reference_Min.yaml et retourne son contenu."""
-    try:
-        with open(file_path, "r", encoding="utf-8") as file:
-            reference_data = yaml.safe_load(file)
-        return reference_data
-    except Exception as e:
-        print(f"Erreur lors du chargement de Reference_Min.yaml : {e}")
-        return {}
-
-# Comparer les résultats de l'analyse avec les références
-def check_compliance(rule_id, rule_value, reference_data):
-    """Vérifie si une règle est conforme en la comparant avec Reference_Min.yaml."""
-    expected_value = reference_data.get(rule_id, {}).get("expected", {})
-
-    non_compliant_items = {}
-
-    # Si expected_value est une liste, on vérifie les différences
-    if isinstance(expected_value, list):
-        detected_values = rule_value.get("unnecessary_packages", [])  # Assurez-vous que rule_value est une liste
-        if not isinstance(detected_values, list):
-            detected_values = []
-
-        non_compliant_items["unnecessary_packages"] = [
-            pkg for pkg in detected_values if pkg not in expected_value
-        ]
-
-        return {
-            "status": "Non conforme" if non_compliant_items["unnecessary_packages"] else "Conforme",
-            "éléments_problématiques": non_compliant_items if non_compliant_items["unnecessary_packages"] else "Aucun",
-            "éléments_attendus": expected_value,
-            "appliquer": False if non_compliant_items["unnecessary_packages"] else True
-        }
-
-    # Comparer chaque sous-règle si expected_value est un dictionnaire
-    for key, expected in expected_value.items():
-        detected = rule_value.get(key, "Non détecté")
-        if detected != expected:
-            non_compliant_items[key] = {
-                "Détecté": detected,
-                "Attendu": expected
-            }
-
-    return {
-        "status": "Non conforme" if non_compliant_items else "Conforme",
-        "éléments_problématiques": non_compliant_items if non_compliant_items else "Aucun",
-        "éléments_attendus": expected_value,
-        "appliquer": False if non_compliant_items else True
-    }
-
-# Fonction principale pour analyser la maintenance
 def analyse_maintenance(serveur, niveau="min", reference_data=None):
     """Analyse la maintenance du système et génère un rapport YAML avec conformité."""
     report = {}
@@ -69,9 +17,13 @@ def analyse_maintenance(serveur, niveau="min", reference_data=None):
         print("-> Vérification des dépôts de paquets de confiance (R59)")
         trusted_repositories = check_trusted_repositories(serveur)
         report["R59"] = check_compliance("R59", {"trusted_repositories": trusted_repositories}, reference_data)
-
-    # Enregistrement du rapport
-    save_yaml_report(report, "maintenance_minimal.yml")
+        save_yaml_report(report, "maintenance_minimal.yaml")
+    
+    if niveau == "moyen":
+        print("-> Vérification du mot de passe GRUB 2/GNU (R5)")
+        grub_password_status = check_grub_password(serveur)
+        report["R5"] = grub_password_status
+        save_yaml_report(report, "maintenance_intermediaire.yaml")
 
     # Calcul du taux de conformité
     total_rules = len(report)
@@ -79,6 +31,25 @@ def analyse_maintenance(serveur, niveau="min", reference_data=None):
     compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 0
 
     print(f"\nTaux de conformité du niveau minimal (Maintenance) : {compliance_percentage:.2f}%")
+    
+    return report
+
+# R5 - Vérifier qu'un mot de passe GRUB est mis en place
+def check_grub_password(serveur):
+    """Vérifie directement si un mot de passe GRUB 2 est configuré sur la machine."""
+    command_check_grub_cfg = "grep -E 'set\\s+superusers' /etc/grub.d/* /boot/grub/grub.cfg"
+    command_check_password = "grep -E 'password_pbkdf2' /etc/grub.d/* /boot/grub/grub.cfg"
+    
+    stdin, stdout, stderr = serveur.exec_command(command_check_grub_cfg)
+    superusers_output = stdout.read().decode().strip()
+    
+    stdin, stdout, stderr = serveur.exec_command(command_check_password)
+    password_output = stdout.read().decode().strip()
+    
+    if superusers_output and password_output:
+        return {"status": "Conforme", "message": "Un mot de passe GRUB 2 est bien configuré."}
+    else:
+        return {"status": "Non conforme", "message": "Aucun mot de passe GRUB 2 détecté. Veuillez le configurer."}
 
 # R58 - N’installer que les paquets strictement nécessaires
 def check_installed_packages(serveur, reference_data):
