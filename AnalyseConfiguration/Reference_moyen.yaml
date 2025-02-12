@@ -1,0 +1,89 @@
+R34:
+  description: "Désactiver les comptes de service"
+  expected:
+    disabled_service_accounts:
+      - "www-data"
+      - "named"
+      - "postgres"
+      - "mysql"
+      - "backup"
+      - "lp"
+      - "irc"
+      - "games"
+      - "nobody"
+
+R39:
+  description: "Modifier les directives de configuration sudo"
+  expected:
+    sudo_directives:
+      - "Defaults noexec"
+      - "Defaults requiretty"
+      - "Defaults use_pty"
+      - "Defaults umask=0027"
+      - "Defaults ignore_dot"
+      - "Defaults env_reset"
+
+R40:
+  description: "Utiliser des utilisateurs cibles non-privilégiés pour les commandes sudo"
+  expected:
+    non_privileged_sudo_users: true
+
+R42:
+  description: "Bannir les négations dans les spécifications sudo"
+  expected:
+    no_negation_in_sudo: true
+
+R43:
+  description: "Préciser les arguments dans les spécifications sudo"
+  expected:
+    strict_sudo_arguments: true
+
+R44:
+  description: "Éditer les fichiers de manière sécurisée avec sudo"
+  expected:
+    sudoedit_only: true
+
+R50:
+  description: "Restreindre les droits d'accès aux fichiers et répertoires sensibles"
+  expected:
+    secure_permissions:
+      - "/etc/shadow 600"
+      - "/etc/passwd 644"
+      - "/etc/group 644"
+      - "/etc/gshadow 600"
+      - "/etc/ssh/sshd_config 600"
+      - "/root/ 700"
+      - "/var/log/auth.log 640"
+      - "/var/log/syslog 640"
+      - "/var/log/secure 640"
+      - "/etc/cron.d 750"
+      - "/etc/cron.daily 750"
+      - "/etc/cron.hourly 750"
+      - "/etc/cron.monthly 750"
+      - "/etc/cron.weekly 750"
+      - "/etc/fstab 644"
+      - "/etc/securetty 600"
+      - "/etc/security/limits.conf 644"
+      - "/boot/grub/grub.cfg 600"
+R52:
+  description: "Restreindre les accès aux sockets et aux pipes nommées"
+  expected:
+    protected_sockets:
+      - "/dev/log"
+      - "/run/systemd/journal/socket"
+      - "/var/run/docker.sock"
+      - "/run/dbus/system_bus_socket"
+      - "/run/udev/control"
+      - "/var/run/mysqld/mysqld.sock"
+      - "/var/run/postgresql/.s.PGSQL.5432"
+      - "/var/run/php/php-fpm.sock"
+      - "/run/systemd/private"
+      - "/run/snapd.socket"
+      - "/run/acpid.socket"
+      - "/run/cups/cups.sock"
+      - "/var/lib/lxcfs/cgroup"
+
+R55:
+  description: "Séparer les répertoires temporaires des utilisateurs"
+  expected:
+    user_private_tmp: true

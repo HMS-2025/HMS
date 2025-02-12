@@ -1,0 +1,64 @@
+R30:
+  appliquer: false
+  rule_id: R30
+  status: Non conforme
+  éléments_attendus: []
+  éléments_detectés:
+  - ubuntu
+  - connexion
+  - co
+  - recent
+R53:
+  appliquer: true
+  rule_id: R53
+  status: Conforme
+  éléments_attendus: []
+  éléments_detectés: Aucun
+R56:
+  appliquer: false
+  rule_id: R56
+  status: Non conforme
+  éléments_attendus: []
+  éléments_detectés:
+  - /snap/core20/2434/usr/bin/chage
+  - /snap/core20/2434/usr/bin/chfn
+  - /snap/core20/2434/usr/bin/chsh
+  - /snap/core20/2434/usr/bin/expiry
+  - /snap/core20/2434/usr/bin/gpasswd
+  - /snap/core20/2434/usr/bin/mount
+  - /snap/core20/2434/usr/bin/newgrp
+  - /snap/core20/2434/usr/bin/passwd
+  - /snap/core20/2434/usr/bin/ssh-agent
+  - /snap/core20/2434/usr/bin/su
+  - /snap/core20/2434/usr/bin/sudo
+  - /snap/core20/2434/usr/bin/umount
+  - /snap/core20/2434/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+  - /snap/core20/2434/usr/lib/openssh/ssh-keysign
+  - /snap/core20/2434/usr/sbin/pam_extrausers_chkpwd
+  - /snap/core20/2434/usr/sbin/unix_chkpwd
+  - /snap/snapd/23545/usr/lib/snapd/snap-confine
+  - /usr/lib/policykit-1/polkit-agent-helper-1
+  - /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+  - /usr/lib/snapd/snap-confine
+  - /usr/lib/x86_64-linux-gnu/utempter/utempter
+  - /usr/lib/openssh/ssh-keysign
+  - /usr/lib/eject/dmcrypt-get-device
+  - /usr/bin/chfn
+  - /usr/bin/ssh-agent
+  - /usr/bin/sudo
+  - /usr/bin/umount
+  - /usr/bin/expiry
+  - /usr/bin/mount
+  - /usr/bin/bsd-write
+  - /usr/bin/su
+  - /usr/bin/chage
+  - /usr/bin/pkexec
+  - /usr/bin/newgrp
+  - /usr/bin/passwd
+  - /usr/bin/at
+  - /usr/bin/chsh
+  - /usr/bin/crontab
+  - /usr/bin/fusermount
+  - /usr/bin/gpasswd
+  - /usr/sbin/pam_extrausers_chkpwd
+  - /usr/sbin/unix_chkpwd
