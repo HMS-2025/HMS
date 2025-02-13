@@ -4,10 +4,10 @@ R30:
   status: Non conforme
   éléments_attendus: []
   éléments_detectés:
-  - ubuntu
-  - connexion
-  - co
   - recent
+  - connexion
+  - ubuntu
+  - co
 R53:
   appliquer: true
   rule_id: R53

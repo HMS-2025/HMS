@@ -105,7 +105,7 @@ def check_grub_password(serveur):
 
 # R58 - N’installer que les paquets strictement nécessaires
 def check_installed_packages(serveur, reference_data):
-    """Récupère la liste des paquets installés et identifie ceux qui sont non nécessaires en fonction de Reference_Min.yaml."""
+    """Récupère la liste des paquets installés et identifie ceux qui sont non nécessaires en fonction de Reference_min.yaml."""
     expected_packages = reference_data.get("R58", {}).get("expected", [])
 
     command = "dpkg --get-selections | grep -v deinstall"

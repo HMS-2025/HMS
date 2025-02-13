@@ -9,21 +9,21 @@ from AnalyseConfiguration.Thematiques.JournalisationAudit import analyse_journal
 from AnalyseConfiguration.Thematiques.Utilisateurs import analyse_utilisateurs
 from AnalyseConfiguration.Thematiques.Systeme import analyse_systeme
 
-# Charger les références depuis reference_min.yaml
-def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
-    """Charge le fichier reference_min.yaml et retourne son contenu."""
+# Charger les références depuis Reference_min.yaml
+def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
+    """Charge le fichier Reference_min.yaml et retourne son contenu."""
     try:
         with open(file_path, "r") as file:
             reference_data = yaml.safe_load(file)
         return reference_data
     except Exception as e:
         # to
-        print(f"Erreur lors du chargement de Reference_Min.yaml : {e}")
+        print(f"Erreur lors du chargement de Reference_min.yaml : {e}")
         return {}
 
 # Analyse du niveau minimal avec conformité
 def analyse_min(serveur):
-    """Exécute toutes les analyses du niveau minimal en utilisant Reference_Min.yaml."""
+    """Exécute toutes les analyses du niveau minimal en utilisant Reference_min.yaml."""
     
     # Charger les données de référence pour la conformité
     reference_data = load_reference_yaml()

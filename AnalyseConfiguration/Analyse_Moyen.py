@@ -9,20 +9,20 @@ from AnalyseConfiguration.Thematiques.JournalisationAudit import analyse_journal
 from AnalyseConfiguration.Thematiques.Utilisateurs import analyse_utilisateurs
 from AnalyseConfiguration.Thematiques.Systeme import analyse_systeme
 
-# Charger les références depuis reference_moyen.yaml
-def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Moyen.yaml"):
-    """Charge le fichier reference_moyen.yaml et retourne son contenu."""
+# Charger les références depuis Reference_moyen.yaml
+def load_reference_yaml(file_path="AnalyseConfiguration/Reference_moyen.yaml"):
+    """Charge le fichier Reference_moyen.yaml et retourne son contenu."""
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data
     except Exception as e:
-        print(f"Erreur lors du chargement de Reference_Moyen.yaml : {e}")
+        print(f"Erreur lors du chargement de Reference_moyen.yaml : {e}")
         return {}
 
 # Analyse du niveau moyen avec conformité
 def analyse_moyen(serveur):
-    """Exécute toutes les analyses du niveau moyen en utilisant Reference_Moyen.yaml."""
+    """Exécute toutes les analyses du niveau moyen en utilisant Reference_moyen.yaml."""
     
     # Charger les données de référence pour la conformité
     reference_data = load_reference_yaml()

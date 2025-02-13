@@ -2,20 +2,20 @@ import paramiko
 import yaml
 import os
 
-# Charger les références depuis Reference_Min.yaml
-def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
-    """Charge le fichier Reference_Min.yaml et retourne son contenu."""
+# Charger les références depuis Reference_min.yaml
+def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
+    """Charge le fichier Reference_min.yaml et retourne son contenu."""
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data or {}
     except Exception as e:
-        print(f"Erreur lors du chargement de Reference_Min.yaml : {e}")
+        print(f"Erreur lors du chargement de Reference_min.yaml : {e}")
         return {}
 
 # Comparer les résultats de l'analyse avec les références
 def check_compliance(rule_id, rule_value, reference_data):
-    """Vérifie si une règle est conforme en la comparant avec Reference_Min.yaml."""
+    """Vérifie si une règle est conforme en la comparant avec Reference_min.yaml."""
     expected_value = reference_data.get(rule_id, {}).get("expected", {})
 
     non_compliant_items = {}
@@ -77,53 +77,46 @@ def get_check_auto_updates(serveur):
 
     # Vérifier si `unattended-upgrades` est installé
     command_unattended_installed = "dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null"
-    installed_status = execute_remote_command(
-        serveur, command_unattended_installed, "install ok installed", "Non installé"
-    )
+    stdin, stdout, stderr = serveur.exec_command(command_unattended_installed)
+    installed_status = stdout.read().decode().strip()
 
     # Vérifier si `unattended-upgrades` est activé au démarrage
     command_unattended_enabled = "systemctl is-enabled unattended-upgrades 2>/dev/null"
-    enabled_status = execute_remote_command(
-        serveur, command_unattended_enabled, "enabled", "Désactivé"
-    )
+    stdin, stdout, stderr = serveur.exec_command(command_unattended_enabled)
+    enabled_status = stdout.read().decode().strip()
 
     # Vérifier si `unattended-upgrades` est actuellement actif
     command_unattended_active = "systemctl is-active unattended-upgrades 2>/dev/null"
-    active_status = execute_remote_command(
-        serveur, command_unattended_active, "active", "Inactif"
-    )
+    stdin, stdout, stderr = serveur.exec_command(command_unattended_active)
+    active_status = stdout.read().decode().strip()
+
+    # Vérifier la vraie activation via le fichier de configuration
+    command_check_conf = "grep -E '^APT::Periodic::Unattended-Upgrade' /etc/apt/apt.conf.d/20auto-upgrades 2>/dev/null | grep -q '1' && echo 'enabled' || echo 'disabled'"
+    stdin, stdout, stderr = serveur.exec_command(command_check_conf)
+    config_status = stdout.read().decode().strip()
 
     # Regrouper les statuts sous une seule clé
-    update_status["Unattended Upgrades"] = f"{installed_status} | {enabled_status} | {active_status}"
+    update_status["Unattended Upgrades"] = f"{installed_status} | {enabled_status} | {active_status} | {config_status}"
 
-    # Vérifier la présence de tâches cron pour les mises à jour
+     # Vérifier la présence de tâches cron pour les mises à jour (utilisateur root)
     command_cron = "sudo crontab -l 2>/dev/null | grep -E 'apt-get upgrade|apt upgrade' || echo 'Aucune tâche cron détectée'"
-    update_status["Cron Updates"] = execute_remote_command(serveur, command_cron, "Présent", "Aucune tâche cron détectée")
+    stdin, stdout, stderr = serveur.exec_command(command_cron)
+    output = stdout.read().decode().strip()
+    update_status["Cron Updates"] = "apt update && apt upgrade -y" if "apt update && apt upgrade -y" in output else "Aucune tâche cron détectée"
 
-    # Vérifier les tâches cron système
-    command_cron_scripts = "ls -1 /etc/cron.daily/ /etc/cron.weekly/ /etc/cron.monthly/ 2>/dev/null | grep -E 'apt|unattended-upgrades'"
-    update_status["Cron Scripts"] = execute_remote_command(serveur, command_cron_scripts, "Présent", "Aucun script de mise à jour détecté")
+    # Vérifier la présence du script cron `apt-compat` dans `/etc/cron.daily/`
+    command_cron_scripts = "ls -1 /etc/cron.daily/ 2>/dev/null | grep -E '^apt-compat$' || echo 'Aucun script de mise à jour détecté'"
+    stdin, stdout, stderr = serveur.exec_command(command_cron_scripts)
+    output = stdout.read().decode().strip()
+    update_status["Cron Scripts"] = "apt-compat" if "apt-compat" in output else "Aucun script de mise à jour détecté"
 
     # Vérifier si un timer systemd est configuré pour les mises à jour
     command_systemd_timer = "systemctl list-timers --all | grep -E 'apt-daily|apt-daily-upgrade'"
-    update_status["Systemd Timer"] = execute_remote_command(serveur, command_systemd_timer, "apt-daily.timer", "Aucun timer systemd détecté")
-
-    # Vérifier si `dnf-automatic` est activé (pour Fedora, RHEL, CentOS)
-    command_dnf = "systemctl is-enabled dnf-automatic 2>/dev/null"
-    update_status["DNF Automatic"] = execute_remote_command(serveur, command_dnf, "activé", "dnf-automatic non activé")
+    stdin, stdout, stderr = serveur.exec_command(command_systemd_timer)
+    output = stdout.read().decode().strip()
+    update_status["Systemd Timer"] = "apt-daily.timer" if "apt-daily" in output else "Aucun timer systemd détecté"
 
     return update_status
-
-# Exécute une commande sur le serveur distant et retourne un état standardisé
-def execute_remote_command(serveur, command, expected_output, default_output):
-    """Exécute une commande distante et normalise la sortie."""
-    try:
-        stdin, stdout, stderr = serveur.exec_command(command)
-        output = stdout.read().decode().strip()
-        return expected_output if expected_output in output else output if output else default_output
-    except Exception as e:
-        print(f"Erreur lors de l'exécution de la commande : {command} -> {e}")
-        return default_output
 
 # Fonction d'enregistrement des rapports
 def save_yaml_report(data, output_file):

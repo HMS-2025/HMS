@@ -1,5 +1,5 @@
 R34:
-  description: "Désactiver les comptes de service"
+  description: "Désactiver les comptes de service (liste de référence non exhaustive)"
   expected:
     disabled_service_accounts:
       - "www-data"
@@ -11,6 +11,11 @@ R34:
       - "irc"
       - "games"
       - "nobody"
+      - "mail"
+      - "systemd-network"
+      - "proxy"
+      - "tcpdump"
+      - "syslog"
 
 R39:
   description: "Modifier les directives de configuration sudo"
@@ -25,8 +30,8 @@ R39:
 
 R40:
   description: "Utiliser des utilisateurs cibles non-privilégiés pour les commandes sudo"
-  expected:
-    non_privileged_sudo_users: true
+  expected: []
+
 
 R42:
   description: "Bannir les négations dans les spécifications sudo"

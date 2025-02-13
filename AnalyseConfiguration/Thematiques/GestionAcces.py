@@ -2,15 +2,16 @@ import yaml
 import os
 import paramiko
 
-# Charger les références depuis Reference_Min.yaml
-def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
-    """Charge le fichier Reference_Min.yaml et retourne son contenu."""
+# Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
+def load_reference_yaml(niveau):
+    """Charge le fichier de référence correspondant au niveau choisi (min ou moyen)."""
+    file_path = f"AnalyseConfiguration/Reference_{niveau}.yaml"
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data or {}
     except Exception as e:
-        print(f"Erreur lors du chargement de Reference_Min.yaml : {e}")
+        print(f"Erreur lors du chargement de {file_path} : {e}")
         return {}
 
 # Vérification de conformité adaptée pour chaque règle
@@ -22,33 +23,22 @@ def check_compliance(rule_id, rule_value, reference_data):
         expected_value = []
 
     compliance_result = {
+        "rule_id": rule_id,
         "status": "Conforme" if not rule_value else "Non conforme",
         "appliquer": False if rule_value else True,
+        "éléments_detectés": rule_value if rule_value else "Aucun",
+        "éléments_attendus": expected_value
     }
-
-    # Adaptation des clés selon la règle
-    if rule_id == "R30":
-        compliance_result["comptes_inactifs_detectes"] = rule_value if rule_value else "Aucun"
-        compliance_result["comptes_attendus"] = expected_value
-    elif rule_id == "R53":
-        compliance_result["fichiers_orphelins_detectes"] = rule_value if rule_value else "Aucun"
-        compliance_result["fichiers_attendus"] = expected_value
-    elif rule_id == "R56":
-        compliance_result["fichiers_suid_sgid_detectes"] = rule_value if rule_value else "Aucun"
-        compliance_result["fichiers_attendus"] = expected_value
-    else:
-        compliance_result["elements_detectes"] = rule_value if rule_value else "Aucun"
-        compliance_result["elements_attendus"] = expected_value
 
     return compliance_result
 
 # Fonction principale pour analyser la gestion des accès
-def analyse_gestion_acces(serveur, niveau="min", reference_data=None):
+def analyse_gestion_acces(serveur, niveau, reference_data=None):
     """Analyse la gestion des accès et génère un rapport YAML avec conformité."""
     report = {}
 
     if reference_data is None:
-        reference_data = load_reference_yaml()
+        reference_data = load_reference_yaml(niveau)
 
     if niveau == "min":
         print("-> Vérification de la désactivation des comptes inutilisés (R30)")
@@ -63,23 +53,52 @@ def analyse_gestion_acces(serveur, niveau="min", reference_data=None):
         setuid_sgid_files = find_files_with_setuid_setgid(serveur)
         report["R56"] = check_compliance("R56", setuid_sgid_files, reference_data)
 
+    elif niveau == "moyen":
+        print("-> Vérification de la désactivation des comptes de service (R34)")
+        service_accounts = get_service_accounts(serveur)
+        report["R34"] = check_compliance("R34", service_accounts, reference_data)
+
+        print("-> Vérification des directives sudo (R39)")
+        sudo_directives = get_sudo_directives(serveur)
+        report["R39"] = check_compliance("R39", sudo_directives, reference_data)
+
+        print("-> Vérification des utilisateurs cibles non-privilégiés pour sudo (R40)")
+        non_privileged_users = get_non_privileged_sudo_users(serveur)
+        report["R40"] = check_compliance("R40", non_privileged_users, reference_data)
+
+        print("-> Vérification des négations dans sudoers (R42)")
+        negation_in_sudo = get_negation_in_sudoers(serveur)
+        report["R42"] = check_compliance("R42", negation_in_sudo, reference_data)
+
+        print("-> Vérification de la précision des arguments dans sudoers (R43)")
+        strict_sudo_arguments = get_strict_sudo_arguments(serveur)
+        report["R43"] = check_compliance("R43", strict_sudo_arguments, reference_data)
+
+        print("-> Vérification de l'utilisation de sudoedit (R44)")
+        sudoedit_usage = get_sudoedit_usage(serveur)
+        report["R44"] = check_compliance("R44", sudoedit_usage, reference_data)
+
+        print("-> Vérification des droits d'accès aux fichiers sensibles (R50)")
+        secure_permissions = get_secure_permissions(serveur)
+        report["R50"] = check_compliance("R50", secure_permissions, reference_data)
+
+        print("-> Vérification des accès aux sockets et pipes nommées (R52)")
+        protected_sockets = get_protected_sockets(serveur)
+        report["R52"] = check_compliance("R52", protected_sockets, reference_data)
+
+        print("-> Vérification de la séparation des répertoires temporaires (R55)")
+        user_private_tmp = get_user_private_tmp(serveur)
+        report["R55"] = check_compliance("R55", user_private_tmp, reference_data)
+
     # Enregistrement du rapport
-    save_yaml_report(report, "gestion_acces_minimal.yml")
+    save_yaml_report(report, f"gestion_acces_{niveau}.yml")
 
     # Calcul du taux de conformité
     total_rules = len(report)
     conforming_rules = sum(1 for result in report.values() if result["status"] == "Conforme")
     compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 0
 
-    # Affichage des résultats
-    print("\n[Résultats de la conformité]")
-    for rule, status in report.items():
-        print(f"- {rule}: {status['status']}")
-        if status["status"] == "Non conforme":
-            print(f"  -> Éléments problématiques : {status.get('comptes_inactifs_detectes', 'Aucun')}")
-            print(f"  -> Éléments attendus : {status.get('comptes_attendus', 'Aucun')}")
-
-    print(f"\nTaux de conformité du niveau minimal (Gestion des accès) : {compliance_percentage:.2f}%")
+    print(f"\nTaux de conformité du niveau {niveau.upper()} (Gestion des accès) : {compliance_percentage:.2f}%")
 
 # R30 - Désactiver les comptes utilisateur inutilisés
 def get_standard_users(serveur):
@@ -90,7 +109,7 @@ def get_standard_users(serveur):
 
 def get_recent_users(serveur):
     """Récupère les utilisateurs ayant une connexion récente (moins de 60 jours) sur le serveur distant."""
-    command = "lastlog -b 60 | awk 'NR>1 {print $1}' | sort | uniq"
+    command = "last -s -60days -F | awk '{print $1}' | grep -v 'wtmp' | sort | uniq"
     stdin, stdout, stderr = serveur.exec_command(command)
     return set(filter(None, stdout.read().decode().strip().split("\n")))
 
@@ -129,6 +148,91 @@ def find_files_with_setuid_setgid(serveur):
     except Exception as e:
         print(f"Erreur lors de la récupération des fichiers setuid/setgid : {e}")
         return []
+    
+# Fonctions pour récupérer les données des règles de niveau moyen
+
+# R34 - Désactiver les comptes de service
+def get_service_accounts(serveur):
+    """Récupère la liste des comptes de service actifs."""
+    command = "awk -F: '($3 < 1000) && ($1 != \"root\") {print $1}' /etc/passwd"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return list(filter(None, stdout.read().decode().strip().split("\n")))
+
+# R39 - Modifier les directives de configuration sudo
+def get_sudo_directives(serveur, reference_data):
+    """Vérifie si les directives sudo sont conformes aux recommandations ANSSI en comparant avec Reference_Moyen.yaml."""
+    
+    # Récupérer la liste des directives attendues depuis Reference_moyen.yaml
+    required_directives = set(reference_data.get("R39", {}).get("expected", []))
+
+    # Commande pour récupérer les directives 'Defaults' dans /etc/sudoers
+    command = "grep -E '^Defaults' /etc/sudoers"
+    stdin, stdout, stderr = serveur.exec_command(command)
+
+    # Récupérer les directives détectées
+    detected_directives = set(filter(None, stdout.read().decode().strip().split("\n")))
+
+    return {
+        "présentes": list(detected_directives),
+        "manquantes": list(required_directives - detected_directives)
+    }
+
+# R40 - Utiliser des utilisateurs cibles non-privilégiés pour les commandes sudo
+def get_non_privileged_sudo_users(serveur):
+    """Vérifie si des utilisateurs ont des privilèges sudo sans restriction (ALL=(ALL) ou ALL=(ALL:ALL))."""
+    command = "grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\\(ALL.*\\)' | grep -Ev '(NOPASSWD|%sudo|root)' | awk '{for (i=1; i<NF; i++) if ($i ~ /^ALL=\\(ALL(:ALL)?\\)$/) break; else print $i}'"
+    
+    stdin, stdout, stderr = serveur.exec_command(command)
+    
+    # Liste des utilisateurs détectés ayant accès root via sudo
+    privileged_users = list(filter(None, stdout.read().decode().strip().split("\n")))
+
+    return privileged_users  # Renvoie une liste des utilisateurs problématiques
+
+
+
+# a partir de R42 j'ai pas vérifié encore-------------------------------------------
+# R42 - Bannir les négations dans les spécifications sudo
+def get_negation_in_sudoers(serveur):
+    """Recherche les négations dans sudoers."""
+    command = "grep -E '!' /etc/sudoers"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return stdout.read().decode().strip()
+
+# R43 - Préciser les arguments dans les spécifications sudo
+def get_strict_sudo_arguments(serveur):
+    """Vérifie si les règles sudo précisent bien les arguments autorisés."""
+    command = "grep -E 'ALL=' /etc/sudoers | grep -E '\\*'"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return stdout.read().decode().strip()
+
+# R44 - Éditer les fichiers de manière sécurisée avec sudo
+def get_sudoedit_usage(serveur):
+    """Vérifie si sudoedit est utilisé pour l'édition sécurisée des fichiers."""
+    command = "grep -E 'ALL=.*vi|ALL=.*nano' /etc/sudoers"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return stdout.read().decode().strip()
+
+# R50 - Restreindre les droits d’accès aux fichiers et aux répertoires sensibles
+def get_secure_permissions(serveur):
+    """Vérifie les permissions des fichiers sensibles."""
+    command = "stat -c '%a %n' /etc/shadow /etc/passwd /etc/group /etc/gshadow /etc/ssh/sshd_config"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return stdout.read().decode().strip().split("\n")
+
+# R52 - Restreindre les accès aux sockets et aux pipes nommées
+def get_protected_sockets(serveur):
+    """Récupère la liste des sockets et pipes nommées protégées."""
+    command = "ss -xp"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return stdout.read().decode().strip().split("\n")
+
+# R55 - Séparer les répertoires temporaires des utilisateurs
+def get_user_private_tmp(serveur):
+    """Vérifie la séparation des répertoires temporaires des utilisateurs."""
+    command = "mount | grep '/tmp'"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return stdout.read().decode().strip()
 
 # Fonction d'enregistrement des rapports
 def save_yaml_report(data, output_file):

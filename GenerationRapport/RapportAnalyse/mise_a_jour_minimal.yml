@@ -1,25 +1,14 @@
 R61:
-  appliquer: false
-  status: Non conforme
+  appliquer: true
+  status: Conforme
   éléments_attendus:
-    Cron Scripts: Présent
-    Cron Updates: Présent
-    DNF Automatic: activé
+    Cron Scripts: apt-compat
+    Cron Updates: apt update && apt upgrade -y
     Systemd Timer: apt-daily.timer
-    Unattended Upgrades: install ok installed | enabled | active
+    Unattended Upgrades: install ok installed | enabled | active | enabled
   éléments_détectés:
     Cron Scripts: apt-compat
-    Cron Updates: Aucune tâche cron détectée
-    DNF Automatic: dnf-automatic non activé
+    Cron Updates: apt update && apt upgrade -y
     Systemd Timer: apt-daily.timer
-    Unattended Upgrades: install ok installed | enabled | active
-  éléments_problématiques:
-    Cron Scripts:
-      Attendu: Présent
-      Détecté: apt-compat
-    Cron Updates:
-      Attendu: Présent
-      Détecté: Aucune tâche cron détectée
-    DNF Automatic:
-      Attendu: activé
-      Détecté: dnf-automatic non activé
+    Unattended Upgrades: install ok installed | enabled | active | enabled
+  éléments_problématiques: Aucun
