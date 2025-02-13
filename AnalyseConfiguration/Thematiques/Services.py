@@ -67,9 +67,8 @@ def analyse_services(serveur, niveau="min", reference_data=None):
         print("-> Vérification des services non nécessaires (R62)")
         active_services = get_active_services(serveur)
         compliance_results["R62"] = check_compliance("R62", active_services, reference_data)
-
-    report["R62"] = compliance_results["R62"]
-    save_yaml_report(report, "services_minimal.yml")
+        report["R62"] = compliance_results["R62"]
+        save_yaml_report(report, "services_minimal.yml")
 
     total_rules = len(compliance_results)
     conforming_rules = sum(1 for result in compliance_results.values()
