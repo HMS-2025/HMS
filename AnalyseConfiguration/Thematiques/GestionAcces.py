@@ -79,11 +79,11 @@ def analyse_gestion_acces(serveur, niveau, reference_data=None):
         report["R44"] = check_compliance("R44", sudoedit_usage, reference_data)
 
         print("-> Vérification des droits d'accès aux fichiers sensibles (R50)")
-        secure_permissions = get_secure_permissions(serveur)
+        secure_permissions = get_secure_permissions(serveur,reference_data)
         report["R50"] = check_compliance("R50", secure_permissions, reference_data)
 
         print("-> Vérification des accès aux sockets et pipes nommées (R52)")
-        protected_sockets = get_protected_sockets(serveur)
+        protected_sockets = get_protected_sockets(serveur, reference_data)
         report["R52"] = check_compliance("R52", protected_sockets, reference_data)
 
         print("-> Vérification de la séparation des répertoires temporaires (R55)")
@@ -156,83 +156,208 @@ def get_service_accounts(serveur):
     """Récupère la liste des comptes de service actifs."""
     command = "awk -F: '($3 < 1000) && ($1 != \"root\") {print $1}' /etc/passwd"
     stdin, stdout, stderr = serveur.exec_command(command)
-    return list(filter(None, stdout.read().decode().strip().split("\n")))
+    service_accounts = list(filter(None, stdout.read().decode().strip().split("\n")))
+
+    return service_accounts  # Retourne la liste complète des comptes détectés
+
 
 # R39 - Modifier les directives de configuration sudo
 def get_sudo_directives(serveur, reference_data):
     """Vérifie si les directives sudo sont conformes aux recommandations ANSSI en comparant avec Reference_Moyen.yaml."""
     
-    # Récupérer la liste des directives attendues depuis Reference_moyen.yaml
+    # Récupérer les directives attendues depuis Reference_moyen.yaml
     required_directives = set(reference_data.get("R39", {}).get("expected", []))
 
     # Commande pour récupérer les directives 'Defaults' dans /etc/sudoers
-    command = "grep -E '^Defaults' /etc/sudoers"
+    command = "sudo grep -E '^Defaults' /etc/sudoers"
     stdin, stdout, stderr = serveur.exec_command(command)
-
-    # Récupérer les directives détectées
     detected_directives = set(filter(None, stdout.read().decode().strip().split("\n")))
 
     return {
-        "présentes": list(detected_directives),
-        "manquantes": list(required_directives - detected_directives)
+        "présentes": list(detected_directives)
     }
+
 
 # R40 - Utiliser des utilisateurs cibles non-privilégiés pour les commandes sudo
 def get_non_privileged_sudo_users(serveur):
     """Vérifie si des utilisateurs ont des privilèges sudo sans restriction (ALL=(ALL) ou ALL=(ALL:ALL))."""
-    command = "grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\\(ALL.*\\)' | grep -Ev '(NOPASSWD|%sudo|root)' | awk '{for (i=1; i<NF; i++) if ($i ~ /^ALL=\\(ALL(:ALL)?\\)$/) break; else print $i}'"
-    
+    command = "sudo grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\\(ALL.*\\)' | grep -Ev '(NOPASSWD|%sudo|root)' | awk '{for (i=1; i<NF; i++) if ($i ~ /^ALL=\\(ALL(:ALL)?\\)$/) break; else print $i}'"
     stdin, stdout, stderr = serveur.exec_command(command)
     
-    # Liste des utilisateurs détectés ayant accès root via sudo
     privileged_users = list(filter(None, stdout.read().decode().strip().split("\n")))
 
-    return privileged_users  # Renvoie une liste des utilisateurs problématiques
+    return privileged_users
 
 
-
-# a partir de R42 j'ai pas vérifié encore-------------------------------------------
 # R42 - Bannir les négations dans les spécifications sudo
 def get_negation_in_sudoers(serveur):
-    """Recherche les négations dans sudoers."""
-    command = "grep -E '!' /etc/sudoers"
+    """Recherche les négations dans sudoers et renvoie une liste des lignes concernées."""
+    command = "sudo grep -E '!' /etc/sudoers"
     stdin, stdout, stderr = serveur.exec_command(command)
-    return stdout.read().decode().strip()
+
+    negation_lines = list(filter(None, stdout.read().decode().strip().split("\n")))
+
+    return negation_lines  # Retourne une liste vide si aucune négation n'est détectée
+
 
 # R43 - Préciser les arguments dans les spécifications sudo
 def get_strict_sudo_arguments(serveur):
-    """Vérifie si les règles sudo précisent bien les arguments autorisés."""
-    command = "grep -E 'ALL=' /etc/sudoers | grep -E '\\*'"
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return stdout.read().decode().strip()
+    """Vérifie si les règles sudo précisent bien les arguments autorisés et évitent l'usage de wildcard *."""
+
+    # Détecter les règles utilisant un wildcard `*` dans les commandes autorisées
+    command_wildcard = "sudo grep -E 'ALL=' /etc/sudoers | grep -E '\\*'"
+
+    # Détecter les règles où les arguments ne sont pas spécifiés après une commande
+    command_no_arguments = "sudo grep -E 'ALL=' /etc/sudoers | grep -E 'ALL=[^(]*$'"
+
+    # Détecter les règles incorrectes (mauvaise spécification des arguments)
+    command_incorrect_args = (
+        "sudo grep -E 'ALL=' /etc/sudoers | "
+        "grep -E 'ALL=\\([^)]*\\)[[:space:]]*/[^[:space:]]+[[:space:]]*($|[^\"].*$)' | "
+        "grep -Ev '\"\"$|\" [^ ]+\"$'"
+    )
+
+    # Exécuter les commandes sur le serveur
+    stdin, stdout, stderr = serveur.exec_command(command_wildcard)
+    wildcard_issues = set(filter(None, stdout.read().decode().strip().split("\n")))
+
+    stdin, stdout, stderr = serveur.exec_command(command_no_arguments)
+    no_argument_issues = set(filter(None, stdout.read().decode().strip().split("\n")))
+
+    stdin, stdout, stderr = serveur.exec_command(command_incorrect_args)
+    incorrect_argument_issues = set(filter(None, stdout.read().decode().strip().split("\n")))
+
+    # Fusionner les résultats en supprimant les doublons
+    non_compliant_rules = sorted(wildcard_issues | no_argument_issues | incorrect_argument_issues)
+
+    return non_compliant_rules  # Retourne une liste vide si aucune règle non conforme n'est détectée
 
 # R44 - Éditer les fichiers de manière sécurisée avec sudo
 def get_sudoedit_usage(serveur):
-    """Vérifie si sudoedit est utilisé pour l'édition sécurisée des fichiers."""
-    command = "grep -E 'ALL=.*vi|ALL=.*nano' /etc/sudoers"
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return stdout.read().decode().strip()
+    """Vérifie si sudoedit est utilisé et si aucun éditeur interdit (vi, nano, etc.) n'est présent dans sudoers."""
+
+    # Vérifier si sudoedit est bien utilisé (bonnes pratiques)
+    command_sudoedit = "sudo grep -E 'ALL=.*sudoedit' /etc/sudoers"
+    stdin, stdout, stderr = serveur.exec_command(command_sudoedit)
+    sudoedit_rules = list(filter(None, stdout.read().decode().strip().split("\n")))
+
+    # Vérifier si des éditeurs interdits sont présents (vi, nano, etc.)
+    command_bad_editors = "sudo grep -E 'ALL=.*(vi|nano|vim|emacs)' /etc/sudoers"
+    stdin, stdout, stderr = serveur.exec_command(command_bad_editors)
+    bad_editor_rules = list(filter(None, stdout.read().decode().strip().split("\n")))
+
+    # Si sudoedit est présent et aucun éditeur interdit n'est trouvé, alors c'est conforme
+    if sudoedit_rules and not bad_editor_rules:
+        return []  # Conforme, donc retourne une liste vide
+
+    # Si sudoedit est absent, on ajoute un message expliquant la non-conformité
+    if not sudoedit_rules:
+        bad_editor_rules.append("sudoedit non trouvé dans /etc/sudoers")
+
+    return bad_editor_rules  # Retourne uniquement les problèmes détectés
+
 
 # R50 - Restreindre les droits d’accès aux fichiers et aux répertoires sensibles
-def get_secure_permissions(serveur):
-    """Vérifie les permissions des fichiers sensibles."""
-    command = "stat -c '%a %n' /etc/shadow /etc/passwd /etc/group /etc/gshadow /etc/ssh/sshd_config"
+def get_secure_permissions(serveur, reference_data):
+    """Vérifie les permissions des fichiers sensibles et retourne les fichiers non conformes."""
+
+    # Charger les permissions attendues depuis Reference_Moyen.yaml
+    expected_permissions = reference_data.get("R50", {}).get("expected", {}).get("secure_permissions", [])
+
+    # Transformer la liste en dictionnaire pour une comparaison facile
+    expected_dict = {entry.split(" ")[0]: entry.split(" ")[1] for entry in expected_permissions}
+
+    # Liste des fichiers à vérifier
+    files_to_check = list(expected_dict.keys())
+
+    # Exécuter la commande `stat` pour obtenir les permissions des fichiers
+    command = f"sudo stat -c '%a %n' {' '.join(files_to_check)} 2>/dev/null"
     stdin, stdout, stderr = serveur.exec_command(command)
-    return stdout.read().decode().strip().split("\n")
+    output = stdout.read().decode().strip().split("\n")
+
+    # Reformater la sortie pour correspondre au format attendu (fichier permission)
+    detected_permissions = {line.split(" ")[1]: line.split(" ")[0] for line in output if line}
+
+    # Vérifier la conformité des permissions
+    non_compliant = [
+        f"{file} {detected_permissions[file]}"
+        for file in detected_permissions
+        if detected_permissions[file] != expected_dict.get(file, "")
+    ]
+
+    return non_compliant if non_compliant else []  # Retourne une liste des fichiers non conformes, ou vide si conforme
+
 
 # R52 - Restreindre les accès aux sockets et aux pipes nommées
-def get_protected_sockets(serveur):
-    """Récupère la liste des sockets et pipes nommées protégées."""
-    command = "ss -xp"
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return stdout.read().decode().strip().split("\n")
+def get_protected_sockets(serveur, reference_data):
+    """Vérifie que les sockets et pipes nommées sont bien protégées avec les permissions appropriées."""
+
+    # Charger les sockets attendues depuis Reference_Moyen.yaml
+    expected_sockets = set(reference_data.get("R52", {}).get("expected", {}).get("protected_sockets", []))
+
+    # Exécuter la commande `ss -xp` pour lister les sockets UNIX détectées sur la machine
+    command_list_sockets = "sudo ss -xp | awk '{print $5}' | cut -d':' -f1 | sort -u"
+    stdin, stdout, stderr = serveur.exec_command(command_list_sockets)
+    detected_sockets = set(filter(None, stdout.read().decode().strip().split("\n")))
+
+    # Conserver uniquement les sockets attendues **qui existent réellement** sur le système
+    relevant_sockets = expected_sockets.intersection(detected_sockets)
+
+    # Vérifier les permissions des sockets détectées
+    if relevant_sockets:
+        command_check_permissions = f"sudo ls -l {' '.join(relevant_sockets)} 2>/dev/null"
+        stdin, stdout, stderr = serveur.exec_command(command_check_permissions)
+        socket_permissions = stdout.read().decode().strip().split("\n")
+    else:
+        socket_permissions = []
+
+    # Reformater la sortie pour avoir `{socket: permissions}`
+    detected_permissions = {line.split()[-1]: line.split()[0] for line in socket_permissions if line}
+
+    # Vérifier la conformité des permissions (ne doivent pas être 777 ou 666)
+    non_compliant_sockets = [
+        f"{socket} - permissions incorrectes: {detected_permissions.get(socket, 'Absente')}"
+        for socket in relevant_sockets
+        if detected_permissions.get(socket, "").startswith(("srwxrwxrwx", "srw-rw-rw-"))  # Trop permissif
+    ]
+
+    # Ajouter les sockets détectées mais absentes de la liste de référence
+    unexpected_sockets = detected_sockets - expected_sockets
+    if unexpected_sockets:
+        non_compliant_sockets.append(f"Sockets non référencées détectées: {', '.join(unexpected_sockets)}")
+
+    return non_compliant_sockets if non_compliant_sockets else []  # Liste des sockets non conformes ou vide si tout est OK
 
 # R55 - Séparer les répertoires temporaires des utilisateurs
 def get_user_private_tmp(serveur):
-    """Vérifie la séparation des répertoires temporaires des utilisateurs."""
-    command = "mount | grep '/tmp'"
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return stdout.read().decode().strip()
+    """Vérifie que les répertoires temporaires des utilisateurs sont bien séparés et sécurisés."""
+
+    issues_detected = []
+
+    # Vérifier si `/tmp` est monté avec les options `noexec` et `nodev`
+    command_tmp_mount = "mount | grep ' /tmp '"
+    stdin, stdout, stderr = serveur.exec_command(command_tmp_mount)
+    tmp_mount_options = stdout.read().decode().strip()
+    if "noexec" not in tmp_mount_options or "nodev" not in tmp_mount_options:
+        issues_detected.append(f"Options incorrectes pour /tmp : {tmp_mount_options}")
+
+    # Vérifier la présence de `pam_namespace` et `pam_mktemp`
+    command_pam_check = "grep -E 'pam_namespace|pam_mktemp' /etc/pam.d/common-session"
+    stdin, stdout, stderr = serveur.exec_command(command_pam_check)
+    pam_config = stdout.read().decode().strip()
+    if not pam_config:
+        issues_detected.append("Les modules PAM `pam_namespace` ou `pam_mktemp` ne sont pas activés.")
+
+    # Vérifier les fichiers modifiables par tout le monde
+    command_world_writable = "sudo find / -type f -perm -0002 -ls 2>/dev/null | head -n 10"
+    stdin, stdout, stderr = serveur.exec_command(command_world_writable)
+    world_writable_files = stdout.read().decode().strip().split("\n")
+    
+    if world_writable_files and world_writable_files[0]:  # S'il y a au moins un fichier détecté
+        issues_detected.append("Fichiers modifiables par tout le monde détectés :")
+        issues_detected.extend(world_writable_files)
+
+    return issues_detected if issues_detected else []  # Retourne une liste des problèmes ou vide si conforme
 
 # Fonction d'enregistrement des rapports
 def save_yaml_report(data, output_file):

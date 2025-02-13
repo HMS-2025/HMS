@@ -36,17 +36,17 @@ R40:
 R42:
   description: "Bannir les négations dans les spécifications sudo"
   expected:
-    no_negation_in_sudo: true
+    no_negation_in_sudo: []
 
 R43:
   description: "Préciser les arguments dans les spécifications sudo"
   expected:
-    strict_sudo_arguments: true
+    strict_sudo_arguments: []
 
 R44:
   description: "Éditer les fichiers de manière sécurisée avec sudo"
   expected:
-    sudoedit_only: true
+    sudoedit_only: []
 
 R50:
   description: "Restreindre les droits d'accès aux fichiers et répertoires sensibles"
@@ -87,8 +87,9 @@ R52:
       - "/run/acpid.socket"
       - "/run/cups/cups.sock"
       - "/var/lib/lxcfs/cgroup"
+      - "/run/systemd/notify"
 
 R55:
   description: "Séparer les répertoires temporaires des utilisateurs"
   expected:
-    user_private_tmp: true
+    user_private_tmp: []
