@@ -109,7 +109,7 @@ def main():
             #verification d'existance des rapports yaml de chaque thematiques
             path_report = "./GenerationRapport/RapportAnalyse/"  # Dossier contenant les rapports
 
-            #application_recommandations_min(path_report, client)
+            application_recommandations_min(path_report, client)
 
             # Fermer la connexion après application
             client.close()

@@ -11,12 +11,27 @@ def ask_for_approval(rule, detected_elements):
     response = input(f"Voulez-vous appliquer la règle {rule} et traiter ces éléments ? (o/n): ").strip().lower()
     return response == 'o'
 
+def ask_for_element_approval(rule, elem):
+    """Demande à l'utilisateur s'il souhaite appliquer la règle pour un élément spécifique."""
+    while True:
+        response = input(f"Voulez-vous supprimer {elem} en application de {rule} ? (o/n/q pour quitter la règle): ").strip().lower()
+        
+        if response == 'o':
+            return True  # Appliquer pour cet élément
+        elif response == 'n':
+            return False  # Ne pas appliquer pour cet élément
+        elif response == 'q':
+            return 'q'  # Quitter l'application de la règle
+        else:
+            print("Réponse invalide. Entrez 'o' pour oui, 'n' pour non ou 'q' pour quitter.")
+
 def apply_R58(yaml_file, client):
     print("Application de la recommandation R58")
+    
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
     
-    expected_packages = data.get("R58", {}).get("elements_attendus", [])
+    expected_packages = data.get("R58", {}).get("éléments_attendus", [])
     
     if not expected_packages:
         print("Aucun paquet attendu défini dans la règle R58.")
@@ -30,76 +45,67 @@ def apply_R58(yaml_file, client):
     
     installed_packages = stdout.read().decode().splitlines()
     
-    detected_elements = []
-    for pkg in installed_packages:
-        if pkg and pkg not in expected_packages:
-            detected_elements.append(pkg)
+    detected_elements = [pkg for pkg in installed_packages if pkg and pkg not in expected_packages]
     
     if detected_elements:
-        if ask_for_approval("R58", detected_elements):
-            for pkg in detected_elements:
-                print(f"Suppression du paquet {pkg} en cours...")
-                stdin, stdout, stderr = client.exec_command(f'sudo apt-get remove --purge -y {pkg}')
-                error = stderr.read().decode().strip()
-                if error:
-                    print(f"Erreur lors de la suppression du paquet {pkg} : {error}")
+        response = ask_for_approval("R58", detected_elements)
+        
+        if response:
+            for elem in detected_elements:
+                response = ask_for_element_approval("R58", elem)
+                if response == 'q':
+                    print("Quitter l'application de la règle R58.")
+                    break
+                elif response:
+                    print(f"Suppression du paquet {elem} en cours...")
+                    stdin, stdout, stderr = client.exec_command(f'sudo apt-get remove --purge -y {elem}')
+                    error = stderr.read().decode().strip()
+                    if error:
+                        print(f"Erreur lors de la suppression du paquet {elem} : {error}")
+                    else:
+                        print(f"Le paquet {elem} a été supprimé avec succès.")
                 else:
-                    print(f"Le paquet {pkg} a été supprimé avec succès.")
-        else:
-            print("Application de la règle R58 annulée.")
-    
-    update_yaml(yaml_file, "R58", detected_elements)
+                    print(f"Le paquet {elem} n'a pas été supprimé.")
+        
+        update_yaml(yaml_file, "R58", detected_elements)
 
 def apply_R59(yaml_file, client):
     print("Application de la recommandation R59")
+    
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
     
-    expected_repos = data.get("R59", {}).get("elements_attendus", [])
+    problematic_repos = data.get("R59", {}).get("éléments_problématiques", [])
     
-    if not expected_repos:
-        print("Aucun dépôt attendu défini dans la règle R59.")
+    if not problematic_repos:
+        print("Aucun dépôt problématique défini dans la règle R59.")
         return
     
-    sources_files = ["/etc/apt/sources.list"]
-    sources_files.extend([f"/etc/apt/sources.list.d/{f}" for f in os.listdir("/etc/apt/sources.list.d") if f.endswith('.list')])
-    
-    detected_elements = []
-    
-    for file in sources_files:
-        stdin, stdout, stderr = client.exec_command(f'cat {file}')
-        error = stderr.read().decode().strip()
-        if error:
-            print(f"Erreur lors de la lecture du fichier {file} : {error}")
-            continue
-        
-        lines = stdout.read().decode().splitlines()
-        detected_repos = [line for line in lines if line not in expected_repos]
-        
-        if detected_repos:
-            detected_elements.extend(detected_repos)
+    detected_elements = problematic_repos  
     
     if detected_elements:
-        if ask_for_approval("R59", detected_elements):
+        response = ask_for_approval("R59", detected_elements)
+        
+        if response:
+            sources_file = "/etc/apt/sources.list"
+            
             for repo in detected_elements:
-                print(f"Suppression du dépôt {repo} en cours...")
-                with client.open_sftp().file(file, 'w') as f:
-                    new_lines = [line for line in lines if line not in detected_repos]
-                    f.write('\n'.join(new_lines) + '\n')
-                    print(f"Dépôt {repo} supprimé avec succès.")
-        else:
-            print("Application de la règle R59 annulée.")
-    
-    update_yaml(yaml_file, "R59", detected_elements)
-
-def prompt_delete_elements(detected_elements):
-    """Propose à l'utilisateur de supprimer les éléments détectés non attendus."""
-    print("Voulez-vous supprimer les éléments suivants ?")
-    for elem in detected_elements:
-        print(f"- {elem}")
-    
-    response = input("Entrez 'o' pour supprimer, 'n' pour annuler : ").strip().lower()
-    return response == 'o'
+                response = ask_for_element_approval("R59", repo)
+                if response == 'q':
+                    print("Quitter l'application de la règle R59.")
+                    break
+                elif response:
+                    print(f"Suppression du dépôt {repo} en cours...")
+                    stdin, stdout, stderr = client.exec_command(f'sudo sed -i "/{repo}/d" {sources_file}')
+                    error = stderr.read().decode().strip()
+                    if error:
+                        print(f"Erreur lors de la suppression du dépôt {repo} : {error}")
+                    else:
+                        print(f"Dépôt {repo} supprimé avec succès.")
+                else:
+                    print(f"Le dépôt {repo} n'a pas été supprimé.")
+        
+        update_yaml(yaml_file, "R59", detected_elements)
 
 def update_yaml(yaml_file, rule, detected_elements):
     """Met à jour le fichier YAML en fonction des éléments détectés."""
@@ -111,11 +117,10 @@ def update_yaml(yaml_file, rule, detected_elements):
     rule_data['status'] = 'Conforme' if not detected_elements else 'Non conforme'
     rule_data['appliquer'] = True
     
-    # Mettre à jour le YAML avec les nouvelles informations
     data[rule] = rule_data
     
     with open(yaml_file, 'w', encoding="utf-8") as file:
-        yaml.safe_dump(data, file)
+        yaml.safe_dump(data, file, default_flow_style=False, allow_unicode=True)
 
 def apply_rule(rule_name, yaml_file, client):
     if rule_name == "R58":
@@ -136,5 +141,5 @@ def apply_recommandation_maintenance_min(yaml_file, client):
         else:
             print(f"Règle {rule} déjà appliquée.")
 
-
-#apply_recommandation_maintenance_min(yaml_file_maintenance_min, client)
+# Appeler la fonction de maintenance avec le chemin du fichier YAML et le client SSH
+# apply_recommandation_maintenance_min("/path/to/maintenance_minimal.yml", client)
