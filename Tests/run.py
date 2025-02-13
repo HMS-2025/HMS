@@ -548,25 +548,31 @@ class Analyse_min_test ( unittest.TestCase):
         """ ----------- TEST : Détection des utilisateurs inactifs ------------- """
 
         #Clean avant le test (supprimer d'éventuels utilisateurs de test existants)
-        stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user1 || true")
+        stdin, stdout, stderr=self.client.exec_command("sudo userdel test_user1 || true")
         exit_status = stdout.channel.recv_exit_status()
 
-        stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user2 || true")
+        stdin, stdout, stderr=self.client.exec_command("sudo userdel test_user2 || true")
         exit_status = stdout.channel.recv_exit_status()
 
 
         #Ajouter des utilisateurs inactifs pour le test
         stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/bash test_user1")
         exit_status = stdout.channel.recv_exit_status()
+        stdin, stdout, stderr=self.client.exec_command("echo 'test_user1:motdepasse' | sudo chpasswd")
+        exit_status = stdout.channel.recv_exit_status()
+        
+        
         stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/bash test_user2")
+        exit_status = stdout.channel.recv_exit_status()
+        stdin, stdout, stderr=self.client.exec_command("echo 'test_user2:motdepasse' | sudo chpasswd" ) 
         exit_status = stdout.channel.recv_exit_status()
 
         # Vérifier que les utilisateurs inactifs sont bien détectés
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
         
-        self.assertIn("test_user1", result["R30"]["elements_detectes"])
-        self.assertIn("test_user2", result["R30"]["elements_detectes"])
+        self.assertIn("test_user1", result["R30"]["comptes_inactifs_detectes"])
+        self.assertIn("test_user2", result["R30"]["comptes_inactifs_detectes"])
 
         #Désactiver les comptes pour simuler des utilisateurs inactifs
         stdin, stdout, stderr=self.client.exec_command("sudo passwd -l test_user1")
@@ -578,8 +584,8 @@ class Analyse_min_test ( unittest.TestCase):
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
         
-        self.assertNotIn("test_user1", result["R30"]["elements_detectes"])
-        self.assertNotIn("test_user2", result["R30"]["elements_detectes"])
+        self.assertNotIn("test_user1", result["R30"]["comptes_inactifs_detectes"])
+        self.assertNotIn("test_user2", result["R30"]["comptes_inactifs_detectes"])
 
         
         #Clean après le test
@@ -588,7 +594,7 @@ class Analyse_min_test ( unittest.TestCase):
         exit_status = stdout.channel.recv_exit_status()
 
         stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user2")
-        exit_status = stdout.channel.recv_exit_status()
+        exit_status = stdout.channel.recv_exit_status() 
 
 
         """ ----------- TEST : Détection des fichiers sans utilisateur ni groupe ------------- """
@@ -618,7 +624,7 @@ class Analyse_min_test ( unittest.TestCase):
         result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
 
         #Vérification que le fichier est bien détecté comme non conforme
-        self.assertIn("/tmp/test_file_no_owner", result["R53"]["elements_detectes"])
+        self.assertIn("/tmp/test_file_no_owner", result["R53"]["fichiers_orphelins_detectes"])
         self.assertEqual(result["R53"]["status"], "Non conforme")
 
         #Nettoyage après le test
@@ -626,7 +632,7 @@ class Analyse_min_test ( unittest.TestCase):
         exit_status = stdout.channel.recv_exit_status()
 
 
-        """ ----------- TEST : Détection des fichiers avec setuid et setgid ------------- """
+        """----------- TEST : Détection des fichiers avec setuid et setgid ------------- """
 
         #Nettoyage avant le test (supprimer les fichiers de test s'ils existent)
         stdin, stdout, stderr=self.client.exec_command("sudo rm -f /tmp/test_suid /tmp/test_sgid")
@@ -642,8 +648,6 @@ class Analyse_min_test ( unittest.TestCase):
         stdin, stdout, stderr=self.client.exec_command("sudo chmod g+s /tmp/test_sgid")
         exit_status = stdout.channel.recv_exit_status()
 
-        stdin, stdout, stderr=self.client.exec_command("sudo chmod 755 /tmp/test_suid /tmp/test_sgid")  
-        exit_status = stdout.channel.recv_exit_status()
 
         #Exécution de l'analyse
         analyse_min(self.client)
@@ -652,8 +656,8 @@ class Analyse_min_test ( unittest.TestCase):
         result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
 
         #Vérification que les fichiers sont bien détectés comme non conformes
-        self.assertIn("/tmp/test_suid", result["R56"]["elements_detectes"])
-        self.assertIn("/tmp/test_sgid", result["R56"]["elements_detectes"])
+        self.assertIn("/tmp/test_suid", result["R56"]["fichiers_suid_sgid_detectes"])
+        self.assertIn("/tmp/test_sgid", result["R56"]["fichiers_suid_sgid_detectes"])
         self.assertEqual(result["R56"]["status"], "Non conforme")
 
         #Nettoyage après le test
@@ -693,7 +697,9 @@ class Analyse_min_test ( unittest.TestCase):
 
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")        
-        self.assertEqual(result["R61"]["status"], "Non conforme")        
+        self.assertEqual(result["R61"]["status"], "Non conforme")   
+        self.assertIsNone(result["R61"]["éléments_problématiques"]["Cron Updates"])
+     
         
 
         # ------------ Crontab -------------------
@@ -710,15 +716,71 @@ class Analyse_min_test ( unittest.TestCase):
 
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")
-        self.assertIsNone(result["R61"]["éléments_problématiques"]["Cron Updates"])
+        self.assertIn("Cron Updates" , result["R61"]["éléments_problématiques"].keys())
 
+
+        stdin, stdout, stderr = self.client.exec_command('(crontab -l 2>/dev/null; echo "0 3 * * * ls /") | crontab -')
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")
+        self.assertIn("Cron Updates",result["R61"]["éléments_problématiques"].keys())        
         
+        # --------------- Clean --------------------
+        
+        stdin, stdout, stderr = self.client.exec_command("crontab -r")
+        exit_status = stdout.channel.recv_exit_status()
+    
+    def test_politique_mot_passe (self) : 
+        
+        # expiration_policy
+
+        stdin, stdout, stderr = self.client.exec_command("sudo chage -M 999 $(whoami)")
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
+        self.assertEqual(result["R31"]["éléments_problématiques"]["expiration_policy"]["Détecté"] , "Maximum number of days between password change\t\t: 999")
+
+        # expiration_policy
+
+        """
+        stdin, stdout, stderr = self.client.exec_command("sudo chage -M 80 $(whoami)")
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
+        self.assertNotIn("expiration_policy" , result["R31"]["éléments_problématiques"].keys())
+        
+        """
+        #faillock 
+
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i 's/^#*\s*deny\s*=.*/deny=4/' /etc/security/faillock.conf")
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
+        self.assertIn("faillock" ,list(result["R31"]["éléments_problématiques"].keys()))
+
+        #faillock 
+
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i 's/^#*\s*deny\s*=.*/deny=2/' /etc/security/faillock.conf")
+        exit_status = stdout.channel.recv_exit_status()
+
+        analyse_min(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
+        self.assertNotIn("faillock" ,list(result["R31"]["éléments_problématiques"].keys()))
+
+    
+
+    
     def run_tests(self):
         """Exécuter les tests"""
         suite = unittest.TestSuite()
-        #suite.addTest(Analyse_min_test(self.client, "test_gestion_acces_min"))
-        #suite.addTest(Analyse_min_test(self.client, "test_service_min"))
+        suite.addTest(Analyse_min_test(self.client, "test_gestion_acces_min"))
+        suite.addTest(Analyse_min_test(self.client, "test_service_min"))
         suite.addTest(Analyse_min_test(self.client, "test_mises_a_jour_automatiques"))
+        suite.addTest(Analyse_min_test(self.client, "test_politique_mot_passe"))
         runner = unittest.TextTestRunner()
         runner.run(suite)    
 

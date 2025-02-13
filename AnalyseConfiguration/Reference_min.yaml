@@ -30,8 +30,8 @@ R31:
   description: "Utiliser des mots de passe robustes"
   expected:
     pam_policy: "password requisite pam_pwquality.so retry=3 minlen=12 difok=3"
-    expiration_policy: "Maximum number of days between password change: 90"
-    faillock: "deny=3"
+    expiration_policy: "Maximum number of days between password change\t\t: 90"
+    faillock: 3
 
 R68:
   description: "Protéger les mots de passe stockés"

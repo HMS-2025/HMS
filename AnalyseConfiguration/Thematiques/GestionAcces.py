@@ -1,6 +1,7 @@
 import yaml
 import os
 import paramiko
+import subprocess
 
 # Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
 def load_reference_yaml(niveau):
@@ -148,6 +149,7 @@ def find_files_with_setuid_setgid(serveur):
     except Exception as e:
         print(f"Erreur lors de la récupération des fichiers setuid/setgid : {e}")
         return []
+
 
 # Fonction d'enregistrement des rapports
 def save_yaml_report(data, output_file):
