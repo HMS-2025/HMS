@@ -32,10 +32,15 @@ def check_compliance(rule_id, rule_value, reference_data):
                     "Attendu": expected
                 }
         elif detected != expected:
-            non_compliant_items[key] = {
-                "Détecté": detected,
-                "Attendu": expected
-            }
+            if (key == 'faillock') : 
+                result = {}
+                result = check_faillock_compliance(detected , expected)
+            
+                if result :
+                    non_compliant_items[key] = result
+            else : 
+                non_compliant_items[key] = {"Détecté": detected,"Attendu": expected}
+                
 
     return {
         "status": "Non conforme" if non_compliant_items else "Conforme",
@@ -43,6 +48,15 @@ def check_compliance(rule_id, rule_value, reference_data):
         "éléments_attendus": expected_value,
         "appliquer": False if non_compliant_items else True
     }
+def check_faillock_compliance (detected , expected) : 
+    detected = int(detected)
+    expected = int(expected)
+
+    if detected <= expected : 
+        return {}
+    
+    return {"Détecté": detected,"Attendu": expected}
+    
 
 # Fonction principale pour analyser la politique de mot de passe
 def analyse_politique_mdp(serveur, niveau="min", reference_data=None):
@@ -91,7 +105,7 @@ def get_password_policy(serveur):
 
     # 3. Vérifier si faillock est activé
     policy_data["faillock"] = execute_remote_command(
-        serveur, "sudo grep 'deny' /etc/security/faillock.conf 2>/dev/null || grep 'pam_faillock.so' /etc/pam.d/*",
+        serveur, "sudo grep '^deny\s*=' /etc/security/faillock.conf 2>/dev/null | awk -F= '{print $2}' | tr -d ' ' || grep 'pam_faillock.so' /etc/pam.d/*",
         "Détecté", "Faillock non configuré"
     )
 

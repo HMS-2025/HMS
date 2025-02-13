@@ -1,6 +1,7 @@
 import yaml
 import os
 import paramiko
+import subprocess
 
 # Charger les références depuis Reference_Min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_Min.yaml"):
@@ -90,7 +91,7 @@ def get_standard_users(serveur):
 
 def get_recent_users(serveur):
     """Récupère les utilisateurs ayant une connexion récente (moins de 60 jours) sur le serveur distant."""
-    command = "lastlog -b 60 | awk 'NR>1 {print $1}' | sort | uniq"
+    command = "last -s -60days -F | awk '{print $1}' | grep -v 'wtmp' | sort | uniq"
     stdin, stdout, stderr = serveur.exec_command(command)
     return set(filter(None, stdout.read().decode().strip().split("\n")))
 
@@ -119,11 +120,12 @@ def find_orphan_files(serveur):
     return list(filter(None, stdout.read().decode().strip().split("\n")))
 
 # R56 - Éviter l’usage d’exécutables avec les droits spéciaux setuid et setgid
-def find_files_with_setuid_setgid():
-    command = "find /tmp -type f -perm /6000 -print 2>/dev/null"    
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    files_with_suid_sgid = result.stdout.strip().split("\n")
+def find_files_with_setuid_setgid(serveur):
+    command = "sudo find /tmp -type f -perm /6000 -print 2>/dev/null"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    files_with_suid_sgid = stdout.read().decode().strip().split("\n")
     return [file for file in files_with_suid_sgid if file]
+
 
 # Fonction d'enregistrement des rapports
 def save_yaml_report(data, output_file):
