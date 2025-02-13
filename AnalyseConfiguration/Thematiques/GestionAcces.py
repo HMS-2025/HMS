@@ -59,7 +59,7 @@ def analyse_gestion_acces(serveur, niveau, reference_data=None):
         report["R34"] = check_compliance("R34", service_accounts, reference_data)
 
         print("-> Vérification des directives sudo (R39)")
-        sudo_directives = get_sudo_directives(serveur)
+        sudo_directives = get_sudo_directives(serveur,reference_data)
         report["R39"] = check_compliance("R39", sudo_directives, reference_data)
 
         print("-> Vérification des utilisateurs cibles non-privilégiés pour sudo (R40)")
