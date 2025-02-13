@@ -20,7 +20,8 @@ def install_expected_elements(yaml_file, client):
 
     for element, valeur in elements_attendus.items():
         if element == 'Cron Scripts':
-            cron_check = client.exec_command('ls /etc/cron.d/').stdout.read().decode()
+            stdin, stdout, stderr = client.exec_command('ls /etc/cron.d/')
+            cron_check = stdout.read().decode()
             if valeur == "Présent" and "apt" not in cron_check:
                 print(f"Installation du script cron {element}...")
                 client.exec_command("sudo touch /etc/cron.d/apt-compat")
@@ -29,6 +30,7 @@ def install_expected_elements(yaml_file, client):
         # Ajoutez des conditions similaires pour d'autres éléments attendus...
 
     return elements_installes
+
 
 def handle_problematic_elements(client, elements_problématiques):
     """Traiter les éléments problématiques en les supprimant ou en appliquant des correctifs."""
@@ -97,7 +99,7 @@ def update_yaml_status(yaml_file, rule, elements_problématiques):
     data[rule] = rule_data
     
     with open(yaml_file, 'w', encoding="utf-8") as file:
-        yaml.safe_dump(data, file)
+        yaml.safe_dump(data, file, allow_unicode=True)  # Assurez-vous que l'encodage UTF-8 et les caractères spéciaux sont gérés
 
 def apply_recommandation_mise_a_jour_min(yaml_file, client):
     """Appliquer les recommandations de sécurité en fonction du fichier YAML."""

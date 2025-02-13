@@ -1,13 +1,18 @@
 import yaml
 import subprocess
 
-def ask_for_approval(service):
-    """Demande l'approbation de l'utilisateur pour appliquer la règle à un service."""
-    response = input(f"Souhaitez-vous désactiver le service {service} (o/n) ? ").strip().lower()
-    return response == 'o'
+def ask_for_approval(service, rule):
+    """Demande l'approbation de l'utilisateur pour appliquer la regle à un service.
+       L'utilisateur peut aussi entrer 'q' pour quitter l'application de la règle."""
+    while True:
+        response = input(f"Souhaitez-vous desactiver le service {service} en application de la regle {rule} ? (o/n/q pour quitter) ").strip().lower()
+        if response in ['o', 'n', 'q']:
+            return response
+        print("Réponse invalide. Entrez 'o' pour oui, 'n' pour non, ou 'q' pour quitter.")
 
 def apply_recommandation_service_min(yaml_file, client):
-    """Applique les recommandations de la règle R62 pour désactiver les services non nécessaires et met à jour le fichier YAML."""
+    """Applique les recommandations de la regle R62 pour désactiver les services non nécessaires 
+       et met à jour le fichier YAML uniquement si l'application de la règle est un succès."""
     
     # Charger le fichier YAML
     with open(yaml_file, 'r', encoding="utf-8") as file:
@@ -15,63 +20,83 @@ def apply_recommandation_service_min(yaml_file, client):
 
     # Récupérer la règle R62
     rule_data = data.get('R62', {})
-    
-    # Vérifier si la règle doit être appliquée (appliquer == False)
+
+    # Vérifier si la règle est déjà appliquée
     if rule_data.get('appliquer', False):
-        print("La règle R62 est déjà appliquée.")
+        print("La regle R62 est déjà appliquee.")
         return
 
-    # Services attendus à retirer et services interdits détectés
-    services_attendus_a_retirer = rule_data.get('services_attendus_a_retirer', [])
+    # Services interdits détectés et attendus à retirer
     services_interdits_detectes = rule_data.get('services_interdits_detectes', [])
+    services_attendus_a_retirer = rule_data.get('services_attendus_a_retirer', [])
 
-    # Services inattendus détectés (qui ne sont ni attendus à retirer ni interdits)
-    print("Services inattendus détectés (à vérifier) :")
-    unexpected_services = list(set(services_interdits_detectes) - set(services_attendus_a_retirer))
-    print(f"{unexpected_services}")
+    all_services = list(set(services_interdits_detectes + services_attendus_a_retirer))
 
-    # Demander l'approbation pour appliquer la règle
-    if not ask_for_approval("R62"):
-        print("La règle R62 ne sera pas appliquée.")
-        return
+    print("\nServices attendus à retirer systematiquement :")
+    for service in services_attendus_a_retirer:
+        print(f" - {service}")
 
-    # Appliquer les recommandations pour les services inattendus
+    print("\nServices détectés à éventuellement retirer :")
+    for service in services_interdits_detectes:
+        print(f" - {service}")
+
+    # Variable pour suivre le succès global de l'opération
+    success = True
+
     try:
-        print("Désactivation des services inattendus...")
+        for service in all_services:
+            response = ask_for_approval(service, "R62")
+            if response == 'q':
+                print("Application de la regle R62 annulee par l'utilisateur.")
+                return  # Quitte immédiatement l'application de la règle
 
-        # Pour chaque service inattendu, demander l'approbation avant de le désactiver
-        for service in unexpected_services:
-            service_status = subprocess.run(['systemctl', 'is-active', '--quiet', service], check=False)
-            if service_status.returncode == 0:
-                confirmation = ask_for_approval(service)
-                if confirmation:
-                    # Désactiver et arrêter le service
-                    subprocess.run(['sudo', 'systemctl', 'stop', service], check=True)
-                    subprocess.run(['sudo', 'systemctl', 'disable', service], check=True)
-                    print(f"Le service {service} a été désactivé et arrêté.")
+            if response == 'o':
+                # Vérifier si le service est actif avant de le stopper
+                service_status = subprocess.run(['systemctl', 'is-active', '--quiet', service], check=False)
+                if service_status.returncode == 0:  # Le service est actif
+                    try:
+                        subprocess.run(['sudo', 'systemctl', 'stop', service], check=True)
+                        subprocess.run(['sudo', 'systemctl', 'disable', service], check=True)
+                        print(f"Service {service} desactive et arrete.")
+                    except subprocess.CalledProcessError as e:
+                        print(f"Erreur lors de l'arret du service {service} : {e}")
+                        success = False
                 else:
-                    print(f"Le service {service} n'a pas été désactivé.")
+                    print(f"Service {service} deja inactif, aucune action necessaire.")
             else:
-                print(f"Le service {service} n'est pas actif, aucune action nécessaire.")
+                print(f"Le service {service} ne sera pas desactive.")
 
-        # Mise à jour du YAML avec les nouvelles données
-        rule_data['status'] = 'Conforme'
-        rule_data['appliquer'] = True
-        rule_data['services_interdits_detectes'] = []  # Réinitialiser les services interdits détectés
-        data['R62'] = rule_data
+        if success:
+            # Mettre à jour le fichier YAML uniquement en cas de succès complet
+            rule_data['status'] = 'Conforme'
+            rule_data['appliquer'] = True
+            rule_data['services_interdits_detectes'] = []
+            data['R62'] = rule_data
 
-        # Sauvegarder les modifications dans le fichier YAML
-        with open(yaml_file, 'w', encoding="utf-8") as file:
-            yaml.safe_dump(data, file)
+            with open(yaml_file, 'w', encoding="utf-8") as file:
+                yaml.safe_dump(data, file)
 
-        print(f"Le fichier YAML a été mis à jour avec succès.")
+            print("\nLe fichier YAML a ete mis a jour avec succes.")
 
-        # Retourner une réponse au client
-        client.send("R62 - Recommandations appliquées et fichier YAML mis à jour.")
+            # Envoyer une réponse au client selon son type
+            if hasattr(client, "exec_command"):  # Si c'est un client SSH (paramiko)
+                client.exec_command('echo "R62 - Recommandations appliquees et fichier YAML mis a jour."')
+            elif hasattr(client, "sendall"):  # Si c'est un socket
+                client.sendall(b"R62 - Recommandations appliquees et fichier YAML mis a jour.\n")
+            else:
+                print("Client inconnu, impossible d'envoyer un message.")
+        else:
+            print("\nEchec de l'application complète de la regle R62. Le fichier YAML n'a pas ete mis a jour.")
+            if hasattr(client, "exec_command"):
+                client.exec_command('echo "Erreur R62 : echec lors de l\'application de la regle, fichier YAML non mis a jour."')
+            elif hasattr(client, "sendall"):
+                client.sendall(b"Erreur R62 : echec lors de l'application de la regle, fichier YAML non mis a jour.\n")
+            else:
+                print("Client inconnu, impossible d'envoyer un message.")
 
     except Exception as e:
-        print(f"Erreur lors de l'application des règles R62 : {e}")
-        client.send(f"Erreur lors de l'application de la règle R62 : {e}")
-
-
-#apply_recommandation_service_min(yaml_file_service_min, client)
+        print(f"\nErreur lors de l'application de la regle R62 : {e}")
+        if hasattr(client, "exec_command"):
+            client.exec_command(f'echo "Erreur R62 : {e}"')
+        elif hasattr(client, "sendall"):
+            client.sendall(f"Erreur R62 : {e}\n".encode())
