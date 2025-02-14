@@ -96,7 +96,7 @@ R55:
 
 
 R32:
-  description: "Configurer l'expiration automatique des sessions utilisateur et les paramètres de logind"
+  description: "Configure automatic user session expiration and logind parameters"
   expected:
     TMOUT: "600"
     logind_conf:
@@ -105,7 +105,7 @@ R32:
       RuntimeMaxSec: "3600s"
 
 R70:
-  description: "Séparer les comptes système et administrateurs de l'annuaire"
+  description: "Separate system accounts and directory administrators"
   expected:
     local_users: []
     system_users:
