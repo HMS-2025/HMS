@@ -30,6 +30,9 @@ def analyse_moyen(serveur):
     print("\n[Analyse] Gestion des accès (niveau moyen)...")
     analyse_gestion_acces(serveur, niveau="moyen", reference_data=reference_data)
 
+    print("\n[Analyse] Utilisateurs (niveau moyen)...")
+    analyse_utilisateurs(serveur, niveau="moyen", reference_data=reference_data)
+
     print("\n[Analyse] Services (niveau moyen)...")
     analyse_services(serveur, niveau="moyen", reference_data=reference_data)
 
@@ -48,8 +51,6 @@ def analyse_moyen(serveur):
     print("\n[Analyse] Journalisation et Audit (niveau moyen)...")
     analyse_journalisation(serveur, niveau="moyen", reference_data=reference_data)
     
-    print("\n[Analyse] Utilisateurs (niveau moyen)...")
-    analyse_utilisateurs(serveur, niveau="moyen", reference_data=reference_data)
 
     print("\n[Analyse] Système (niveau moyen)...")
     analyse_systeme(serveur, niveau="moyen", reference_data=reference_data)

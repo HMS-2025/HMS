@@ -1,8 +1,8 @@
---- Rapport de l'analyse: ---
---- Changer la valeur de 'appliquer' à 'true' si vous voulez appliquer cette recommandation. 
+# Rapport de l'analyse: ---
+# Changer la valeur de 'appliquer' à 'true' si vous voulez appliquer cette recommandation. 
 
 
-ssh_conformite: 23.08 %
+ssh_conformite:
   R1:
     appliquer: true
     elements_attendus: ['Toujours valide']
