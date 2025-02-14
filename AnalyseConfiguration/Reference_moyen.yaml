@@ -1,5 +1,5 @@
 R34:
-  description: "Désactiver les comptes de service (liste de référence non exhaustive)"
+  description: "Disable service accounts (non-exhaustive reference list)"
   expected:
     disabled_service_accounts:
       - "www-data"
@@ -18,7 +18,7 @@ R34:
       - "syslog"
 
 R39:
-  description: "Modifier les directives de configuration sudo"
+  description: "Modify sudo configuration directives"
   expected:
     sudo_directives:
       - "Defaults noexec"
@@ -29,27 +29,27 @@ R39:
       - "Defaults env_reset"
 
 R40:
-  description: "Utiliser des utilisateurs cibles non-privilégiés pour les commandes sudo"
+  description: "Use non-privileged target users for sudo commands"
   expected: []
 
 
 R42:
-  description: "Bannir les négations dans les spécifications sudo"
+  description: "Ban negations in sudo specifications"
   expected:
     no_negation_in_sudo: []
 
 R43:
-  description: "Préciser les arguments dans les spécifications sudo"
+  description: "Specify arguments in sudo specifications"
   expected:
     strict_sudo_arguments: []
 
 R44:
-  description: "Éditer les fichiers de manière sécurisée avec sudo"
+  description: "Edit files securely with sudo"
   expected:
     sudoedit_only: []
 
 R50:
-  description: "Restreindre les droits d'accès aux fichiers et répertoires sensibles"
+  description: "Restrict access rights to sensitive files and directories"
   expected:
     secure_permissions:
       - "/etc/shadow 600"
@@ -71,7 +71,7 @@ R50:
       - "/etc/security/limits.conf 644"
       - "/boot/grub/grub.cfg 600"
 R52:
-  description: "Restreindre les accès aux sockets et aux pipes nommées"
+  description: "Restrict access to sockets and named pipes"
   expected:
     protected_sockets:
       - "/dev/log"
@@ -90,6 +90,6 @@ R52:
       - "/run/systemd/notify"
 
 R55:
-  description: "Séparer les répertoires temporaires des utilisateurs"
+  description: "Separate users' temporary directories"
   expected:
     user_private_tmp: []
