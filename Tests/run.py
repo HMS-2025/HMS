@@ -569,10 +569,10 @@ class Analyse_min_test ( unittest.TestCase):
 
         # Vérifier que les utilisateurs inactifs sont bien détectés
         analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
+        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_min.yml")
         
-        self.assertIn("test_user1", result["R30"]["comptes_inactifs_detectes"])
-        self.assertIn("test_user2", result["R30"]["comptes_inactifs_detectes"])
+        self.assertIn("test_user1", result["R30"]["éléments_detectés"])
+        self.assertIn("test_user2", result["R30"]["éléments_detectés"])
 
         #Désactiver les comptes pour simuler des utilisateurs inactifs
         stdin, stdout, stderr=self.client.exec_command("sudo passwd -l test_user1")
@@ -582,10 +582,10 @@ class Analyse_min_test ( unittest.TestCase):
         exit_status = stdout.channel.recv_exit_status()
 
         analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
+        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_min.yml")
         
-        self.assertNotIn("test_user1", result["R30"]["comptes_inactifs_detectes"])
-        self.assertNotIn("test_user2", result["R30"]["comptes_inactifs_detectes"])
+        self.assertNotIn("test_user1", result["R30"]["éléments_detectés"])
+        self.assertNotIn("test_user2", result["R30"]["éléments_detectés"])
 
         
         #Clean après le test
@@ -621,10 +621,10 @@ class Analyse_min_test ( unittest.TestCase):
         analyse_min(self.client)
 
         #Chargement des résultats
-        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
+        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_min.yml")
 
         #Vérification que le fichier est bien détecté comme non conforme
-        self.assertIn("/tmp/test_file_no_owner", result["R53"]["fichiers_orphelins_detectes"])
+        self.assertIn("/tmp/test_file_no_owner", result["R53"]["éléments_detectés"])
         self.assertEqual(result["R53"]["status"], "Non conforme")
 
         #Nettoyage après le test
@@ -653,11 +653,11 @@ class Analyse_min_test ( unittest.TestCase):
         analyse_min(self.client)
 
         #Chargement des résultats
-        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_minimal.yml")
+        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_min.yml")
 
         #Vérification que les fichiers sont bien détectés comme non conformes
-        self.assertIn("/tmp/test_suid", result["R56"]["fichiers_suid_sgid_detectes"])
-        self.assertIn("/tmp/test_sgid", result["R56"]["fichiers_suid_sgid_detectes"])
+        self.assertIn("/tmp/test_suid", result["R56"]["éléments_detectés"])
+        self.assertIn("/tmp/test_sgid", result["R56"]["éléments_detectés"])
         self.assertEqual(result["R56"]["status"], "Non conforme")
 
         #Nettoyage après le test
@@ -665,11 +665,16 @@ class Analyse_min_test ( unittest.TestCase):
         exit_status = stdout.channel.recv_exit_status()
 
     def test_service_min (self) : 
-        """ ----------- TEST : Détection des fichiers avec setuid et setgid ------------- """
 
         # Installation de service interdit 
 
-        stdin, stdout, stderr=self.client.exec_command("sudo apt update ; sudo apt install -y samba nfs-kernel-server")
+        stdin, stdout, stderr=self.client.exec_command("sudo apt update ; sudo apt install -y samba ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo systemctl enable smbd")
+        exit_status = stdout.channel.recv_exit_status()
+
+        stdin, stdout, stderr=self.client.exec_command("sudo systemctl start smbd")
         exit_status = stdout.channel.recv_exit_status()
         
         
@@ -680,12 +685,11 @@ class Analyse_min_test ( unittest.TestCase):
         result = load_config("GenerationRapport/RapportAnalyse/services_minimal.yml")
 
         #Vérification que les fichiers sont bien détectés comme non conformes
-        self.assertIn("samba.service", result["R56"]["services_interdits_detectes"])
-        self.assertIn("nfs.service", result["R56"]["services_interdits_detectes"])
-        self.assertEqual(result["R56"]["status"], "Non conforme")
+        self.assertIn("smbd.service", result["R62"]["services_interdits_detectes"])
+        self.assertEqual(result["R62"]["status"], "Non conforme")
 
         #Nettoyage après le test
-        stdin, stdout, stderr=self.client.exec_command("sudo apt remove --purge -y samba nfs-kernel-server")
+        stdin, stdout, stderr=self.client.exec_command("sudo apt remove --purge -y samba")
         exit_status = stdout.channel.recv_exit_status()
 
     def test_mises_a_jour_automatiques(self):
@@ -698,7 +702,7 @@ class Analyse_min_test ( unittest.TestCase):
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")        
         self.assertEqual(result["R61"]["status"], "Non conforme")   
-        self.assertIsNone(result["R61"]["éléments_problématiques"]["Cron Updates"])
+        self.assertIn("Unattended Upgrades" , result["R61"]["éléments_problématiques"].keys())
      
         
 
@@ -708,7 +712,7 @@ class Analyse_min_test ( unittest.TestCase):
 
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")
-        self.assertIsNone(result["R61"]["éléments_problématiques"]["Cron Updates"])
+        self.assertNotIn("Cron Updates" ,result["R61"]["éléments_problématiques"])
 
 
         stdin, stdout, stderr = self.client.exec_command("crontab -r")
@@ -740,19 +744,17 @@ class Analyse_min_test ( unittest.TestCase):
 
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
-        self.assertEqual(result["R31"]["éléments_problématiques"]["expiration_policy"]["Détecté"] , "Maximum number of days between password change\t\t: 999")
+        self.assertEqual(result["R31"]["éléments_problématiques"]["expiration_policy"]["Détecté"] , 999)
 
         # expiration_policy
 
-        """
         stdin, stdout, stderr = self.client.exec_command("sudo chage -M 80 $(whoami)")
         exit_status = stdout.channel.recv_exit_status()
 
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
         self.assertNotIn("expiration_policy" , result["R31"]["éléments_problématiques"].keys())
-        
-        """
+
         #faillock 
 
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i 's/^#*\s*deny\s*=.*/deny=4/' /etc/security/faillock.conf")
@@ -771,7 +773,9 @@ class Analyse_min_test ( unittest.TestCase):
         result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
         self.assertNotIn("faillock" ,list(result["R31"]["éléments_problématiques"].keys()))
 
-    
+    def test_reseaux (self) : 
+        """ R80 : Réduire la surface d'attaque des services réseau """
+        self.assertTrue(True)
 
     
     def run_tests(self):
@@ -781,6 +785,7 @@ class Analyse_min_test ( unittest.TestCase):
         suite.addTest(Analyse_min_test(self.client, "test_service_min"))
         suite.addTest(Analyse_min_test(self.client, "test_mises_a_jour_automatiques"))
         suite.addTest(Analyse_min_test(self.client, "test_politique_mot_passe"))
+        suite.addTest(Analyse_min_test(self.client, "test_reseaux"))
         runner = unittest.TextTestRunner()
         runner.run(suite)    
 

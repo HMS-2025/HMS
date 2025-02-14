@@ -38,6 +38,12 @@ def check_compliance(rule_id, rule_value, reference_data):
             
                 if result :
                     non_compliant_items[key] = result
+            elif (key == 'expiration_policy') : 
+                result = {}
+                result = check_expiration_policy_compliance(detected , expected)
+            
+                if result :
+                    non_compliant_items[key] = result
             else : 
                 non_compliant_items[key] = {"Détecté": detected,"Attendu": expected}
                 
@@ -51,12 +57,16 @@ def check_compliance(rule_id, rule_value, reference_data):
 def check_faillock_compliance (detected , expected) : 
     detected = int(detected)
     expected = int(expected)
-
     if detected <= expected : 
         return {}
-    
     return {"Détecté": detected,"Attendu": expected}
     
+def check_expiration_policy_compliance (detected , expected) : 
+    detected = int(detected)
+    expected = int(expected)
+    if detected <= expected : 
+        return {}
+    return {"Détecté": detected,"Attendu": expected}
 
 # Fonction principale pour analyser la politique de mot de passe
 def analyse_politique_mdp(serveur, niveau="min", reference_data=None):
@@ -99,7 +109,7 @@ def get_password_policy(serveur):
 
     # 2. Vérifier l'expiration des mots de passe avec `chage`
     policy_data["expiration_policy"] = execute_remote_command(
-        serveur, "sudo chage -l $(whoami) | grep 'Maximum number of days between password change'",
+        serveur, "sudo sudo chage -l $(whoami) | awk -F': ' '/Maximum number of days between password change/ {print $2}'",
         "Détecté", "Expiration non définie"
     )
 

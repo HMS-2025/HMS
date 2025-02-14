@@ -30,7 +30,7 @@ R31:
   description: "Utiliser des mots de passe robustes"
   expected:
     pam_policy: "password requisite pam_pwquality.so retry=3 minlen=12 difok=3"
-    expiration_policy: "Maximum number of days between password change\t\t: 90"
+    expiration_policy: 90
     faillock: 3
 
 R68:
@@ -69,8 +69,8 @@ R62:
       - bluetooth.service
       - avahi-daemon.service
       - rpcbind.service
-      - samba.service
-      - nfs.service  # Tous ces services doivent être désactivés
+      - smbd.service
+      - nfs-server.service  # Tous ces services doivent être désactivés
 
 R58:
   description: "N’installer que les paquets strictement nécessaires"
