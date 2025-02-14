@@ -5,9 +5,9 @@ R30:
   éléments_attendus: []
   éléments_detectés:
   - recent
-  - connexion
   - ubuntu
   - co
+  - connexion
 R53:
   appliquer: true
   rule_id: R53
