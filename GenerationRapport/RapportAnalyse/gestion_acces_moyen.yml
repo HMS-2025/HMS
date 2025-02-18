@@ -42,8 +42,8 @@ R39:
   éléments_attendus: []
   éléments_detectés:
     présentes:
-    - "Defaults\tmail_badpass"
     - "Defaults\tenv_reset"
+    - "Defaults\tmail_badpass"
     - "Defaults\tsecure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin\""
 R40:
   appliquer: false
@@ -104,7 +104,8 @@ R52:
   - '/run/systemd/journal/socket - permissions incorrectes: srw-rw-rw-'
   - '/run/systemd/notify - permissions incorrectes: srwxrwxrwx'
   - '/run/dbus/system_bus_socket - permissions incorrectes: srw-rw-rw-'
-  - 'Sockets non référencées détectées: /run/systemd/journal/dev-log, Local, *, /run/systemd/journal/stdout'
+  - 'Sockets non référencées détectées: /run/systemd/journal/dev-log, /run/systemd/journal/stdout,
+    Local, *'
 R55:
   appliquer: false
   rule_id: R55
@@ -114,13 +115,13 @@ R55:
   - 'Options incorrectes pour /tmp : '
   - Les modules PAM `pam_namespace` ou `pam_mktemp` ne sont pas activés.
   - 'Fichiers modifiables par tout le monde détectés :'
-  - 88      0 crw-rw-rw-   1 nobody   nogroup   10, 229 Feb 14 10:11 /dev/fuse
-  - '      139      0 crw-rw-rw-   1 nobody   nogroup   10, 200 Feb 14 10:11 /dev/net/tun'
-  - '        8      0 crw-rw-rw-   1 nobody   nogroup    1,   7 Feb 14 10:11 /dev/full'
-  - '        5      0 crw-rw-rw-   1 nobody   nogroup    1,   3 Feb 14 10:11 /dev/null'
-  - '        9      0 crw-rw-rw-   1 nobody   nogroup    1,   8 Feb 14 10:11 /dev/random'
-  - '       12      0 crw-rw-rw-   1 nobody   nogroup    5,   0 Feb 14 14:17 /dev/tty'
-  - '       10      0 crw-rw-rw-   1 nobody   nogroup    1,   9 Feb 14 10:11 /dev/urandom'
-  - '        7      0 crw-rw-rw-   1 nobody   nogroup    1,   5 Feb 14 10:11 /dev/zero'
-  - '        2      0 crw-rw-rw-   1 root     root       5,   2 Feb 14 14:17 /dev/ptmx'
-  - '    75468      0 -rw-rw-rw-   1 nobody   nogroup         0 Feb 14 12:12 /proc/sys/kernel/ns_last_pid'
+  - 88      0 crw-rw-rw-   1 nobody   nogroup   10, 229 Feb 18 09:03 /dev/fuse
+  - '      139      0 crw-rw-rw-   1 nobody   nogroup   10, 200 Feb 18 09:03 /dev/net/tun'
+  - '        8      0 crw-rw-rw-   1 nobody   nogroup    1,   7 Feb 18 09:03 /dev/full'
+  - '        5      0 crw-rw-rw-   1 nobody   nogroup    1,   3 Feb 18 09:03 /dev/null'
+  - '        9      0 crw-rw-rw-   1 nobody   nogroup    1,   8 Feb 18 09:03 /dev/random'
+  - '       12      0 crw-rw-rw-   1 nobody   nogroup    5,   0 Feb 18 10:13 /dev/tty'
+  - '       10      0 crw-rw-rw-   1 nobody   nogroup    1,   9 Feb 18 09:03 /dev/urandom'
+  - '        7      0 crw-rw-rw-   1 nobody   nogroup    1,   5 Feb 18 09:03 /dev/zero'
+  - '        2      0 crw-rw-rw-   1 root     root       5,   2 Feb 18 09:52 /dev/ptmx'
+  - '    54395      0 -rw-rw-rw-   1 nobody   nogroup         0 Feb 18 09:12 /proc/sys/kernel/ns_last_pid'
