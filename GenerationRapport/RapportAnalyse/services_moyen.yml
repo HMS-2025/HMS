@@ -23,6 +23,8 @@ R63:
 R74:
   apply: true
   description: Harden the local mail service (ignored if no mail service is running)
+    All the criteria present in the compliance file must be validated, so they need
+    to be modified beforehand or afterward to ensure proper compliance.
   detected_elements:
   - 127.0.0.1:25
   - '[::1]:25'

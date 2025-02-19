@@ -1,0 +1,5 @@
+R5:  # Ensure a GRUB 2 password is configured
+apply: true
+expected_elements: {}
+problematic_elements: None
+status: Compliant
