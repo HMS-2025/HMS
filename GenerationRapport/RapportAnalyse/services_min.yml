@@ -1,0 +1,37 @@
+R62:
+  appliquer: false
+  status: Non conforme
+  éléments_attendus:
+  - rsyslog.service
+  - cups.service
+  - bluetooth.service
+  - avahi-daemon.service
+  - rpcbind.service
+  - samba.service
+  - nfs.service
+  éléments_detectés:
+  - UNIT
+  - accounts-daemon.service
+  - atd.service
+  - console-getty.service
+  - cron.service
+  - dbus.service
+  - ModemManager.service
+  - networkd-dispatcher.service
+  - polkit.service
+  - rsyslog.service
+  - snapd.service
+  - ssh.service
+  - systemd-journald.service
+  - systemd-logind.service
+  - systemd-networkd.service
+  - systemd-resolved.service
+  - systemd-udevd.service
+  - udisks2.service
+  - unattended-upgrades.service
+  - user@1000.service
+  - ACTIVE
+  - SUB
+  - '19'
+  éléments_interdits_detectés:
+  - rsyslog.service
