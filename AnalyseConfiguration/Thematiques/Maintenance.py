@@ -2,135 +2,111 @@ import paramiko
 import yaml
 import os
 
-# Charger les références depuis Reference_min.yaml
+# Load references from Reference_min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
-    """Charge le fichier Reference_min.yaml et retourne son contenu."""
+    # Load the Reference_min.yaml file and return its content
     try:
         with open(file_path, "r", encoding="utf-8") as file:
-            reference_data = yaml.safe_load(file)
-        return reference_data
+            return yaml.safe_load(file) or {}
     except Exception as e:
-        print(f"Erreur lors du chargement de Reference_min.yaml : {e}")
+        print(f"Error loading Reference_min.yaml: {e}")
         return {}
 
-# Comparer les résultats de l'analyse avec les références
+# Compare analysis results with references
 def check_compliance(rule_id, rule_value, reference_data):
-    """Vérifie si une règle est conforme en la comparant avec Reference_min.yaml."""
+    # Check if a rule is compliant by comparing it with Reference_min.yaml
     expected_value = reference_data.get(rule_id, {}).get("expected", {})
-
     non_compliant_items = {}
 
-    # Si expected_value est une liste, on vérifie les différences
     if isinstance(expected_value, list):
-        detected_values = rule_value.get("unnecessary_packages", [])  # Assurez-vous que rule_value est une liste
+        detected_values = rule_value.get("unnecessary_packages", [])
         if not isinstance(detected_values, list):
             detected_values = []
 
         non_compliant_items["unnecessary_packages"] = [
             pkg for pkg in detected_values if pkg not in expected_value
         ]
-
-        return {
-            "status": "Non conforme" if non_compliant_items["unnecessary_packages"] else "Conforme",
-            "éléments_problématiques": non_compliant_items if non_compliant_items["unnecessary_packages"] else "Aucun",
-            "éléments_attendus": expected_value,
-            "appliquer": False if non_compliant_items["unnecessary_packages"] else True
-        }
-
-    # Comparer chaque sous-règle si expected_value est un dictionnaire
-    for key, expected in expected_value.items():
-        detected = rule_value.get(key, "Non détecté")
-        if detected != expected:
-            non_compliant_items[key] = {
-                "Détecté": detected,
-                "Attendu": expected
-            }
+    else:
+        for key, expected in expected_value.items():
+            detected = rule_value.get(key, "Not detected")
+            if detected != expected:
+                non_compliant_items[key] = {"Detected": detected, "Expected": expected}
 
     return {
-        "status": "Non conforme" if non_compliant_items else "Conforme",
-        "éléments_problématiques": non_compliant_items if non_compliant_items else "Aucun",
-        "éléments_attendus": expected_value,
-        "appliquer": False if non_compliant_items else True
+        "status": "Non-compliant" if non_compliant_items else "Compliant",
+        "problematic_elements": non_compliant_items if non_compliant_items else "None",
+        "expected_elements": expected_value,
+        "apply": False if non_compliant_items else True
     }
 
-# Fonction principale pour analyser la maintenance
-def analyse_maintenance(serveur, niveau="min", reference_data=None):
-    """Analyse la maintenance du système et génère un rapport YAML avec conformité."""
-    report = {}
-
-    if reference_data is None:
-        reference_data = load_reference_yaml()
-
-    if niveau == "min":
-        print("-> Vérification des paquets installés (R58)")
-        installed_packages = check_installed_packages(serveur, reference_data)
-        report["R58"] = check_compliance("R58", {"unnecessary_packages": installed_packages}, reference_data)
-
-        print("-> Vérification des dépôts de paquets de confiance (R59)")
-        trusted_repositories = check_trusted_repositories(serveur)
-        report["R59"] = check_compliance("R59", {"trusted_repositories": trusted_repositories}, reference_data)
-        save_yaml_report(report, "maintenance_minimal.yaml")
-    
-    if niveau == "moyen":
-        print("-> Vérification du mot de passe GRUB 2/GNU (R5)")
-        grub_password_status = check_grub_password(serveur)
-        report["R5"] = grub_password_status
-        save_yaml_report(report, "maintenance_intermediaire.yaml")
-
-    # Calcul du taux de conformité
-    total_rules = len(report)
-    conforming_rules = sum(1 for result in report.values() if result["status"] == "Conforme")
-    compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 0
-
-    print(f"\nTaux de conformité du niveau minimal (Maintenance) : {compliance_percentage:.2f}%")
-    
-    return report
-
-# R5 - Vérifier qu'un mot de passe GRUB est mis en place
-def check_grub_password(serveur):
-    """Vérifie directement si un mot de passe GRUB 2 est configuré sur la machine."""
+# Verify GRUB password configuration
+def check_grub_password(server):
     command_check_grub_cfg = "grep -E 'set\\s+superusers' /etc/grub.d/* /boot/grub/grub.cfg"
     command_check_password = "grep -E 'password_pbkdf2' /etc/grub.d/* /boot/grub/grub.cfg"
     
-    stdin, stdout, stderr = serveur.exec_command(command_check_grub_cfg)
+    stdin, stdout, stderr = server.exec_command(command_check_grub_cfg)
     superusers_output = stdout.read().decode().strip()
     
-    stdin, stdout, stderr = serveur.exec_command(command_check_password)
+    stdin, stdout, stderr = server.exec_command(command_check_password)
     password_output = stdout.read().decode().strip()
     
-    if superusers_output and password_output:
-        return {"status": "Conforme", "message": "Un mot de passe GRUB 2 est bien configuré."}
-    else:
-        return {"status": "Non conforme", "message": "Aucun mot de passe GRUB 2 détecté. Veuillez le configurer."}
+    return {"status": "Compliant" if superusers_output and password_output else "Non-compliant",
+            "message": "A GRUB 2 password is correctly configured." if superusers_output and password_output 
+            else "No GRUB 2 password detected. Please configure it."}
 
-# R58 - N’installer que les paquets strictement nécessaires
-def check_installed_packages(serveur, reference_data):
-    """Récupère la liste des paquets installés et identifie ceux qui sont non nécessaires en fonction de Reference_min.yaml."""
+# Verify installed packages
+def check_installed_packages(server, reference_data):
     expected_packages = reference_data.get("R58", {}).get("expected", [])
-
     command = "dpkg --get-selections | grep -v deinstall"
-    stdin, stdout, stderr = serveur.exec_command(command)
+    stdin, stdout, stderr = server.exec_command(command)
     installed_packages = stdout.read().decode().strip().split("\n")
-
+    
     unnecessary_packages = [pkg.split()[0] for pkg in installed_packages if pkg.split()[0] not in expected_packages]
-    return unnecessary_packages if unnecessary_packages else "Aucun paquet non nécessaire détecté"
+    return {"unnecessary_packages": unnecessary_packages} if unnecessary_packages else {"unnecessary_packages": "No unnecessary packages detected"}
 
-# R59 - Utiliser des dépôts de paquets de confiance
-def check_trusted_repositories(serveur):
-    """Vérifie les dépôts de paquets configurés sur le système."""
+# Verify trusted package repositories
+def check_trusted_repositories(server):
     command = "grep -E '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null"
-    stdin, stdout, stderr = serveur.exec_command(command)
+    stdin, stdout, stderr = server.exec_command(command)
     repositories = stdout.read().decode().strip().split("\n")
-    return repositories if repositories else "Aucun dépôt détecté"
+    return {"trusted_repositories": repositories} if repositories else {"trusted_repositories": "No repositories detected"}
 
-# Fonction d'enregistrement des rapports
-def save_yaml_report(data, output_file):
-    """Enregistre les données d'analyse dans un fichier YAML dans le dossier dédié."""
+# Main function to analyze maintenance
+def analyse_maintenance(server, niveau="min", reference_data=None):
+    report = {}
+    
+    if reference_data is None:
+        reference_data = load_reference_yaml()
+    
+    rules = {
+        "min": {
+            "R58": (check_installed_packages, "Install only strictly necessary packages"),
+            "R59": (lambda server, ref_data: check_trusted_repositories(server), "Use trusted package repositories"),
+        },
+        "moyen": {
+            "R5": (lambda server, ref_data: check_grub_password(server), "Ensure a GRUB 2 password is configured"),
+        }
+    }
+    
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            print(f"-> Checking rule {rule_id} # {comment}")
+            report[rule_id] = check_compliance(rule_id, function(server, reference_data), reference_data)
+    
+    save_yaml_report(report, f"maintenance_{niveau}.yaml", rules)
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 100
+    print(f"\nCompliance rate for {niveau.upper()} level (Maintenance): {compliance_percentage:.2f}%")
+
+# Save analysis report in YAML format
+def save_yaml_report(data, output_file, rules):
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
-
+    
     with open(output_path, "w", encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
-
-    print(f"Rapport généré : {output_path}")
+        for rule_id, content in data.items():
+            comment = rules.get("min", {}).get(rule_id, (None, ""))[1] or rules.get("moyen", {}).get(rule_id, (None, ""))[1]
+            file.write(f"{rule_id}:  # {comment}\n")
+            yaml.dump(content, file, default_flow_style=False, allow_unicode=True, indent=2)
+    
+    print(f"Report generated: {output_path}")
