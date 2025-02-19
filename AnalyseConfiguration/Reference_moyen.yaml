@@ -175,3 +175,35 @@ R14:
       fs.protected_regular: "2"
       fs.protected_symlinks: "1"
       fs.protected_hardlinks: "1"
+
+R35:
+  description: "Use unique and exclusive service accounts"
+  expected:
+    unique_service_accounts: []
+
+R63:
+  description: "Disable non-essential service features"
+  expected:
+    disabled_service_features: []
+
+R74:
+  description: "Harden the local mail service (ignored if no mail service is running) All the criteria present in the compliance file must be validated, so they need to be modified beforehand or afterward to ensure proper compliance."
+  expected:
+    hardened_mail_service:
+      listen_interfaces:
+        - "127.0.0.1:25"
+        - "[::1]:25"
+      allow_local_delivery:
+        - "localhost"
+        - "localhost.lxd"
+        - "HMS.lxd"
+        - "$myhostname"
+
+
+R75:
+  description: "Configure a mail alias for service accounts (The function only detects aliases; it is necessary to manually check if the alias is correctly associated with the administrator's email. The detected elements come from the reference file. If none of the expected elements are found, the value of expected_elements will be an empty list. At least one alias is sufficient for the rule to be compliant.)"
+  expected:
+    mail_aliases:
+      - "root"
+      - "postmaster"
+      - "admin"

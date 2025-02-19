@@ -1,18 +1,1 @@
-R80:
-  appliquer: false
-  interfaces_detectees:
-  - 127.0.0.53%lo:53
-  - 10.171.165.118%eth0:68
-  - fe80::216:3eff:fea2:78b6%eth0:546
-  - 0.0.0.0:22
-  - :::22
-  interfaces_non_utilisees_tcp: []
-  interfaces_non_utilisees_udp:
-  - 10.171.165.118%eth0:68
-  - fe80::216:3eff:fea2:78b6%eth0:546
-  interfaces_utilisees_tcp:
-  - 127.0.0.53%lo:53
-  - 0.0.0.0:22
-  - :::22
-  interfaces_utilisees_udp: []
-  status: Non conforme
+{}

@@ -69,6 +69,7 @@ R70:
     - messagebus
     - news
     - pollinate
+    - postfix
     - proxy
     - root
     - sshd
