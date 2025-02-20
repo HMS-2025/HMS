@@ -9,13 +9,23 @@ def execute_ssh_command(serveur, command):
 
 # Check compliance of rules by comparing detected values with references
 def check_compliance(rule_id, detected_values, reference_data):
-    expected_values = reference_data.get(rule_id, {}).get("expected", [])
-    expected_values = expected_values if isinstance(expected_values, list) else []
-
+    expected_values = reference_data.get(rule_id, {}).get("expected", {})
+    expected_values_list = []
+    
+    # Flatten expected values to match detected values format
+    if isinstance(expected_values, dict):
+        for key, value in expected_values.items():
+            if isinstance(value, list):
+                expected_values_list.extend(value)
+            else:
+                expected_values_list.append(value)
+    elif isinstance(expected_values, list):
+        expected_values_list = expected_values
+    
     return {
         "apply": False if detected_values else True,
         "status": "Compliant" if not detected_values else "Non-compliant",
-        "expected_elements": expected_values,
+        "expected_elements": expected_values_list or "None",
         "detected_elements": detected_values or "None"
     }
 
