@@ -19,33 +19,52 @@ def check_compliance(rule_id, detected_values, reference_data):
         "detected_elements": detected_values or "None"
     }
 
-# Retrieve standard users (UID >= 1000) except 'nobody'
+# Define functions for each rule
+
 def get_standard_users(serveur):
     return set(execute_ssh_command(serveur, "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1}' /etc/passwd"))
 
-# Retrieve users with recent logins (less than 60 days)
 def get_recent_users(serveur):
     return set(execute_ssh_command(serveur, "last -s -60days -F | awk '{print $1}' | grep -v 'wtmp' | sort | uniq"))
 
-# Retrieve the list of disabled accounts from /etc/shadow
 def get_disabled_users(serveur):
     return set(execute_ssh_command(serveur, "awk -F: '($2 ~ /^!|^\\*/) {print $1}' /etc/shadow"))
 
-# Retrieve the list of inactive users
 def get_inactive_users(serveur):
     return list((get_standard_users(serveur) - get_recent_users(serveur)) - get_disabled_users(serveur))
 
-# Find files and directories without user or group
 def find_orphan_files(serveur):
     return execute_ssh_command(serveur, "sudo find / -xdev \( -nouser -o -nogroup \) -print 2>/dev/null")
 
-# Find executables with setuid and setgid permissions
 def find_files_with_setuid_setgid(serveur):
     return execute_ssh_command(serveur, "find / -type f -perm /6000 -print 2>/dev/null")
 
-# Retrieve the list of service accounts
 def get_service_accounts(serveur):
     return execute_ssh_command(serveur, "awk -F: '($3 < 1000) && ($1 != \"root\") {print $1}' /etc/passwd")
+
+def get_sudo_directives(serveur):
+    return execute_ssh_command(serveur, "sudo grep -E '^Defaults' /etc/sudoers")
+
+def get_non_privileged_sudo_users(serveur):
+    return execute_ssh_command(serveur, "sudo grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\\(ALL.*\\)' | grep -Ev '(NOPASSWD|%sudo|root)'")
+
+def get_negation_in_sudoers(serveur):
+    return execute_ssh_command(serveur, "sudo grep -E '!' /etc/sudoers")
+
+def get_strict_sudo_arguments(serveur):
+    return execute_ssh_command(serveur, "sudo grep -E 'ALL=' /etc/sudoers | grep -E '\\*'")
+
+def get_sudoedit_usage(serveur):
+    return execute_ssh_command(serveur, "sudo grep -E 'ALL=.*sudoedit' /etc/sudoers")
+
+def get_secure_permissions(serveur):
+    return execute_ssh_command(serveur, "sudo find / -type f -perm -0002 -ls 2>/dev/null")
+
+def get_protected_sockets(serveur):
+    return execute_ssh_command(serveur, "sudo ss -xp | awk '{print $5}' | cut -d':' -f1 | sort -u")
+
+def get_user_private_tmp(serveur):
+    return execute_ssh_command(serveur, "mount | grep ' /tmp '")
 
 # Analyze access management and generate a report
 def analyse_gestion_acces(serveur, niveau, reference_data):
@@ -61,6 +80,14 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
         },
         "moyen": {
             "R34": (get_service_accounts, "Disable unused service accounts"),
+            "R39": (get_sudo_directives, "Ensure proper sudo configuration"),
+            "R40": (get_non_privileged_sudo_users, "Restrict sudo privileges to privileged users"),
+            "R42": (get_negation_in_sudoers, "Avoid negations in sudo configurations"),
+            "R43": (get_strict_sudo_arguments, "Ensure strict argument specification in sudoers"),
+            "R44": (get_sudoedit_usage, "Restrict sudo editing to sudoedit"),
+            "R50": (get_secure_permissions, "Ensure secure file permissions"),
+            "R52": (get_protected_sockets, "Protect named sockets and pipes"),
+            "R55": (get_user_private_tmp, "Separate user temporary directories"),
         }
     }
     
@@ -69,7 +96,7 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
             print(f"-> Checking rule {rule_id} # {comment}")
             report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
     
-    save_yaml_report(report, f"analysis_{niveau}.yml", rules, niveau)
+    save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
 
@@ -83,7 +110,8 @@ def save_yaml_report(data, output_file, rules, niveau):
     output_path = os.path.join(output_dir, output_file)
 
     with open(output_path, "w", encoding="utf-8") as file: 
-        file.write("access_management:\n") 
+        print(output_path)
+        file.write("gestion_acces:\n") 
 
         for rule_id, content in data.items():
             comment = rules[niveau].get(rule_id, ("", ""))[1]
