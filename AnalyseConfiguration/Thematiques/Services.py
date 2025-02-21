@@ -1,91 +1,76 @@
 import yaml
 import os
-from datetime import datetime
+import paramiko
 
-# Load references from Reference_min.yaml or Reference_Moyen.yaml
+# Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
 def load_reference_yaml(niveau):
-    """Loads the reference file corresponding to the chosen level (min or moyen)."""
+    """Charge le fichier de référence correspondant au niveau choisi (min ou moyen)."""
     file_path = f"AnalyseConfiguration/Reference_{niveau}.yaml"
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data or {}
     except Exception as e:
-        print(f"Error loading {file_path} : {e}")
+        print(f"Erreur lors du chargement de {file_path} : {e}")
         return {}
 
-# Compliance check adapted for each rule
-def check_compliance(rule_id, rule_value, reference_data):
-    """Checks compliance based on the given rule."""
+# Exécution d'une commande SSH
+def execute_ssh_command(serveur, command):
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-    # Retrieve rule description
-    description = reference_data.get(rule_id, {}).get("description", "No description available.")
-
-    # Récupération des valeurs attendues et détectées selon la règle
-    if rule_id == "R74":
-        expected_value = reference_data.get(rule_id, {}).get("expected", {}).get("hardened_mail_service", {}).get("listen_interfaces", []) + \
-                         reference_data.get(rule_id, {}).get("expected", {}).get("hardened_mail_service", {}).get("allow_local_delivery", [])
-        detected_value = rule_value.get("detected_elements", [])
-    elif rule_id == "R75":
-        expected_value = reference_data.get(rule_id, {}).get("expected", {}).get("mail_aliases", [])
-        detected_value = rule_value.get("éléments_detectés", [])
-    else:
-        expected_value = reference_data.get(rule_id, {}).get("expected", [])
-        detected_value = rule_value
-
-    if not isinstance(expected_value, list):
-        expected_value = []
-
-    # Vérifier la conformité
-    is_compliant = bool(detected_value) and set(detected_value).issubset(set(expected_value))
-
+# Vérification de conformité des règles
+def check_compliance(rule_id, detected_values, reference_data):
+    """Vérifie la conformité des règles en comparant les valeurs détectées avec les références."""
+    expected_values = reference_data.get(rule_id, {}).get("expected", {})
+    expected_values_list = []
+    
+    if isinstance(expected_values, dict):
+        for key, value in expected_values.items():
+            if isinstance(value, list):
+                expected_values_list.extend(value)
+            else:
+                expected_values_list.append(value)
+    elif isinstance(expected_values, list):
+        expected_values_list = expected_values
+    
     return {
-        "description": description,
-        "status": "Compliant" if is_compliant else "Non-compliant",
-        "apply": is_compliant,  
-        "detected_elements": detected_value if detected_value else [],
-        "expected_elements": expected_value
+        "apply": detected_values == expected_values_list,
+        "status": "Conforme" if detected_values == expected_values_list else "Non-conforme",
+        "expected_elements": expected_values or "None",
+        "detected_elements": detected_values or "None"
     }
 
-# Main function for analyzing services
+# Fonction principale d'analyse des services
 def analyse_services(serveur, niveau, reference_data=None):
-    """Analyzes services and generates a YAML report with compliance details."""
-    report = {}
-
+    """Analyse les services et génère un rapport YAML détaillé avec la conformité."""
     if reference_data is None:
         reference_data = load_reference_yaml(niveau)
+    
+    report = {}
+    rules = {
+        "min": {
+            "R62": (disable_unnecessary_services, "Désactiver les services interdits"),
+        },
+        "moyen": {
+            "R35": (check_unique_service_accounts, "Vérifier l'unicité des comptes de service"),
+            "R63": (check_disabled_service_features, "Désactiver les fonctionnalités de service non essentielles"),
+            "R74": (check_hardened_mail_service, "Renforcer le service de messagerie local"),
+            "R75": (check_mail_aliases, "Vérifier les alias de messagerie pour les comptes de service"),
+        }
+    }
+    
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            print(f"-> Vérification de la règle {rule_id} # {comment}")
+            if rule_id == "R62":
+                report[rule_id] = check_compliance(rule_id, function(serveur, reference_data), reference_data)
+            else:
+                report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
 
-    if niveau == "min":
-        print("-> Checking prohibited services running (R62)")
-        forbidden_services = disable_unnecessary_services(serveur, reference_data)
-        report["R62"] = forbidden_services
-
-    elif niveau == "moyen":
-        print("-> Checking uniqueness of service accounts (R35)")
-        unique_service_accounts = check_unique_service_accounts(serveur)
-        report["R35"] = check_compliance("R35", unique_service_accounts, reference_data)
-
-        print("-> Checking non-essential service features (R63)")
-        disabled_features = check_disabled_service_features(serveur)
-        report["R63"] = check_compliance("R63", disabled_features, reference_data)
-
-        print("-> Checking local mail service configuration (R74)")
-        hardened_mail_service = check_hardened_mail_service(serveur)
-        report["R74"] = check_compliance("R74", hardened_mail_service, reference_data)
-
-        print("-> Checking mail aliases for service accounts (R75)")
-        mail_aliases = check_mail_aliases(serveur)
-        report["R75"] = check_compliance("R75", mail_aliases, reference_data)
-
-    # Save report
-    save_yaml_report(report, f"services_{niveau}.yml")
-
-    # Compliance rate calculation
-    total_rules = len(report)
-    conforming_rules = sum(1 for result in report.values() if result["status"] == "Compliant")
-    compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 0
-
-    print(f"\nCompliance rate for level {niveau.upper()} (Services) : {compliance_percentage:.2f}%")
+    save_yaml_report(report, f"analyse_{niveau}.yml")
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
+    print(f"\nTaux de conformité pour le niveau {niveau.upper()} : {compliance_percentage:.2f}%")
 
 # R62 - Disable unnecessary services
 def disable_unnecessary_services(serveur, reference_data):
@@ -202,18 +187,16 @@ def check_mail_aliases(serveur):
     # Nettoyage des alias détectés pour éviter des espaces superflus
     detected_aliases = [alias.strip() for alias in aliases_output if alias.strip() in expected_aliases]
 
-    return {
-        "éléments_detectés": detected_aliases,
-        "éléments_attendus": expected_aliases
-    }
-
-
-# Save YAML reports
 def save_yaml_report(data, output_file):
-    """Saves analysis data to a YAML file."""
+    """Sauvegarde les résultats de l'analyse dans un fichier YAML sans alias."""
+    if not data:
+        return
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
-    with open(output_path, "w", encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
-    print(f"Report generated: {output_path}")
+    
+    yaml.Dumper.ignore_aliases = lambda *args : True
+
+    with open(output_path, "a", encoding="utf-8") as file:
+        yaml.dump({"services": data}, file, default_flow_style=False, allow_unicode=True, sort_keys=False, default_style=None)
+    print(f"Rapport généré : {output_path}")
