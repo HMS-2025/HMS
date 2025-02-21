@@ -135,3 +135,98 @@ def save_yaml_report(data, output_file, rules, niveau):
         file.write("\n") 
 
     print(f"Report generated: {output_path}")
+
+
+
+
+
+
+# R67 
+# print("-> Vérification de la sécurisation de l'authentification distante via PAM (R67)")
+# pam_security = check_pam_security(serveur, reference_data)
+# report["R67"] = check_compliance("R67", pam_security, reference_data)
+
+# # Vérification de conformité adaptée pour chaque règle
+# def check_compliance(rule_id, rule_value, reference_data):
+#     """Vérifie la conformité en fonction de la règle donnée et gère le cas particulier de R67."""
+
+#     # Charger les valeurs attendues depuis Reference_Moyen.yaml
+#     expected_value = reference_data.get(rule_id, {}).get("expected", {})
+
+#     if rule_id == "R67":
+#         # Construire la liste des éléments attendus sous le même format que les éléments détectés
+#         expected_list = [f"detected_pam_modules: {expected_value.get('detected_pam_modules', '')}"] + \
+#                         [f"{module}: {status}" for module, status in expected_value.get("security_modules", {}).items()]
+
+#         # Vérifier si tous les éléments détectés correspondent exactement aux valeurs attendues
+#         is_compliant = set(rule_value) == set(expected_list)
+
+#         compliance_result = {
+#             "rule_id": rule_id,
+#             "status": "Conforme" if is_compliant else "Non conforme",
+#             "appliquer": is_compliant,  # Maintenant, appliquer = True si conforme
+#             "éléments_attendus": expected_value,  # Toujours afficher les éléments attendus
+#             "éléments_detectés": rule_value if rule_value else []  # Assurer une liste bien formatée
+#         }
+#     else:
+#         # Cas général pour les autres règles
+#         if not isinstance(expected_value, list):
+#             expected_value = []
+
+#         is_compliant = not rule_value  # Conforme si rule_value est vide
+
+#         compliance_result = {
+#             "rule_id": rule_id,
+#             "status": "Conforme" if is_compliant else "Non conforme",
+#             "appliquer": is_compliant,  # Maintenant, appliquer = True si conforme
+#             "éléments_attendus": expected_value if expected_value else "Non spécifié",
+#             "éléments_detectés": rule_value if rule_value else []  # Assurer une liste bien formatée
+#         }
+
+#     return compliance_result
+
+# # R67 - Sécuriser les authentifications distantes par PAM
+# def check_pam_security(serveur, reference_data):
+#     """Vérifie si l'authentification à distance via PAM est sécurisée (R67)."""
+
+#     # Charger les valeurs attendues depuis Reference_Moyen.yaml
+#     expected_values = reference_data.get("R67", {}).get("expected", {})
+
+#     # Vérifier l'utilisation du module d'authentification distant (pam_ldap attendu)
+#     command_pam_auth = "grep -Ei 'pam_ldap' /etc/pam.d/* 2>/dev/null"
+#     stdin, stdout, stderr = serveur.exec_command(command_pam_auth)
+#     detected_pam_entries = stdout.read().decode().strip().split("\n")
+
+#     # Si pam_ldap est détecté, l'afficher, sinon "Non trouvé"
+#     detected_pam_module = "pam_ldap" if detected_pam_entries and any("pam_ldap" in line for line in detected_pam_entries) else "Non trouvé"
+
+#     # Vérifier la présence des modules de sécurité requis
+#     security_modules = expected_values.get("security_modules", {})
+#     detected_security_modules = {}
+
+#     for module in security_modules.keys():
+#         command = f"grep -E '{module}' /etc/pam.d/* 2>/dev/null"
+#         stdin, stdout, stderr = serveur.exec_command(command)
+#         detected_status = "Enabled" if stdout.read().decode().strip() else "Non trouvé"
+        
+#         # Stocker la valeur détectée
+#         detected_security_modules[module] = detected_status
+
+#     # Construire les éléments détectés
+#     detected_elements = {
+#         "detected_pam_modules": detected_pam_module,
+#         "security_modules": detected_security_modules
+#     }
+
+#     # Construire la liste des éléments détectés (inclut tous les éléments attendus)
+#     detected_list = []
+
+#     # Ajouter les modules PAM LDAP
+#     detected_list.append(f"detected_pam_modules: {detected_elements['detected_pam_modules']}")
+
+#     # Ajouter les modules de sécurité PAM
+#     for module, detected_status in detected_elements["security_modules"].items():
+#         detected_list.append(f"{module}: {detected_status}")
+
+#     return detected_list
+
