@@ -203,3 +203,100 @@ def save_yaml_report(data, output_file):
     with open(output_path, "w", encoding="utf-8") as file:
         yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
     print(f"Rapport généré : {output_path}")
+
+
+
+# R69 -----------------------------
+# # R69 - Secure access to remote user databases
+# def check_remote_user_database_security(server, reference_data):
+#     """Retrieves security-related information about remote user databases (R69) and ensures compliance."""
+
+#     # Load expected values from reference_moyen.yaml
+#     expected_values = reference_data.get("R69", {}).get("expected", {})
+
+#     # Check if NSS uses a remote database (LDAP or SSSD)
+#     command_nsswitch = "grep -E '^(passwd|group|shadow):' /etc/nsswitch.conf | awk '{for (i=2; i<=NF; i++) print $i}' | sort -u"
+#     stdin, stdout, stderr = server.exec_command(command_nsswitch)
+#     nss_sources = stdout.read().decode().strip().split("\n")
+
+#     # Ensure the list does not contain empty elements
+#     nss_sources = [src.strip() for src in nss_sources if src.strip()]
+
+#     # Detect if a remote user database is being used (compare with expected values)
+#     uses_remote_db = expected_values.get("uses_remote_db", "None") if expected_values.get("uses_remote_db") in nss_sources else "None"
+
+#     if uses_remote_db == "None":
+#         print("No remote user database detected.")
+#         return {
+#             "uses_remote_db": "None",
+#             "secure_connection": "Not applicable",
+#             "binddn_user": "Not applicable",
+#             "limited_rights": "Not applicable"
+#         }
+
+#     # Check if TLS is enabled to secure the LDAP/SSSD connection
+#     command_tls = "grep -i 'tls' /etc/ldap/ldap.conf /etc/sssd/sssd.conf 2>/dev/null | grep -v '^#' | awk -F':' '{print $2}' | sed 's/^[ \t]*//g' | sort -u"
+#     stdin, stdout, stderr = server.exec_command(command_tls)
+#     tls_config = stdout.read().decode().strip().split("\n")
+
+#     # Ensure TLS compliance: accept start_tls, ssl, or a TLS certificate configuration
+#     expected_tls = expected_values.get("secure_connection", "").lower()
+#     secure_connection = "None"
+#     if expected_tls in ["start_tls", "ssl"] and any(expected_tls in item.lower() for item in tls_config):
+#         secure_connection = expected_tls
+#     elif "TLS_CACERT" in " ".join(tls_config) or "TLS_REQCERT" in " ".join(tls_config):
+#         secure_connection = "tls"  # Accept if TLS certificates are set
+
+#     # Retrieve the bind user for LDAP/SSSD
+#     command_binddn = "grep -i 'bind' /etc/sssd/sssd.conf /etc/ldap/ldap.conf 2>/dev/null | awk -F'=' '{print substr($0, index($0,$2))}' | sed 's/^[ \t]*//g'"
+#     stdin, stdout, stderr = server.exec_command(command_binddn)
+#     binddn_user = stdout.read().decode().strip()
+
+#     # If binddn_user is empty, set it to "Not defined"
+#     if not binddn_user:
+#         binddn_user = "Not defined"
+
+#     # Ensure the bind user matches the expected value
+#     expected_binddn = expected_values.get("binddn_user", "")
+#     binddn_user_status = binddn_user if binddn_user == expected_binddn else "Not properly defined"
+
+#     # Check if the account has limited rights (compare with expected values)
+#     expected_rights = expected_values.get("limited_rights", "")
+#     limited_rights = expected_rights if "service_account" in binddn_user.lower() else "No"
+
+#     return {
+#         "uses_remote_db": uses_remote_db,
+#         "secure_connection": secure_connection,
+#         "binddn_user": binddn_user_status,  # Only one field for the bind user check
+#         "limited_rights": limited_rights
+#     }
+
+# print("-> Checking security of remote user databases (R69)")
+# rule_value = check_remote_user_database_security(server, reference_data)  # Retrieve detected values
+# report["R69"] = check_compliance("R69", rule_value, reference_data)  # Verify compliance
+
+# def check_compliance(rule_id, rule_value, reference_data):
+#     """Checks compliance based on the given rule and includes the rule description in the report."""
+    
+#     # Retrieve the rule description
+#     description = reference_data.get(rule_id, {}).get("description", "No description available.")
+
+#     # Retrieve expected values from the reference file
+#     expected_value = reference_data.get(rule_id, {}).get("expected", {})
+
+#     # Compliance check adapted for different types of expected values
+#     is_compliant = rule_value == expected_value
+
+#     # Manage displayed detected elements
+#     detected_elements = rule_value if rule_value else "None"
+
+#     compliance_result = {
+#         "description": description,  # Add rule description
+#         "status": "Compliant" if is_compliant else "Non-compliant",
+#         "apply": is_compliant,  # If compliant, apply = True
+#         "detected_elements": detected_elements,
+#         "expected_elements": expected_value
+#     }
+
+#     return compliance_result
+
