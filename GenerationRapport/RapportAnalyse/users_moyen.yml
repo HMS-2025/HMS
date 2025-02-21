@@ -13,26 +13,30 @@ R32:
       IdleAction: lock
       IdleActionSec: 900s
       RuntimeMaxSec: 3600s
+  rule_id: R32
   status: Non-compliant
 R69:
-  apply: true
-  description: Ensure that NSS is configured securely when using remote user databases.
-    If using 'sss' (SSSD), 'uses_remote_db' should be 'sss', and 'secure_connection'
-    must be 'TLS_CACERT'. If using 'ldap', 'uses_remote_db' should be 'ldap', and
-    'secure_connection' must be 'start_tls' or 'ssl'. The authentication account ('binddn_user')
-    must be separate from user accounts and formatted as 'cn=service_account,dc=example'.
-    The account should have limited privileges ('limited_rights' should be 'Yes' (cn=service_account)).
+  apply: false
+  description: Secure access to remote user databases
   detected_elements:
-    binddn_user: cn=service_account,dc=example,dc=com
-    limited_rights: true
-    secure_connection: tls
-    uses_remote_db: sss
+    detected_elements:
+    - 'netgroup:       nis'
+    - ''
+    expected_elements:
+    - TLS_REQCERT demand
+    - SSL start_tls
+    - KRB5_KTNAME /etc/krb5.keytab
+    - SASL_MECH GSSAPI
+    status: Non-compliant
   expected_elements:
-    binddn_user: cn=service_account,dc=example,dc=com
-    limited_rights: true
-    secure_connection: tls
-    uses_remote_db: sss
-  status: Compliant
+    remote_user_database_security:
+    - No remote user database detected
+    - TLS_REQCERT demand
+    - SSL start_tls
+    - KRB5_KTNAME /etc/krb5.keytab
+    - SASL_MECH GSSAPI
+  rule_id: R69
+  status: Non-compliant
 R70:
   apply: false
   description: Separate system accounts and administrators from the directory
@@ -63,14 +67,11 @@ R70:
     - man
     - messagebus
     - news
-    - nslcd
-    - openldap
     - pollinate
     - postfix
     - proxy
     - root
     - sshd
-    - sssd
     - sync
     - sys
     - syslog
@@ -106,4 +107,5 @@ R70:
     - irc
     - gnats
     - nobody
+  rule_id: R70
   status: Non-compliant

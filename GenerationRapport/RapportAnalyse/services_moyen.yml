@@ -2,8 +2,8 @@ R35:
   apply: false
   description: Use unique and exclusive service accounts
   detected_elements:
-  - 2 postfix
-  - 22 root
+  - 7 postfix
+  - 23 root
   - 2 systemd+
   - 9 ubuntu
   expected_elements: []

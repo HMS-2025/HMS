@@ -1,37 +1,146 @@
-R34:  # Désactiver les comptes de service non utilisés
-appliquer: false
-status: Non conforme
-éléments_attendus: []
-éléments_detectés:
-- daemon
-- bin
-- sys
-- sync
-- games
-- man
-- lp
-- mail
-- news
-- uucp
-- proxy
-- www-data
-- backup
-- list
-- irc
-- gnats
-- systemd-network
-- systemd-resolve
-- systemd-timesync
-- messagebus
-- syslog
-- _apt
-- tss
-- uuidd
-- tcpdump
-- sshd
-- landscape
-- pollinate
-- fwupd-refresh
-- systemd-coredump
-- lxd
-- postfix
+R34:
+  appliquer: false
+  rule_id: R34
+  status: Non conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés:
+  - daemon
+  - bin
+  - sys
+  - sync
+  - games
+  - man
+  - lp
+  - mail
+  - news
+  - uucp
+  - proxy
+  - www-data
+  - backup
+  - list
+  - irc
+  - gnats
+  - systemd-network
+  - systemd-resolve
+  - systemd-timesync
+  - messagebus
+  - syslog
+  - _apt
+  - tss
+  - uuidd
+  - tcpdump
+  - sshd
+  - landscape
+  - pollinate
+  - fwupd-refresh
+  - systemd-coredump
+  - lxd
+  - postfix
+  - openldap
+  - sssd
+  - nslcd
+R39:
+  appliquer: false
+  rule_id: R39
+  status: Non conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés:
+    présentes:
+    - "Defaults\tenv_reset"
+    - "Defaults\tsecure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin\""
+    - "Defaults\tmail_badpass"
+R40:
+  appliquer: false
+  rule_id: R40
+  status: Non conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés:
+  - '%admin'
+  - user1
+  - user2
+  - user1
+  - user3
+  - user4
+  - user3
+  - user1
+R42:
+  appliquer: true
+  rule_id: R42
+  status: Conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés: []
+R43:
+  appliquer: false
+  rule_id: R43
+  status: Non conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés:
+  - user1 ALL=(ALL) /bin/cat *
+  - user1 ALL=(ALL) /usr/bin/vi /etc/config.conf
+  - user4 ALL=(ALL) /bin/cp /tmp/file /backup/
+R44:
+  appliquer: false
+  rule_id: R44
+  status: Non conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés:
+  - user1 ALL=(ALL) /usr/bin/vi /etc/config.conf
+R50:
+  appliquer: false
+  rule_id: R50
+  status: Non conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés:
+  - /etc/shadow 640
+  - /etc/gshadow 640
+  - /etc/ssh/sshd_config 644
+  - /etc/cron.d 755
+  - /etc/cron.daily 755
+  - /etc/cron.hourly 755
+  - /etc/cron.monthly 755
+  - /etc/cron.weekly 755
+R52:
+  appliquer: false
+  rule_id: R52
+  status: Non conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés:
+  - '/run/systemd/journal/socket - permissions incorrectes: srw-rw-rw-'
+  - '/run/systemd/notify - permissions incorrectes: srwxrwxrwx'
+  - '/run/dbus/system_bus_socket - permissions incorrectes: srw-rw-rw-'
+  - 'Sockets non référencées détectées: /run/systemd/journal/dev-log, public/cleanup,
+    public/pickup, Local, *, private/rewrite, /run/systemd/journal/stdout, /var/run/slapd/ldapi'
+R55:
+  appliquer: false
+  rule_id: R55
+  status: Non conforme
+  éléments_attendus: Non spécifié
+  éléments_detectés:
+  - 'Options incorrectes pour /tmp : '
+  - Les modules PAM `pam_namespace` ou `pam_mktemp` ne sont pas activés.
+  - 'Fichiers modifiables par tout le monde détectés :'
+  - 88      0 crw-rw-rw-   1 nobody   nogroup   10, 229 Feb 20 08:44 /dev/fuse
+  - '      139      0 crw-rw-rw-   1 nobody   nogroup   10, 200 Feb 20 08:44 /dev/net/tun'
+  - '        8      0 crw-rw-rw-   1 nobody   nogroup    1,   7 Feb 20 08:44 /dev/full'
+  - '        5      0 crw-rw-rw-   1 nobody   nogroup    1,   3 Feb 20 08:44 /dev/null'
+  - '        9      0 crw-rw-rw-   1 nobody   nogroup    1,   8 Feb 20 08:44 /dev/random'
+  - '       12      0 crw-rw-rw-   1 nobody   nogroup    5,   0 Feb 21 08:22 /dev/tty'
+  - '       10      0 crw-rw-rw-   1 nobody   nogroup    1,   9 Feb 20 08:44 /dev/urandom'
+  - '        7      0 crw-rw-rw-   1 nobody   nogroup    1,   5 Feb 20 08:44 /dev/zero'
+  - '        2      0 crw-rw-rw-   1 root     root       5,   2 Feb 21 08:22 /dev/ptmx'
+  - '    69220      0 -rw-rw-rw-   1 nobody   nogroup         0 Feb 20 09:29 /proc/sys/kernel/ns_last_pid'
+R67:
+  appliquer: false
+  rule_id: R67
+  status: Non conforme
+  éléments_attendus:
+    detected_pam_modules: pam_ldap
+    security_modules:
+      pam_faillock: Enabled
+      pam_pwquality: Enabled
+      pam_wheel: Enabled
+  éléments_detectés:
+  - 'detected_pam_modules: pam_ldap'
+  - 'pam_faillock: Non trouvé'
+  - 'pam_pwquality: Enabled'
+  - 'pam_wheel: Enabled'
