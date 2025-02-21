@@ -2,10 +2,10 @@ R35:
   apply: false
   description: Use unique and exclusive service accounts
   detected_elements:
-  - 7 postfix
-  - 23 root
+  - 9 postfix
+  - 21 root
   - 2 systemd+
-  - 9 ubuntu
+  - 8 ubuntu
   expected_elements: []
   status: Non-compliant
 R63:

@@ -47,8 +47,8 @@ R39:
   éléments_detectés:
     présentes:
     - "Defaults\tenv_reset"
-    - "Defaults\tsecure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin\""
     - "Defaults\tmail_badpass"
+    - "Defaults\tsecure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin\""
 R40:
   appliquer: false
   rule_id: R40
@@ -108,8 +108,8 @@ R52:
   - '/run/systemd/journal/socket - permissions incorrectes: srw-rw-rw-'
   - '/run/systemd/notify - permissions incorrectes: srwxrwxrwx'
   - '/run/dbus/system_bus_socket - permissions incorrectes: srw-rw-rw-'
-  - 'Sockets non référencées détectées: /run/systemd/journal/dev-log, public/cleanup,
-    public/pickup, Local, *, private/rewrite, /run/systemd/journal/stdout, /var/run/slapd/ldapi'
+  - 'Sockets non référencées détectées: public/cleanup, /var/run/slapd/ldapi, private/rewrite,
+    Local, /run/systemd/journal/stdout, /run/systemd/journal/dev-log, *, private/local'
 R55:
   appliquer: false
   rule_id: R55
@@ -119,16 +119,16 @@ R55:
   - 'Options incorrectes pour /tmp : '
   - Les modules PAM `pam_namespace` ou `pam_mktemp` ne sont pas activés.
   - 'Fichiers modifiables par tout le monde détectés :'
-  - 88      0 crw-rw-rw-   1 nobody   nogroup   10, 229 Feb 20 08:44 /dev/fuse
-  - '      139      0 crw-rw-rw-   1 nobody   nogroup   10, 200 Feb 20 08:44 /dev/net/tun'
-  - '        8      0 crw-rw-rw-   1 nobody   nogroup    1,   7 Feb 20 08:44 /dev/full'
-  - '        5      0 crw-rw-rw-   1 nobody   nogroup    1,   3 Feb 20 08:44 /dev/null'
-  - '        9      0 crw-rw-rw-   1 nobody   nogroup    1,   8 Feb 20 08:44 /dev/random'
-  - '       12      0 crw-rw-rw-   1 nobody   nogroup    5,   0 Feb 21 08:22 /dev/tty'
-  - '       10      0 crw-rw-rw-   1 nobody   nogroup    1,   9 Feb 20 08:44 /dev/urandom'
-  - '        7      0 crw-rw-rw-   1 nobody   nogroup    1,   5 Feb 20 08:44 /dev/zero'
-  - '        2      0 crw-rw-rw-   1 root     root       5,   2 Feb 21 08:22 /dev/ptmx'
-  - '    69220      0 -rw-rw-rw-   1 nobody   nogroup         0 Feb 20 09:29 /proc/sys/kernel/ns_last_pid'
+  - 88      0 crw-rw-rw-   1 nobody   nogroup   10, 229 Feb 21 14:01 /dev/fuse
+  - '      139      0 crw-rw-rw-   1 nobody   nogroup   10, 200 Feb 21 14:01 /dev/net/tun'
+  - '        8      0 crw-rw-rw-   1 nobody   nogroup    1,   7 Feb 21 14:01 /dev/full'
+  - '        5      0 crw-rw-rw-   1 nobody   nogroup    1,   3 Feb 21 14:01 /dev/null'
+  - '        9      0 crw-rw-rw-   1 nobody   nogroup    1,   8 Feb 21 14:01 /dev/random'
+  - '       12      0 crw-rw-rw-   1 nobody   nogroup    5,   0 Feb 21 15:09 /dev/tty'
+  - '       10      0 crw-rw-rw-   1 nobody   nogroup    1,   9 Feb 21 14:01 /dev/urandom'
+  - '        7      0 crw-rw-rw-   1 nobody   nogroup    1,   5 Feb 21 14:01 /dev/zero'
+  - '        2      0 crw-rw-rw-   1 root     root       5,   2 Feb 21 14:01 /dev/ptmx'
+  - '   108106      0 -rw-rw-rw-   1 nobody   nogroup         0 Feb 21 15:48 /proc/sys/kernel/ns_last_pid'
 R67:
   appliquer: false
   rule_id: R67

@@ -43,7 +43,7 @@ R9:
     kernel.kptr_restrict: '1'
     kernel.panic_on_oops: '0'
     kernel.perf_cpu_time_max_percent: '25'
-    kernel.perf_event_max_sample_rate: '40000'
+    kernel.perf_event_max_sample_rate: '63000'
     kernel.perf_event_paranoid: '4'
     kernel.pid_max: '4194304'
     kernel.randomize_va_space: '2'
