@@ -1,91 +1,75 @@
 import yaml
 import os
+import paramiko
 
-# Load reference configuration from Reference_min.yaml or Reference_Moyen.yaml
+# Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
 def load_reference_yaml(niveau):
-    """Loads the reference file for the selected level (min or moyen)."""
+    """Charge le fichier de référence correspondant au niveau choisi (min ou moyen)."""
     file_path = f"AnalyseConfiguration/Reference_{niveau}.yaml"
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data or {}
     except Exception as e:
-        print(f"Error loading {file_path}: {e}")
+        print(f"Erreur lors du chargement de {file_path} : {e}")
         return {}
 
-# Compliance check function
-def check_compliance(rule_value, expected_value):
-    """Checks compliance based on the given rule."""
-    
-    # Vérification stricte pour garantir que les valeurs sont bien comparées correctement
-    if isinstance(rule_value, dict) and isinstance(expected_value, dict):
-        is_compliant = all(
-            str(rule_value.get(k, "None")) == str(expected_value.get(k, "None"))
-            for k in expected_value
-        )
-    elif isinstance(rule_value, list) and isinstance(expected_value, list):
-        is_compliant = sorted(rule_value) == sorted(expected_value)
-    else:
-        is_compliant = str(rule_value) == str(expected_value)
+# Exécution d'une commande SSH
+def execute_ssh_command(serveur, command):
+    stdin, stdout, stderr = serveur.exec_command(command)
+    output = stdout.read().decode().strip().split("\n")
+    return list(filter(None, output))
 
+# Vérification de conformité des règles
+def check_compliance(rule_id, detected_values, reference_data):
+    """Vérifie la conformité des règles en comparant les valeurs détectées avec les références."""
+    expected_values = reference_data.get(rule_id, {}).get("expected", {})
+    
+    if isinstance(expected_values, dict):
+        expected_values_list = list(expected_values.values())
+    elif isinstance(expected_values, list):
+        expected_values_list = expected_values
+    else:
+        expected_values_list = [expected_values]
+    
+    detected_values_list = detected_values if isinstance(detected_values, list) else list(detected_values.values())
+    
+    
     return {
-        "status": "Compliant" if is_compliant else "Non-compliant",
-        "apply": is_compliant,  
-        "detected_elements": rule_value,
-        "expected_elements": expected_value
+        "apply": detected_values_list == expected_values_list,
+        "status": "Conforme" if detected_values_list == expected_values_list else "Non-conforme",
+        "expected_elements": expected_values_list if expected_values_list else "None",
+        "detected_elements": detected_values_list if detected_values_list else "None"
     }
 
-# Main function to analyze the system
+# Fonction principale d'analyse du système
 def analyse_systeme(serveur, niveau, reference_data=None):
-    """Analyzes the system and generates a YAML report with compliance results."""
-    report = {}
-
+    """Analyse le système et génère un rapport YAML avec les résultats de conformité."""
     if reference_data is None:
         reference_data = load_reference_yaml(niveau)
+    
+    report = {}
+    rules = {
+        "min": {},
+        "moyen": {
+            "R8": (check_memory_configuration, "Vérifier la configuration mémoire"),
+            "R9": (check_kernel_configuration, "Vérifier la configuration du noyau"),
+            "R11": (check_yama_lsm, "Vérifier l'activation de Yama LSM"),
+            "R14": (check_filesystem_configuration, "Vérifier la configuration du système de fichiers"),
+        }
+    }
+    
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            print(f"-> Vérification de la règle {rule_id} # {comment}")
+            expected_values = reference_data.get(rule_id, {}).get("expected", {})
+            detected_values = function(serveur, expected_values)
+            report[rule_id] = check_compliance(rule_id, detected_values, reference_data)
+    
+    save_yaml_report(report, f"analyse_{niveau}.yml")
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
+    print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Système) : {compliance_percentage:.2f}%")
 
-    if niveau == "min":
-        print("-> No specific rules for minimal level system analysis.")
-
-    elif niveau == "moyen":
-        print("-> Checking memory configuration settings (R8)")
-        expected_memory_settings = reference_data.get("R8", {}).get("expected", {}).get("memory_options", [])
-        memory_settings = check_memory_configuration(serveur, expected_memory_settings)
-        report["R8"] = check_compliance(memory_settings, expected_memory_settings)
-
-        print("-> Checking kernel configuration settings (R9)")
-        expected_kernel_settings = reference_data.get("R9", {}).get("expected", {}).get("kernel_settings", {})
-        kernel_settings = check_kernel_configuration(serveur, expected_kernel_settings)
-        report["R9"] = check_compliance(kernel_settings, expected_kernel_settings)
-
-        print("-> Checking Yama LSM activation (R11)")
-        expected_yama_status = reference_data.get("R11", {}).get("expected", {}).get("yama_status", {})
-        yama_status = check_yama_lsm(serveur, expected_yama_status)
-        report["R11"] = check_compliance(yama_status, expected_yama_status)
-
-        print("-> Checking filesystem configuration settings (R14)")
-        expected_filesystem_settings = reference_data.get("R14", {}).get("expected", {}).get("filesystem_settings", {})
-        filesystem_settings = check_filesystem_configuration(serveur, expected_filesystem_settings)
-        report["R14"] = check_compliance(filesystem_settings, expected_filesystem_settings)
-
-    # Save the report
-    save_yaml_report(report, f"system_{niveau}.yml")
-
-    # Calculate compliance rate (ensuring all rules are counted properly)
-    total_rules = len(report)
-    conforming_rules = sum(1 for result in report.values() if result["status"] == "Compliant")
-    compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 100
-
-    print(f"\nCompliance rate for {niveau.upper()} level (System): {compliance_percentage:.2f}%")
-
-# Save the analysis report
-def save_yaml_report(data, output_file):
-    """Saves the analysis data into a YAML file in the designated folder."""
-    output_dir = "GenerationRapport/RapportAnalyse"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, output_file)
-    with open(output_path, "w", encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
-    print(f"Report generated: {output_path}")
 
 # --- R8: Memory Configuration Settings ---
 def check_memory_configuration(serveur, expected_params):
@@ -137,3 +121,16 @@ def check_filesystem_configuration(serveur, expected_settings):
         detected_settings[param] = stdout.read().decode().strip()
 
     return detected_settings
+
+# Sauvegarde du rapport YAML
+def save_yaml_report(data, output_file):
+    """Sauvegarde les résultats de l'analyse dans un fichier YAML sans alias."""
+    if not data:
+        return
+    output_dir = "GenerationRapport/RapportAnalyse"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, output_file)
+    
+    with open(output_path, "a", encoding="utf-8") as file:
+        yaml.safe_dump({"system": data}, file, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    print(f"Rapport généré : {output_path}")
