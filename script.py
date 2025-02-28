@@ -173,5 +173,5 @@ if __name__ == "__main__":
     if not client:
         print("Échec de la connexion SSH")
     
-    Tests = Analyse_min_test(client)
+    Tests = SSH_TEST(client)
     Tests.run_tests()
