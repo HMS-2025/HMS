@@ -2,80 +2,135 @@ import yaml
 import os
 import paramiko
 
-# Charger les références depuis Reference_min.yaml
-def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
-    """Charge le fichier Reference_min.yaml et retourne son contenu."""
+# Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
+def load_reference_yaml(niveau):
+    """Charge le fichier de référence correspondant au niveau choisi (min ou moyen)."""
+    file_path = f"AnalyseConfiguration/Reference_{niveau}.yaml"
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
-        return reference_data
+        return reference_data or {}
     except Exception as e:
-        print(f"Erreur lors du chargement de Reference_min.yaml : {e}")
+        print(f"Erreur lors du chargement de {file_path} : {e}")
         return {}
 
-# Exécuter une commande sur le serveur distant et récupérer la sortie
-def execute_remote_command(serveur, command, default_output="Non détecté"):
-    """Exécute une commande distante et normalise la sortie."""
-    try:
-        stdin, stdout, stderr = serveur.exec_command(command)
-        output = stdout.read().decode().strip()
-        return output if output else default_output
-    except Exception as e:
-        print(f"Erreur lors de l'exécution de la commande : {command} -> {e}")
-        return default_output
+# Exécution d'une commande SSH
+def execute_ssh_command(serveur, command):
+    stdin, stdout, stderr = serveur.exec_command(command)
+    output = stdout.read().decode().strip().split("\n")
+    return list(filter(None, output))
 
-# Comparer les résultats de l'analyse avec les références
-def check_compliance(rule_id, rule_value, reference_data):
-    """Vérifie si une règle est conforme en la comparant avec Reference_min.yaml."""
-    expected_value = reference_data.get(rule_id, {}).get("expected", {})
-
-    non_compliant_items = {}
-
-    # Comparer chaque sous-règle
-    for key, expected in expected_value.items():
-        detected = rule_value.get(key, "Non détecté")
-        if detected != expected:
-            non_compliant_items[key] = {
-                "Détecté": detected,
-                "Attendu": expected
-            }
-
+# Vérification de conformité des règles
+def check_compliance(rule_id, detected_values, reference_data):
+    """Vérifie la conformité des règles en comparant les valeurs détectées avec les références."""
+    expected_values = reference_data.get(rule_id, {}).get("expected", {})
+    
+    if isinstance(expected_values, dict):
+        expected_values_list = list(expected_values.values())
+    elif isinstance(expected_values, list):
+        expected_values_list = expected_values
+    else:
+        expected_values_list = [expected_values]
+    
+    detected_values_list = detected_values if isinstance(detected_values, list) else list(detected_values.values())
+    
+    
     return {
-        "status": "Non conforme" if non_compliant_items else "Conforme",
-        "éléments_problématiques": non_compliant_items if non_compliant_items else "Aucun",
-        "éléments_attendus": expected_value,
-        "appliquer": False if non_compliant_items else True
+        "apply": detected_values_list == expected_values_list,
+        "status": "Conforme" if detected_values_list == expected_values_list else "Non-conforme",
+        "expected_elements": expected_values_list if expected_values_list else "None",
+        "detected_elements": detected_values_list if detected_values_list else "None"
     }
 
-# Fonction principale pour analyser les utilisateurs
-def analyse_systeme(serveur, niveau="min", reference_data=None):
-    """Analyse les comptes utilisateurs et génère un rapport YAML avec conformité."""
-    report = {}
-
+# Fonction principale d'analyse du système
+def analyse_systeme(serveur, niveau, reference_data=None):
+    """Analyse le système et génère un rapport YAML avec les résultats de conformité."""
     if reference_data is None:
-        reference_data = load_reference_yaml()
+        reference_data = load_reference_yaml(niveau)
+    
+    report = {}
+    rules = {
+        "min": {},
+        "moyen": {
+            "R8": (check_memory_configuration, "Vérifier la configuration mémoire"),
+            "R9": (check_kernel_configuration, "Vérifier la configuration du noyau"),
+            "R11": (check_yama_lsm, "Vérifier l'activation de Yama LSM"),
+            "R14": (check_filesystem_configuration, "Vérifier la configuration du système de fichiers"),
+        }
+    }
+    
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            print(f"-> Vérification de la règle {rule_id} # {comment}")
+            expected_values = reference_data.get(rule_id, {}).get("expected", {})
+            detected_values = function(serveur, expected_values)
+            report[rule_id] = check_compliance(rule_id, detected_values, reference_data)
+    
+    save_yaml_report(report, f"analyse_{niveau}.yml")
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
+    print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Système) : {compliance_percentage:.2f}%")
 
-    if niveau == "min":
-        print("-> Aucune règle spécifique pour le niveau minimal en gestion des utilisateurs.")
 
-    # Enregistrement du rapport
-    save_yaml_report(report, "systeme_minimal.yml")
+# --- R8: Memory Configuration Settings ---
+def check_memory_configuration(serveur, expected_params):
+    """Checks memory configuration parameters in GRUB settings."""
 
-    # Calcul du taux de conformité
-    total_rules = len(report)
-    conforming_rules = sum(1 for result in report.values() if result["status"] == "Conforme") if total_rules > 0 else 0
-    compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 100  # 100% si pas de règles
+    # Lire la configuration GRUB pour récupérer GRUB_CMDLINE_LINUX_DEFAULT
+    command = "grep '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub | sed 's/GRUB_CMDLINE_LINUX_DEFAULT=\"//;s/\"$//'"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    
+    # Extraction des options en supprimant les doublons
+    grub_cmdline = list(set(stdout.read().decode().strip().split()))
 
-    print(f"\nTaux de conformité du niveau minimal (Systeme) : {compliance_percentage:.2f}%")
+    # Vérifier les éléments détectés
+    detected_elements = [param for param in grub_cmdline if param in expected_params]
 
-# Fonction d'enregistrement des rapports
+    # S'assurer que detected_elements est vide si aucun élément n'est trouvé
+    return detected_elements if detected_elements else []
+
+# --- R9: Kernel Configuration ---
+def check_kernel_configuration(serveur, expected_settings):
+    """Checks kernel configuration settings in sysctl based on reference_moyen.yaml."""
+    
+    detected_settings = {}
+    for param in expected_settings:
+        command = f"sysctl -n {param}"
+        stdin, stdout, stderr = serveur.exec_command(command)
+        detected_settings[param] = stdout.read().decode().strip()
+
+    return detected_settings
+
+# --- R11: Yama LSM Activation ---
+def check_yama_lsm(serveur, expected_value):
+    """Checks if Yama LSM is enabled and properly configured."""
+    
+    command = "sysctl -n kernel.yama.ptrace_scope"
+    stdin, stdout, stderr = serveur.exec_command(command)
+    yama_status = stdout.read().decode().strip()
+
+    return {"kernel.yama.ptrace_scope": yama_status}
+
+# --- R14: Filesystem Configuration Settings ---
+def check_filesystem_configuration(serveur, expected_settings):
+    """Checks recommended filesystem settings in sysctl based on reference_moyen.yaml."""
+    
+    detected_settings = {}
+    for param in expected_settings:
+        command = f"sysctl -n {param}"
+        stdin, stdout, stderr = serveur.exec_command(command)
+        detected_settings[param] = stdout.read().decode().strip()
+
+    return detected_settings
+
+# Sauvegarde du rapport YAML
 def save_yaml_report(data, output_file):
-    """Enregistre les données d'analyse dans un fichier YAML dans le dossier dédié."""
+    """Sauvegarde les résultats de l'analyse dans un fichier YAML sans alias."""
+    if not data:
+        return
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
-
-    with open(output_path, "w", encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
-
+    
+    with open(output_path, "a", encoding="utf-8") as file:
+        yaml.safe_dump({"system": data}, file, default_flow_style=False, allow_unicode=True, sort_keys=False)
     print(f"Rapport généré : {output_path}")

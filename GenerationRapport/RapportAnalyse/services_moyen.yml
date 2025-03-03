@@ -1,0 +1,57 @@
+R35:
+  apply: false
+  description: Use unique and exclusive service accounts
+  detected_elements:
+  - 2 postfix
+  - 22 root
+  - 2 systemd+
+  - 9 ubuntu
+  expected_elements: []
+  status: Non-compliant
+R63:
+  apply: false
+  description: Disable non-essential service features
+  detected_elements:
+  - /snap/core20/2434/usr/bin/ping = cap_net_raw+ep
+  - /snap/core20/2496/usr/bin/ping = cap_net_raw+ep
+  - /usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-ptp-helper = cap_net_bind_service,cap_net_admin+ep
+  - /usr/bin/ping = cap_net_raw+ep
+  - /usr/bin/mtr-packet = cap_net_raw+ep
+  - /usr/bin/traceroute6.iputils = cap_net_raw+ep
+  expected_elements: []
+  status: Non-compliant
+R74:
+  apply: true
+  description: Harden the local mail service (ignored if no mail service is running)
+    All the criteria present in the compliance file must be validated, so they need
+    to be modified beforehand or afterward to ensure proper compliance.
+  detected_elements:
+  - 127.0.0.1:25
+  - '[::1]:25'
+  - $myhostname
+  - HMS.lxd
+  - localhost.lxd
+  - localhost
+  expected_elements:
+  - 127.0.0.1:25
+  - '[::1]:25'
+  - localhost
+  - localhost.lxd
+  - HMS.lxd
+  - $myhostname
+  status: Compliant
+R75:
+  apply: true
+  description: Configure a mail alias for service accounts (The function only detects
+    aliases; it is necessary to manually check if the alias is correctly associated
+    with the administrator's email. The detected elements come from the reference
+    file. If none of the expected elements are found, the value of expected_elements
+    will be an empty list. At least one alias is sufficient for the rule to be compliant.)
+  detected_elements:
+  - root
+  - postmaster
+  expected_elements:
+  - root
+  - postmaster
+  - admin
+  status: Compliant

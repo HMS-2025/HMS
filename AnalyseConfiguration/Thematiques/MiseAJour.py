@@ -1,131 +1,110 @@
-import paramiko
 import yaml
 import os
+import paramiko
 
-# Charger les références depuis Reference_min.yaml
-def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
-    """Charge le fichier Reference_min.yaml et retourne son contenu."""
-    try:
-        with open(file_path, "r", encoding="utf-8") as file:
-            reference_data = yaml.safe_load(file)
-        return reference_data or {}
-    except Exception as e:
-        print(f"Erreur lors du chargement de Reference_min.yaml : {e}")
-        return {}
+# Exécuter une commande SSH sur le serveur distant et retourner le résultat
 
-# Comparer les résultats de l'analyse avec les références
-def check_compliance(rule_id, rule_value, reference_data):
-    """Vérifie si une règle est conforme en la comparant avec Reference_min.yaml."""
-    expected_value = reference_data.get(rule_id, {}).get("expected", {})
+def execute_ssh_command(server, command):
+    stdin, stdout, stderr = server.exec_command(command)
+    return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-    non_compliant_items = {}
-    detected_items = {}
+# Vérifier la conformité des règles en comparant les valeurs détectées avec les valeurs attendues
 
-    # Comparer chaque sous-règle
-    for key, expected in expected_value.items():
-        detected = rule_value.get(key, "Non détecté")
-
-        # Correction pour Systemd Timer
-        if key == "Systemd Timer" and "apt-daily.timer" in detected:
-            detected = "apt-daily.timer"
-
-        # Stocke les valeurs détectées
-        detected_items[key] = detected
-
-        # Vérifie la conformité
-        if detected != expected:
-            non_compliant_items[key] = {
-                "Détecté": detected,
-                "Attendu": expected
-            }
-
+def check_compliance(rule_id, detected_values, reference_data):
+    expected_values = reference_data.get(rule_id, {}).get("expected", {})
+    
+    if not isinstance(expected_values, dict):
+        expected_values = {}
+    
+    formatted_detected = {
+        key: " | ".join(value) if isinstance(value, list) else value
+        for key, value in detected_values.items()
+    }
+    
+    formatted_expected = {
+        key: " | ".join(value) if isinstance(value, list) else value
+        for key, value in expected_values.items()
+    }
+    
     return {
-        "status": "Non conforme" if non_compliant_items else "Conforme",
-        "éléments_problématiques": non_compliant_items if non_compliant_items else "Aucun",
-        "éléments_détectés": detected_items,
-        "éléments_attendus": expected_value,
-        "appliquer": False if non_compliant_items else True
+        "apply": formatted_detected == formatted_expected,
+        "status": "Conforme" if formatted_detected == formatted_expected else "Non-conforme",
+        "expected_elements": formatted_expected or "None",
+        "detected_elements": formatted_detected or "None"
     }
 
-# Fonction principale pour analyser la mise à jour automatique
-def analyse_mise_a_jour(serveur, niveau="min", reference_data=None):
-    """Vérifie si les mises à jour automatiques sont bien configurées et génère un rapport YAML avec conformité."""
-    report = {}
+# Vérifier l'état des mises à jour automatiques
 
-    if reference_data is None:
-        reference_data = load_reference_yaml()
-
-    if niveau == "min":
-        print("-> Vérification des mises à jour automatiques (R61)")
-        update_status = get_check_auto_updates(serveur)
-        report["R61"] = check_compliance("R61", update_status, reference_data)
-
-    # Enregistrement du rapport
-    save_yaml_report(report, "mise_a_jour_minimal.yml")
-
-    # Calcul du taux de conformité
-    total_rules = len(report)
-    conforming_rules = sum(1 for result in report.values() if result["status"] == "Conforme")
-    compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 0
-
-    print(f"\nTaux de conformité du niveau minimal (Mises à jour) : {compliance_percentage:.2f}%")
-
-# R61 - Vérifier l'état des mises à jour automatiques
-def get_check_auto_updates(serveur):
-    """Vérifie la configuration des mises à jour automatiques sur le serveur."""
-    update_status = {}
-
-    # Vérifier si `unattended-upgrades` est installé
-    command_unattended_installed = "dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null"
-    stdin, stdout, stderr = serveur.exec_command(command_unattended_installed)
-    installed_status = stdout.read().decode().strip()
-
-    # Vérifier si `unattended-upgrades` est activé au démarrage
-    command_unattended_enabled = "systemctl is-enabled unattended-upgrades 2>/dev/null"
-    stdin, stdout, stderr = serveur.exec_command(command_unattended_enabled)
-    enabled_status = stdout.read().decode().strip()
-
-    # Vérifier si `unattended-upgrades` est actuellement actif
-    command_unattended_active = "systemctl is-active unattended-upgrades 2>/dev/null"
-    stdin, stdout, stderr = serveur.exec_command(command_unattended_active)
-    active_status = stdout.read().decode().strip()
-
-    # Vérifier la vraie activation via le fichier de configuration
-    command_check_conf = "grep -E '^APT::Periodic::Unattended-Upgrade' /etc/apt/apt.conf.d/20auto-upgrades 2>/dev/null | grep -q '1' && echo 'enabled' || echo 'disabled'"
-    stdin, stdout, stderr = serveur.exec_command(command_check_conf)
-    config_status = stdout.read().decode().strip()
-
-    # Regrouper les statuts sous une seule clé
-    update_status["Unattended Upgrades"] = f"{installed_status} | {enabled_status} | {active_status} | {config_status}"
-
-     # Vérifier la présence de tâches cron pour les mises à jour (utilisateur root)
-    command_cron = "sudo crontab -l 2>/dev/null | grep -E 'apt-get upgrade|apt upgrade' || echo 'Aucune tâche cron détectée'"
-    stdin, stdout, stderr = serveur.exec_command(command_cron)
-    output = stdout.read().decode().strip()
-    update_status["Cron Updates"] = "apt update && apt upgrade -y" if "apt update && apt upgrade -y" in output else "Aucune tâche cron détectée"
-
-    # Vérifier la présence du script cron `apt-compat` dans `/etc/cron.daily/`
-    command_cron_scripts = "ls -1 /etc/cron.daily/ 2>/dev/null | grep -E '^apt-compat$' || echo 'Aucun script de mise à jour détecté'"
-    stdin, stdout, stderr = serveur.exec_command(command_cron_scripts)
-    output = stdout.read().decode().strip()
-    update_status["Cron Scripts"] = "apt-compat" if "apt-compat" in output else "Aucun script de mise à jour détecté"
-
-    # Vérifier si un timer systemd est configuré pour les mises à jour
-    command_systemd_timer = "systemctl list-timers --all | grep -E 'apt-daily|apt-daily-upgrade'"
-    stdin, stdout, stderr = serveur.exec_command(command_systemd_timer)
-    output = stdout.read().decode().strip()
-    update_status["Systemd Timer"] = "apt-daily.timer" if "apt-daily" in output else "Aucun timer systemd détecté"
-
+def get_check_auto_updates(server):
+    update_status = {
+        "Unattended Upgrades": " | ".join(execute_ssh_command(
+            server, "dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null"
+        )),
+        "Service Enabled": " | ".join(execute_ssh_command(
+            server, "systemctl is-enabled unattended-upgrades 2>/dev/null"
+        )),
+        "Service Active": " | ".join(execute_ssh_command(
+            server, "systemctl is-active unattended-upgrades 2>/dev/null"
+        )),
+        "APT Periodic Config": " | ".join(execute_ssh_command(
+            server, "grep -E '^APT::Periodic::Unattended-Upgrade' /etc/apt/apt.conf.d/20auto-upgrades 2>/dev/null | grep -q '1' && echo 'enabled' || echo 'disabled'"
+        )),
+        "Cron Jobs": " | ".join(execute_ssh_command(
+            server, "sudo crontab -l 2>/dev/null | grep -E 'apt-get upgrade|apt upgrade' || echo 'No cron job detected'"
+        )),
+        "Cron Scripts": " | ".join(execute_ssh_command(
+            server, "ls -1 /etc/cron.daily/ 2>/dev/null | grep -E '^apt-compat$' || echo 'No update script detected'"
+        )),
+        "Systemd Timer": " | ".join(execute_ssh_command(
+            server, "systemctl list-timers --all | grep -E 'apt-daily|apt-daily-upgrade'"
+        )),
+    }
     return update_status
 
-# Fonction d'enregistrement des rapports
-def save_yaml_report(data, output_file):
-    """Enregistre les données d'analyse dans un fichier YAML dans le dossier dédié."""
+# Analyser les paramètres de mise à jour du système et générer un rapport de conformité
+
+def analyse_mise_a_jour(server, niveau, reference_data):
+    if reference_data is None:
+        reference_data = {}
+    
+    report = {}
+    rules = {
+        "min": {
+            "R61": (get_check_auto_updates, "Vérifier l'état des mises à jour automatiques"),
+        }
+    }
+    
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            print(f"-> Vérification de la règle {rule_id} # {comment}")
+            report[rule_id] = check_compliance(rule_id, function(server), reference_data)
+    
+    save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
+    print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Mises à jour) : {compliance_percentage:.2f}%")
+
+# Sauvegarder le rapport d'analyse au format YAML
+
+def save_yaml_report(data, output_file, rules, niveau):
+    if not data:
+        return
+
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
 
-    with open(output_path, "w", encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
-
-    print(f"Rapport généré : {output_path}")
+    with open(output_path, "a", encoding="utf-8") as file:
+        file.write("mise_a_jour:\n")
+        
+        for rule_id, content in data.items():
+            comment = rules.get(niveau, {}).get(rule_id, (None, ""))[1]
+            file.write(f"  {rule_id}:  # {comment}\n")
+            
+            yaml_content = yaml.safe_dump(
+                content, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False
+            )
+            indented_yaml = "\n".join(["    " + line for line in yaml_content.split("\n") if line.strip()])
+            file.write(indented_yaml + "\n") 
+        file.write("\n")
+    
+    print(f"Rapport généré: {output_path}")

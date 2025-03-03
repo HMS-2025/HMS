@@ -1,0 +1,63 @@
+R11:
+  apply: true
+  detected_elements:
+    kernel.yama.ptrace_scope: '1'
+  expected_elements:
+    kernel.yama.ptrace_scope: '1'
+  status: Compliant
+R14:
+  apply: false
+  detected_elements:
+    fs.protected_fifos: '1'
+    fs.protected_hardlinks: '1'
+    fs.protected_regular: '2'
+    fs.protected_symlinks: '1'
+    fs.suid_dumpable: '2'
+  expected_elements:
+    fs.protected_fifos: '2'
+    fs.protected_hardlinks: '1'
+    fs.protected_regular: '2'
+    fs.protected_symlinks: '1'
+    fs.suid_dumpable: '0'
+  status: Non-compliant
+R8:
+  apply: false
+  detected_elements: []
+  expected_elements:
+  - l1tf=full,force
+  - page_poison=on
+  - pti=on
+  - slab_nomerge=yes
+  - slub_debug=FZP
+  - spec_store_bypass_disable=seccomp
+  - spectre_v2=on
+  - mds=full,nosmt
+  - mce=0
+  - page_alloc.shuffle=1
+  - rng_core.default_quality=500
+  status: Non-compliant
+R9:
+  apply: false
+  detected_elements:
+    kernel.dmesg_restrict: '1'
+    kernel.kptr_restrict: '1'
+    kernel.panic_on_oops: '0'
+    kernel.perf_cpu_time_max_percent: '25'
+    kernel.perf_event_max_sample_rate: '38000'
+    kernel.perf_event_paranoid: '4'
+    kernel.pid_max: '4194304'
+    kernel.randomize_va_space: '2'
+    kernel.sysrq: '176'
+    kernel.unprivileged_bpf_disabled: '2'
+  expected_elements:
+    kernel.dmesg_restrict: '1'
+    kernel.kptr_restrict: '2'
+    kernel.panic_on_oops: '1'
+    kernel.perf_cpu_time_max_percent: '1'
+    kernel.perf_event_max_sample_rate: '1'
+    kernel.perf_event_paranoid: '2'
+    kernel.pid_max: '65536'
+    kernel.randomize_va_space: '2'
+    kernel.sysrq: '0'
+    kernel.unprivileged_bpf_disabled: '1'
+  status: Non-compliant

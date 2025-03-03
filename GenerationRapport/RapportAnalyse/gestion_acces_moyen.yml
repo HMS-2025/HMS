@@ -1,268 +1,37 @@
-R34:
-  appliquer: false
-  rule_id: R34
-  status: Non conforme
-  éléments_attendus: []
-  éléments_detectés:
-  - daemon
-  - bin
-  - sys
-  - sync
-  - games
-  - man
-  - lp
-  - mail
-  - news
-  - uucp
-  - proxy
-  - www-data
-  - backup
-  - list
-  - irc
-  - gnats
-  - systemd-network
-  - systemd-resolve
-  - systemd-timesync
-  - messagebus
-  - syslog
-  - _apt
-  - tss
-  - uuidd
-  - tcpdump
-  - sshd
-  - landscape
-  - pollinate
-  - fwupd-refresh
-  - systemd-coredump
-  - lxd
-R39:
-  appliquer: false
-  rule_id: R39
-  status: Non conforme
-  éléments_attendus: []
-  éléments_detectés:
-    manquantes:
-    - sudo_directives
-    présentes: []
-R40:
-  appliquer: true
-  rule_id: R40
-  status: Conforme
-  éléments_attendus: []
-  éléments_detectés: Aucun
-R42:
-  appliquer: true
-  rule_id: R42
-  status: Conforme
-  éléments_attendus: []
-  éléments_detectés: Aucun
-R43:
-  appliquer: true
-  rule_id: R43
-  status: Conforme
-  éléments_attendus: []
-  éléments_detectés: Aucun
-R44:
-  appliquer: true
-  rule_id: R44
-  status: Conforme
-  éléments_attendus: []
-  éléments_detectés: Aucun
-R50:
-  appliquer: false
-  rule_id: R50
-  status: Non conforme
-  éléments_attendus: []
-  éléments_detectés:
-  - 640 /etc/shadow
-  - 644 /etc/passwd
-  - 644 /etc/group
-  - 640 /etc/gshadow
-  - 644 /etc/ssh/sshd_config
-R52:
-  appliquer: false
-  rule_id: R52
-  status: Non conforme
-  éléments_attendus: []
-  éléments_detectés:
-  - 'Netid State Recv-Q  Send-Q                  Local Address:Port     Peer Address:Port         Process                                                            '
-  - 'u_dgr ESTAB 0       0                                   * 21436               *
-    21435                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 21433               *
-    21434                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 21430               *
-    19939                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 22237               *
-    21428                                                                           '
-  - 'u_str ESTAB 0       0                                   * 20188               *
-    25864                                                                           '
-  - 'u_dgr ESTAB 0       0                 /run/systemd/notify 19919               *
-    0                                                                               '
-  - 'u_dgr ESTAB 0       0        /run/systemd/journal/dev-log 19935               *
-    0                                                                               '
-  - 'u_dgr ESTAB 0       0         /run/systemd/journal/socket 19939               *
-    0                                                                               '
-  - 'u_str ESTAB 0       0                                   * 28271               *
-    28270                                                                           '
-  - 'u_str ESTAB 0       0                                   * 22303               *
-    27861                                                                           '
-  - 'u_str ESTAB 0       0                                   * 28270               *
-    28271                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 25864               *
-    20188                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 21434               *
-    21433                                                                           '
-  - 'u_str ESTAB 0       0                                   * 21428               *
-    22237                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 21435               *
-    21436                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 27861               *
-    22303                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 213021              *
-    213022        users:(("systemd",pid=2902,fd=16))                                '
-  - 'u_str ESTAB 0       0                                   * 20336               *
-    23190                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 24193               *
-    28682                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 208169              *
-    19935                                                                           '
-  - 'u_str ESTAB 0       0                                   * 27156               *
-    25994                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 25622               *
-    19939                                                                           '
-  - 'u_str ESTAB 0       0                                   * 24962               *
-    24963                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 213010              *
-    19935                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 26894               *
-    19939                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 24233               *
-    20376                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 20261               *
-    20260                                                                           '
-  - 'u_str ESTAB 0       0                                   * 24955               *
-    27862                                                                           '
-  - 'u_str ESTAB 0       0                                   * 213024              *
-    211992        users:(("systemd",pid=2902,fd=19))                                '
-  - 'u_str ESTAB 0       0                                   * 24011               *
-    27860                                                                           '
-  - 'u_str ESTAB 0       0                                   * 20260               *
-    20261                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 24964               *
-    26908                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 24961               *
-    19935                                                                           '
-  - 'u_str ESTAB 0       0                                   * 24087               *
-    23111                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 27222               *
-    22516                                                                           '
-  - 'u_str ESTAB 0       0                                   * 23172               *
-    24971                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 25625               *
-    25624                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 27223               *
-    19939                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 19920               *
-    19921                                                                           '
-  - 'u_str ESTAB 0       0                                   * 20376               *
-    24233                                                                           '
-  - 'u_str ESTAB 0       0                                   * 25105               *
-    25104                                                                           '
-  - 'u_str ESTAB 0       0                                   * 25743               *
-    27653                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 26154               *
-    24170                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 19921               *
-    19920                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 213022              *
-    213021        users:(("systemd",pid=2902,fd=17))                                '
-  - 'u_str ESTAB 0       0                                   * 24963               *
-    24962                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 27712               *
-    25805                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 213016              *
-    19939         users:(("systemd",pid=2902,fd=3))                                 '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 26157               *
-    20343                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 25624               *
-    25625                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 23180               *
-    19935                                                                           '
-  - 'u_str ESTAB 0       0                                   * 208226              *
-    208225                                                                          '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 27034               *
-    20254                                                                           '
-  - 'u_str ESTAB 0       0                                   * 25049               *
-    27198                                                                           '
-  - 'u_str ESTAB 0       0                                   * 26156               *
-    24191                                                                           '
-  - 'u_str ESTAB 0       0                                   * 20254               *
-    27034                                                                           '
-  - 'u_str ESTAB 0       0                                   * 20343               *
-    26157                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 205787              *
-    213001                                                                          '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 24191               *
-    26156                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 27862               *
-    24955                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 25994               *
-    27156                                                                           '
-  - 'u_str ESTAB 0       0                                   * 25613               *
-    22068                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 27860               *
-    24011                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 27198               *
-    25049                                                                           '
-  - 'u_str ESTAB 0       0                                   * 213001              *
-    205787        users:(("systemd",pid=2902,fd=2),("systemd",pid=2902,fd=1))       '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 23190               *
-    20336                                                                           '
-  - 'u_str ESTAB 0       0                                   * 26908               *
-    24964                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 28677               *
-    19935                                                                           '
-  - 'u_str ESTAB 0       0                                   * 24170               *
-    26154                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 20035               *
-    19939                                                                           '
-  - 'u_str ESTAB 0       0                                   * 25805               *
-    27712                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 22299               *
-    19935                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 27653               *
-    25743                                                                           '
-  - 'u_str ESTAB 0       0                                   * 22516               *
-    27222                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 27023               *
-    25921                                                                           '
-  - 'u_str ESTAB 0       0                                   * 22296               *
-    27859                                                                           '
-  - 'u_str ESTAB 0       0                                   * 28682               *
-    24193                                                                           '
-  - 'u_str ESTAB 0       0                                   * 207344              *
-    0                                                                               '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 27859               *
-    22296                                                                           '
-  - 'u_dgr ESTAB 0       0                                   * 17309               *
-    19919                                                                           '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 22068               *
-    25613                                                                           '
-  - 'u_str ESTAB 0       0                                   * 208225              *
-    208226                                                                          '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 24971               *
-    23172                                                                           '
-  - 'u_str ESTAB 0       0         /run/dbus/system_bus_socket 211992              *
-    213024                                                                          '
-  - 'u_str ESTAB 0       0         /run/systemd/journal/stdout 23111               *
-    24087                                                                           '
-  - 'u_str ESTAB 0       0                                   * 25921               *
-    27023                                                                           '
-  - u_str ESTAB 0       0                                   * 25104               *
-    25105
-R55:
-  appliquer: true
-  rule_id: R55
-  status: Conforme
-  éléments_attendus: []
-  éléments_detectés: Aucun
+R34:  # Désactiver les comptes de service non utilisés
+appliquer: false
+status: Non conforme
+éléments_attendus: []
+éléments_detectés:
+- daemon
+- bin
+- sys
+- sync
+- games
+- man
+- lp
+- mail
+- news
+- uucp
+- proxy
+- www-data
+- backup
+- list
+- irc
+- gnats
+- systemd-network
+- systemd-resolve
+- systemd-timesync
+- messagebus
+- syslog
+- _apt
+- tss
+- uuidd
+- tcpdump
+- sshd
+- landscape
+- pollinate
+- fwupd-refresh
+- systemd-coredump
+- lxd
+- postfix

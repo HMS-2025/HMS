@@ -36,6 +36,22 @@ R56:
   - /snap/core20/2434/usr/lib/openssh/ssh-keysign
   - /snap/core20/2434/usr/sbin/pam_extrausers_chkpwd
   - /snap/core20/2434/usr/sbin/unix_chkpwd
+  - /snap/core20/2496/usr/bin/chage
+  - /snap/core20/2496/usr/bin/chfn
+  - /snap/core20/2496/usr/bin/chsh
+  - /snap/core20/2496/usr/bin/expiry
+  - /snap/core20/2496/usr/bin/gpasswd
+  - /snap/core20/2496/usr/bin/mount
+  - /snap/core20/2496/usr/bin/newgrp
+  - /snap/core20/2496/usr/bin/passwd
+  - /snap/core20/2496/usr/bin/ssh-agent
+  - /snap/core20/2496/usr/bin/su
+  - /snap/core20/2496/usr/bin/sudo
+  - /snap/core20/2496/usr/bin/umount
+  - /snap/core20/2496/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+  - /snap/core20/2496/usr/lib/openssh/ssh-keysign
+  - /snap/core20/2496/usr/sbin/pam_extrausers_chkpwd
+  - /snap/core20/2496/usr/sbin/unix_chkpwd
   - /snap/snapd/23545/usr/lib/snapd/snap-confine
   - /usr/lib/policykit-1/polkit-agent-helper-1
   - /usr/lib/dbus-1.0/dbus-daemon-launch-helper

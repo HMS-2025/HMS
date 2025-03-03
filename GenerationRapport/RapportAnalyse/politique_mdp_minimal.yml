@@ -1,43 +1,5 @@
-R31:
-  appliquer: false
-  status: Non conforme
-  éléments_attendus:
-    expiration_policy: 'Maximum number of days between password change: 90'
-    faillock: deny=3
-    pam_policy: password requisite pam_pwquality.so retry=3 minlen=12 difok=3
-  éléments_problématiques:
-    expiration_policy:
-      Attendu: 'Maximum number of days between password change: 90'
-      Détecté: "Maximum number of days between password change\t\t: 99999"
-    faillock:
-      Attendu: deny=3
-      Détecté: '# deny = 3
-
-        # even_deny_root
-
-        # This option implies the `even_deny_root` option.
-
-        # the root account (the options `even_deny_root>` and'
-    pam_policy:
-      Attendu: password requisite pam_pwquality.so retry=3 minlen=12 difok=3
-      Détecté: "password\t[success=1 default=ignore]\tpam_unix.so obscure sha512"
 R68:
-  appliquer: false
-  status: Non conforme
-  éléments_attendus:
-    cleartext_passwords: Non
-    empty_passwords: []
-    hash_algorithms: &id001
-    - $6$
-    - $argon2$
-    - $scrypt$
-    - $pbkdf2$
-    hashed_passwords: Oui
-    shadow_permissions: -rw-r----- 1 root shadow
-  éléments_problématiques:
-    hash_algorithms:
-      Attendu: *id001
-      Détecté: Non détecté
-    shadow_permissions:
-      Attendu: -rw-r----- 1 root shadow
-      Détecté: -rw-r----- 1 root shadow 1360 Feb 12 09:47 /etc/shadow
+  appliquer: true
+  status: Conforme
+  éléments_attendus: {}
+  éléments_problématiques: Aucun

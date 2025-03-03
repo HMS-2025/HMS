@@ -748,7 +748,7 @@ class Application_ssh (unittest.TestCase):
     def __init__(self, client , methodName="runTest"):
         super().__init__(methodName)
         self.client = client
-    def test_application_pubkey_authentication(self):
+    def test_pubkey_authentication(self):
 
         """ ----------- test_application R2: PubkeyAuthentication -------------"""
         """ Clean """
@@ -768,20 +768,18 @@ class Application_ssh (unittest.TestCase):
         print(result)
         self.assertEqual(result['ssh_conformite']['R2']['appliquer'], True, "")
         
-
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^PubkeyAuthentication /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
 
 
-    def test_application_password_authentication(self):
+    def test_password_authentication(self):
 
         """ ----------- TEST R3: PasswordAuthentication -------------"""
         """ Clean """
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^PasswordAuthentication /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
         exit_status = stdout.channel.recv_exit_status()
-
 
         """ Mettre PasswordAuthentication à no """
         stdin, stdout, stderr = self.client.exec_command("echo 'PasswordAuthentication yes' | sudo tee -a /etc/ssh/sshd_config ")
@@ -1174,19 +1172,43 @@ class Application_ssh (unittest.TestCase):
         self.skipTest("Test ignoré")
 
     def test_error_config_file(self):
-        """Test d'une mauvaise configuration SSH"""
+        """ Test d'une mauvaise configuration SSH """
         self.skipTest("Test ignoré")
 
     def run_tests (self):
         """Exécuter les tests"""
+
         suite = unittest.TestSuite()
-        suite.addTest(Analyse_min_test(self.client, "test_gestion_acces_min"))
-        
+
+        suite.addTest(Application_ssh(self.client, "test_pubkey_authentication"))
+        suite.addTest(Application_ssh(self.client, "test_password_authentication"))
+        suite.addTest(Application_ssh(self.client, "test_challenge_response_authentication"))
+        suite.addTest(Application_ssh(self.client, "test_permit_root_login"))
+        suite.addTest(Application_ssh(self.client, "test_x11_forwarding"))
+        suite.addTest(Application_ssh(self.client, "test_allow_tcp_forwarding"))
+        suite.addTest(Application_ssh(self.client, "test_max_auth_tries"))
+
+        suite.addTest(Application_ssh(self.client, "test_no_config_file"))
+        suite.addTest(Application_ssh(self.client, "test_error_config_file"))
+        suite.addTest(Application_ssh(self.client, "test_permit_empty_passwords"))
+        suite.addTest(Application_ssh(self.client, "test_login_grace_time"))
+        suite.addTest(Application_ssh(self.client, "test_use_privilege_separation"))
+        suite.addTest(Application_ssh(self.client, "test_allow_users"))
+        suite.addTest(Application_ssh(self.client, "test_allow_groups"))
+        suite.addTest(Application_ssh(self.client, "test_ciphers"))
+
+        suite.addTest(Application_ssh(self.client, "test_macs"))
+        suite.addTest(Application_ssh(self.client, "test_permit_user_environment"))
+        suite.addTest(Application_ssh(self.client, "test_allow_agent_forwarding"))
+        suite.addTest(Application_ssh(self.client, "test_strict_modes"))
+        suite.addTest(Application_ssh(self.client, "test_host_key"))
+        suite.addTest(Application_ssh(self.client, "test_kex_algorithms"))
+
         runner = unittest.TextTestRunner()
         runner.run(suite)
 
 if __name__=="__main__" : 
-    print ( "TEST SSH")
+    print( "TEST SSH")
     
 
 
