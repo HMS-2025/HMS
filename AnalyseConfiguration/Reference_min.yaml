@@ -1,42 +1,44 @@
 R30:
-  description: "Disable unused user accounts"
-  expected: []  # Empty list = no inactive account allowed
+  description: "Désactiver les comptes utilisateur inutilisés"
+  expected: []  # Liste vide = aucun compte inactif autorisé
 
 R53:
-  description: "Avoid files or directories without a known user or group"
-  expected: []  # No orphaned files should be found
+  description: "Éviter les fichiers ou répertoires sans utilisateur ou sans groupe connu"
+  expected: []  # Aucun fichier orphelin ne doit être trouvé
 
 R56:
-  description: "Avoid using executables with special setuid and setgid rights"
-  expected: []  # No file should have setuid/setgid permissions
+  description: "Éviter l’usage d’exécutables avec les droits spéciaux setuid et setgid"
+  expected: []  # Aucun fichier ne doit avoir les permissions setuid/setgid
+
 
 R59:
-  description: "Use trusted package repositories"
+  description: "Utiliser des dépôts de paquets de confiance"
   expected:
     - "http://security.ubuntu.com/ubuntu"
-    - "http://archive.ubuntu.com/ubuntu"  # Only these repositories are allowed
+    - "http://archive.ubuntu.com/ubuntu"  # Seuls ces dépôts sont autorisés
 
 R61:
-  description: "Perform regular updates"
+  description: "Effectuer des mises à jour régulières"
   expected:
     Unattended Upgrades: "install ok installed | enabled | active | enabled"
     Cron Updates: "apt update && apt upgrade -y"
     Cron Scripts: "apt-compat"
     Systemd Timer: "apt-daily.timer"
 
+
 R31:
-  description: "Use strong passwords"
+  description: "Utiliser des mots de passe robustes"
   expected:
     pam_policy: "password requisite pam_pwquality.so retry=3 minlen=12 difok=3"
-    expiration_policy: "Maximum number of days between password changes: 90"
-    faillock: "deny=3"
+    expiration_policy: 90
+    faillock: 3
 
 R68:
-  description: "Protect stored passwords"
+  description: "Protéger les mots de passe stockés"
   expected:
     shadow_permissions: "-rw-r----- 1 root shadow"
-    hashed_passwords: "Yes"
-    cleartext_passwords: "No"
+    hashed_passwords: "Oui"
+    cleartext_passwords: "Non"
     empty_passwords: []
     hash_algorithms:
       - "$6$"  # SHA-512
@@ -45,7 +47,7 @@ R68:
       - "$pbkdf2$"
 
 R80:
-  description: "Reduce the attack surface of network services (no specific recommendation is provided for this rule, it should be cross-referenced with an intermediate-level firewall rule)"
+  description: "Réduire la surface d’attaque des services réseau (aucune recommandation est proposée pour cette règle, cela sera à recouper avec une règle du niveau intermédiaire à propos du firewall)"
   expected:
     restricted_interfaces:
       - "192.168.1.0/24"
@@ -58,19 +60,20 @@ R80:
       - "127.0.0.54"
       - "localhost"
 
+
 R62:
-  description: "Disable unnecessary services"
+  description: "Désactiver les services non nécessaires"
   expected:
     disallowed_services:
       - cups.service
       - bluetooth.service
       - avahi-daemon.service
       - rpcbind.service
-      - samba.service
-      - nfs.service  # All these services must be disabled
+      - smbd.service
+      - nfs-server.service  # Tous ces services doivent être désactivés
 
 R58:
-  description: "Only install necessary packages"
+  description: "N’installer que les paquets strictement nécessaires"
   expected:
     - base-files
     - base-passwd
