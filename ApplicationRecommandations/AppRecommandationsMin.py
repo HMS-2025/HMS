@@ -5,8 +5,9 @@ from ApplicationRecommandations.Thematiques.PolitiqueMotDePasse import apply_rec
 from ApplicationRecommandations.Thematiques.Reseau import apply_recommandation_reseau_min
 from ApplicationRecommandations.Thematiques.Services import apply_recommandation_service_min
 
-def application_recommandations_min(path_report, client):
+def application_recommandations_min(client):
     """Applique toutes les recommandations minimales à partir du rapport YAML."""
+    path_report="./GenerationRapport/RapportAnalyse/"
     # Ici, on passe le chemin complet du fichier à chaque fonction sans vérification préalable
     apply_recommandation_acces_min(f"{path_report}/gestion_acces_minimal.yml", client) #deja verifier
     apply_recommandation_maintenance_min(f"{path_report}/maintenance_minimal.yml", client)#verifier

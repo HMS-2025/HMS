@@ -16,12 +16,8 @@ def ask_for_element_approval(rule, elem):
     while True:
         response = input(f"Voulez-vous supprimer {elem} en application de {rule} ? (o/n/q pour quitter la règle): ").strip().lower()
         
-        if response == 'o':
-            return True  # Appliquer pour cet élément
-        elif response == 'n':
-            return False  # Ne pas appliquer pour cet élément
-        elif response == 'q':
-            return 'q'  # Quitter l'application de la règle
+        if response in ['o', 'n', 'q']:
+            return response
         else:
             print("Réponse invalide. Entrez 'o' pour oui, 'n' pour non ou 'q' pour quitter.")
 
@@ -47,26 +43,23 @@ def apply_R58(yaml_file, client):
     
     detected_elements = [pkg for pkg in installed_packages if pkg and pkg not in expected_packages]
     
-    if detected_elements:
-        response = ask_for_approval("R58", detected_elements)
-        
-        if response:
-            for elem in detected_elements:
-                response = ask_for_element_approval("R58", elem)
-                if response == 'q':
-                    print("Quitter l'application de la règle R58.")
-                    break
-                elif response:
-                    print(f"Suppression du paquet {elem} en cours...")
-                    stdin, stdout, stderr = client.exec_command(f'sudo apt-get remove --purge -y {elem}')
-                    error = stderr.read().decode().strip()
-                    if error:
-                        print(f"Erreur lors de la suppression du paquet {elem} : {error}")
-                    else:
-                        print(f"Le paquet {elem} a été supprimé avec succès.")
+    if detected_elements and ask_for_approval("R58", detected_elements):
+        for elem in detected_elements:
+            response = ask_for_element_approval("R58", elem)
+            if response == 'q':
+                print("Quitter l'application de la règle R58.")
+                break
+            elif response == 'o':
+                print(f"Suppression du paquet {elem} en cours...")
+                stdin, stdout, stderr = client.exec_command(f'sudo apt-get remove --purge -y {elem}')
+                error = stderr.read().decode().strip()
+                if error:
+                    print(f"Erreur lors de la suppression du paquet {elem} : {error}")
                 else:
-                    print(f"Le paquet {elem} n'a pas été supprimé.")
-        
+                    print(f"Le paquet {elem} a été supprimé avec succès.")
+            else:
+                print(f"Le paquet {elem} n'a pas été supprimé.")
+    
         update_yaml(yaml_file, "R58", detected_elements)
 
 def apply_R59(yaml_file, client):
@@ -83,28 +76,25 @@ def apply_R59(yaml_file, client):
     
     detected_elements = problematic_repos  
     
-    if detected_elements:
-        response = ask_for_approval("R59", detected_elements)
+    if detected_elements and ask_for_approval("R59", detected_elements):
+        sources_file = "/etc/apt/sources.list"
         
-        if response:
-            sources_file = "/etc/apt/sources.list"
-            
-            for repo in detected_elements:
-                response = ask_for_element_approval("R59", repo)
-                if response == 'q':
-                    print("Quitter l'application de la règle R59.")
-                    break
-                elif response:
-                    print(f"Suppression du dépôt {repo} en cours...")
-                    stdin, stdout, stderr = client.exec_command(f'sudo sed -i "/{repo}/d" {sources_file}')
-                    error = stderr.read().decode().strip()
-                    if error:
-                        print(f"Erreur lors de la suppression du dépôt {repo} : {error}")
-                    else:
-                        print(f"Dépôt {repo} supprimé avec succès.")
+        for repo in detected_elements:
+            response = ask_for_element_approval("R59", repo)
+            if response == 'q':
+                print("Quitter l'application de la règle R59.")
+                break
+            elif response == 'o':
+                print(f"Suppression du dépôt {repo} en cours...")
+                stdin, stdout, stderr = client.exec_command(f'sudo sed -i "/{repo}/d" {sources_file}')
+                error = stderr.read().decode().strip()
+                if error:
+                    print(f"Erreur lors de la suppression du dépôt {repo} : {error}")
                 else:
-                    print(f"Le dépôt {repo} n'a pas été supprimé.")
-        
+                    print(f"Dépôt {repo} supprimé avec succès.")
+            else:
+                print(f"Le dépôt {repo} n'a pas été supprimé.")
+    
         update_yaml(yaml_file, "R59", detected_elements)
 
 def update_yaml(yaml_file, rule, detected_elements):
@@ -140,6 +130,7 @@ def apply_recommandation_maintenance_min(yaml_file, client):
             apply_rule(rule, yaml_file, client)
         else:
             print(f"Règle {rule} déjà appliquée.")
+
 
 # Appeler la fonction de maintenance avec le chemin du fichier YAML et le client SSH
 # apply_recommandation_maintenance_min("/path/to/maintenance_minimal.yml", client)
