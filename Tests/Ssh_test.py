@@ -13,6 +13,469 @@ def load_config(path) :
         with open(path, 'r') as config_file:
             return yaml.safe_load(config_file)
 
+class Application_ssh (unittest.TestCase):
+    def __init__(self, client , methodName="runTest"):
+        super().__init__(methodName)
+        self.client = client
+    def test_pubkey_authentication(self):
+
+        """ ----------- test_application R2: PubkeyAuthentication -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PubkeyAuthentication /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Mettre PubkeyAuthentication à no """
+        stdin, stdout, stderr = self.client.exec_command("echo 'PubkeyAuthentication no' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        print(result)
+        self.assertEqual(result['ssh_conformite']['R2']['appliquer'], True, "")
+        
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PubkeyAuthentication /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+
+    def test_password_authentication(self):
+
+        """ ----------- TEST R3: PasswordAuthentication -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PasswordAuthentication /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre PasswordAuthentication à no """
+        stdin, stdout, stderr = self.client.exec_command("echo 'PasswordAuthentication yes' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R3']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PasswordAuthentication /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_challenge_response_authentication(self):
+        """ ----------- TEST R4: ChallengeResponseAuthentication -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^ChallengeResponseAuthentication /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre ChallengeResponseAuthentication à no """
+        stdin, stdout, stderr = self.client.exec_command("echo 'ChallengeResponseAuthentication yes' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+        
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R4']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^ChallengeResponseAuthentication /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_permit_root_login(self):
+        """ ----------- TEST R5: PermitRootLogin -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitRootLogin /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre PermitRootLogin à yes """
+        stdin, stdout, stderr = self.client.exec_command("echo 'PermitRootLogin yes' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R5']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitRootLogin /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+        """ supprimer PermitRootLogin"""
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitRootLogin /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+        #Lancer l'application pour corriger ( ajout automatique de l'option )
+
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R2']['appliquer'], True, "")
+
+
+    def test_x11_forwarding(self):
+        """ ----------- TEST R6: X11Forwarding -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^X11Forwarding /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+        
+        """ mettre l'option en commentaire """
+        stdin, stdout, stderr = self.client.exec_command("echo '#X11Forwarding no' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R6']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^#X11Forwarding /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_allow_tcp_forwarding(self):
+        """ ----------- TEST R7: AllowTcpForwarding -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowTcpForwarding /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Mettre AllowTcpForwarding à yes """
+        stdin, stdout, stderr = self.client.exec_command("echo 'AllowTcpForwarding yes' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R7']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowTcpForwarding /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+
+    def test_max_auth_tries(self):
+        """ ----------- TEST R8: MaxAuthTries -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^MaxAuthTries /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Mettre MaxAuthTries à 10 pour creer une erreur """
+        stdin, stdout, stderr = self.client.exec_command("echo 'MaxAuthTries 10' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R8']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^MaxAuthTries /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_permit_empty_passwords(self):
+        """ ----------- TEST R9: PermitEmptyPasswords -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitEmptyPasswords /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Mettre PermitEmptyPasswords à yes """
+        stdin, stdout, stderr = self.client.exec_command("echo 'PermitEmptyPasswords yes' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R9']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitEmptyPasswords /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_login_grace_time(self):
+        """ ----------- TEST R10: LoginGraceTime -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre l'option en commentaire LoginGraceTime valeur par default 2min"""
+        stdin, stdout, stderr = self.client.exec_command("echo '#LoginGraceTime 30' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R10']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+        """ Mettre LoginGraceTime à 60 """
+        stdin, stdout, stderr = self.client.exec_command("echo 'LoginGraceTime 60' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R10']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+
+
+    def test_use_privilege_separation(self):
+        """ ----------- TEST R11: UsePrivilegeSeparation -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^UsePrivilegeSeparation /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Mettre UsePrivilegeSeparation en commentaire """
+        stdin, stdout, stderr = self.client.exec_command("#echo 'UsePrivilegeSeparation sandbox' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R11']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^UsePrivilegeSeparation /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_allow_users(self):
+        """ ----------- TEST R12: AllowUsers -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowUsers /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Mettre AllowUsers vide """
+        stdin, stdout, stderr = self.client.exec_command("echo 'AllowUsers ' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R12']['appliquer'], False, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowUsers /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+
+    def test_allow_groups(self):
+        """ ----------- TEST R13: AllowGroups -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowGroups /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Mettre AllowGroups vide """
+        stdin, stdout, stderr = self.client.exec_command("echo 'AllowGroups ' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R13']['appliquer'], False, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowGroups /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+
+    def test_ciphers(self):
+        """ ----------- TEST R14: Ciphers -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^Ciphers /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        
+        """ Mettre ajouter aes128-cbc """
+        stdin, stdout, stderr = self.client.exec_command("echo 'Ciphers aes256-ctr,aes192-ctr,aes128-cbc' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        
+        self.assertEqual(result['ssh_conformite']['R14']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^Ciphers /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_macs(self):
+        """----------- TEST R15: MACs -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^MACs /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre MACs à hmac-sha2-512,hmac-sha2-256,hmac-sha1 """
+        stdin, stdout, stderr = self.client.exec_command("echo 'MACs hmac-sha2-512,hmac-sha2-256,hmac-sha1' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R15']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^MACs /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_permit_user_environment(self):
+        """ ----------- TEST R16: PermitUserEnvironment -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitUserEnvironment /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre PermitUserEnvironment à yes """
+        stdin, stdout, stderr = self.client.exec_command("echo 'PermitUserEnvironment yes' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R16']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitUserEnvironment /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_allow_agent_forwarding(self):
+        """ ----------- TEST R17: AllowAgentForwarding -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowAgentForwarding /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre AllowAgentForwarding à yes """
+        stdin, stdout, stderr = self.client.exec_command("echo 'AllowAgentForwarding yes' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R17']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowAgentForwarding /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_strict_modes(self):
+        """ ----------- TEST R18: StrictModes -------------"""
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^StrictModes /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+        exit_status = stdout.channel.recv_exit_status()
+
+        """ Mettre StrictModes à no """
+        stdin, stdout, stderr = self.client.exec_command("echo 'StrictModes no' | sudo tee -a /etc/ssh/sshd_config ")
+        exit_status = stdout.channel.recv_exit_status()
+
+        #Lancer l'application pour corriger 
+
+        """ Test """
+        analyse_SSH(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
+        self.assertEqual(result['ssh_conformite']['R18']['appliquer'], True, "")
+
+        """ Clean """
+        stdin, stdout, stderr = self.client.exec_command("sed -i '/^StrictModes /d' /etc/ssh/sshd_config")
+        config_data = stdout.read().decode().strip()
+
+    def test_no_config_file(self):
+        """Test si le fichier de configuration SSH est absent"""
+        self.skipTest("Test ignoré")
+
+    def test_error_config_file(self):
+        """ Test d'une mauvaise configuration SSH """
+        self.skipTest("Test ignoré")
+
+    def run_tests (self):
+        """Exécuter les tests"""
+
+        suite = unittest.TestSuite()
+
+        suite.addTest(Application_ssh(self.client, "test_pubkey_authentication"))
+        suite.addTest(Application_ssh(self.client, "test_password_authentication"))
+        suite.addTest(Application_ssh(self.client, "test_challenge_response_authentication"))
+        suite.addTest(Application_ssh(self.client, "test_permit_root_login"))
+        suite.addTest(Application_ssh(self.client, "test_x11_forwarding"))
+        suite.addTest(Application_ssh(self.client, "test_allow_tcp_forwarding"))
+        suite.addTest(Application_ssh(self.client, "test_max_auth_tries"))
+
+        suite.addTest(Application_ssh(self.client, "test_no_config_file"))
+        suite.addTest(Application_ssh(self.client, "test_error_config_file"))
+        suite.addTest(Application_ssh(self.client, "test_permit_empty_passwords"))
+        suite.addTest(Application_ssh(self.client, "test_login_grace_time"))
+        suite.addTest(Application_ssh(self.client, "test_use_privilege_separation"))
+        suite.addTest(Application_ssh(self.client, "test_allow_users"))
+        suite.addTest(Application_ssh(self.client, "test_allow_groups"))
+        suite.addTest(Application_ssh(self.client, "test_ciphers"))
+
+        suite.addTest(Application_ssh(self.client, "test_macs"))
+        suite.addTest(Application_ssh(self.client, "test_permit_user_environment"))
+        suite.addTest(Application_ssh(self.client, "test_allow_agent_forwarding"))
+        suite.addTest(Application_ssh(self.client, "test_strict_modes"))
+        suite.addTest(Application_ssh(self.client, "test_host_key"))
+        suite.addTest(Application_ssh(self.client, "test_kex_algorithms"))
+
+        runner = unittest.TextTestRunner()
+        runner.run(suite)
+
 class SSH_TEST(unittest.TestCase):
     def __init__(self, client , methodName="runTest"):
         super().__init__(methodName)
@@ -492,723 +955,3 @@ class SSH_TEST(unittest.TestCase):
         suite.addTest(SSH_TEST(self.client, "test_kex_algorithms"))
         runner = unittest.TextTestRunner()
         runner.run(suite)
-
-class Analyse_min_test ( unittest.TestCase):
-    def __init__(self, client , methodName="runTest"):
-        super().__init__(methodName)
-        self.client = client
-
-    def test_gestion_acces_min (self) :
-
-        """ ----------- TEST : Détection des utilisateurs inactifs ------------- """
-
-        #Clean avant le test (supprimer d'éventuels utilisateurs de test existants)
-        stdin, stdout, stderr=self.client.exec_command("sudo userdel test_user1 || true")
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo userdel test_user2 || true")
-        exit_status = stdout.channel.recv_exit_status()
-
-
-        #Ajouter des utilisateurs inactifs pour le test
-        stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/bash test_user1")
-        exit_status = stdout.channel.recv_exit_status()
-        stdin, stdout, stderr=self.client.exec_command("echo 'test_user1:motdepasse' | sudo chpasswd")
-        exit_status = stdout.channel.recv_exit_status()
-        
-        
-        stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/bash test_user2")
-        exit_status = stdout.channel.recv_exit_status()
-        stdin, stdout, stderr=self.client.exec_command("echo 'test_user2:motdepasse' | sudo chpasswd" ) 
-        exit_status = stdout.channel.recv_exit_status()
-
-        # Vérifier que les utilisateurs inactifs sont bien détectés
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_min.yml")
-        
-        self.assertIn("test_user1", result["R30"]["éléments_detectés"])
-        self.assertIn("test_user2", result["R30"]["éléments_detectés"])
-
-        #Désactiver les comptes pour simuler des utilisateurs inactifs
-        stdin, stdout, stderr=self.client.exec_command("sudo passwd -l test_user1")
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo passwd -l test_user2")
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_min.yml")
-        
-        self.assertNotIn("test_user1", result["R30"]["éléments_detectés"])
-        self.assertNotIn("test_user2", result["R30"]["éléments_detectés"])
-
-        
-        #Clean après le test
-
-        stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user1")
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo userdel -r test_user2")
-        exit_status = stdout.channel.recv_exit_status() 
-
-
-        """ ----------- TEST : Détection des fichiers sans utilisateur ni groupe ------------- """
-
-        #Création d'un fichier sans propriétaire ni groupe
-        stdin, stdout, stderr=self.client.exec_command("sudo touch /tmp/test_file_no_owner")
-        
-        stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/bash nouser")
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo groupadd nogroup")
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo chown nouser:nogroup /tmp/test_file_no_owner")  
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo userdel nouser || true") 
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo groupdel nogroup || true")  
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Exécution de l'analyse
-        analyse_min(self.client)
-
-        #Chargement des résultats
-        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_min.yml")
-
-        #Vérification que le fichier est bien détecté comme non conforme
-        self.assertIn("/tmp/test_file_no_owner", result["R53"]["éléments_detectés"])
-        self.assertEqual(result["R53"]["status"], "Non conforme")
-
-        #Nettoyage après le test
-        stdin, stdout, stderr=self.client.exec_command("sudo rm -f /tmp/test_file_no_owner")
-        exit_status = stdout.channel.recv_exit_status()
-
-
-        """----------- TEST : Détection des fichiers avec setuid et setgid ------------- """
-
-        #Nettoyage avant le test (supprimer les fichiers de test s'ils existent)
-        stdin, stdout, stderr=self.client.exec_command("sudo rm -f /tmp/test_suid /tmp/test_sgid")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Création des fichiers avec setuid et setgid
-        stdin, stdout, stderr=self.client.exec_command("sudo touch /tmp/test_suid /tmp/test_sgid")
-        exit_status = stdout.channel.recv_exit_status()
-        
-        stdin, stdout, stderr=self.client.exec_command("sudo chmod u+s /tmp/test_suid")
-        exit_status = stdout.channel.recv_exit_status()
-        
-        stdin, stdout, stderr=self.client.exec_command("sudo chmod g+s /tmp/test_sgid")
-        exit_status = stdout.channel.recv_exit_status()
-
-
-        #Exécution de l'analyse
-        analyse_min(self.client)
-
-        #Chargement des résultats
-        result = load_config("GenerationRapport/RapportAnalyse/gestion_acces_min.yml")
-
-        #Vérification que les fichiers sont bien détectés comme non conformes
-        self.assertIn("/tmp/test_suid", result["R56"]["éléments_detectés"])
-        self.assertIn("/tmp/test_sgid", result["R56"]["éléments_detectés"])
-        self.assertEqual(result["R56"]["status"], "Non conforme")
-
-        #Nettoyage après le test
-        stdin, stdout, stderr=self.client.exec_command("sudo rm -f /tmp/test_suid /tmp/test_sgid")
-        exit_status = stdout.channel.recv_exit_status()
-
-    def test_service_min (self) : 
-
-        # Installation de service interdit 
-
-        stdin, stdout, stderr=self.client.exec_command("sudo apt update ; sudo apt install -y samba ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo systemctl enable smbd")
-        exit_status = stdout.channel.recv_exit_status()
-
-        stdin, stdout, stderr=self.client.exec_command("sudo systemctl start smbd")
-        exit_status = stdout.channel.recv_exit_status()
-        
-        
-        #Exécution de l'analyse
-        analyse_min(self.client)
-
-        #Chargement des résultats
-        result = load_config("GenerationRapport/RapportAnalyse/services_minimal.yml")
-
-        #Vérification que les fichiers sont bien détectés comme non conformes
-        self.assertIn("smbd.service", result["R62"]["services_interdits_detectes"])
-        self.assertEqual(result["R62"]["status"], "Non conforme")
-
-        #Nettoyage après le test
-        stdin, stdout, stderr=self.client.exec_command("sudo apt remove --purge -y samba")
-        exit_status = stdout.channel.recv_exit_status()
-
-    def test_mises_a_jour_automatiques(self):
-        """ ----------- TEST : Vérification des mises à jour automatiques ------------- """
-
-        #Nettoyage avant le test (désactiver les mises à jour automatiques)
-        stdin, stdout, stderr=self.client.exec_command("unattended-upgrades disable")
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")        
-        self.assertEqual(result["R61"]["status"], "Non conforme")   
-        self.assertIn("Unattended Upgrades" , result["R61"]["éléments_problématiques"].keys())
-     
-        
-
-        # ------------ Crontab -------------------
-        stdin, stdout, stderr = self.client.exec_command('(crontab -l 2>/dev/null; echo "0 3 * * * apt update && apt upgrade -y") | crontab -')        
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")
-        self.assertNotIn("Cron Updates" ,result["R61"]["éléments_problématiques"])
-
-
-        stdin, stdout, stderr = self.client.exec_command("crontab -r")
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")
-        self.assertIn("Cron Updates" , result["R61"]["éléments_problématiques"].keys())
-
-
-        stdin, stdout, stderr = self.client.exec_command('(crontab -l 2>/dev/null; echo "0 3 * * * ls /") | crontab -')
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/mise_a_jour_minimal.yml")
-        self.assertIn("Cron Updates",result["R61"]["éléments_problématiques"].keys())        
-        
-        # --------------- Clean --------------------
-        
-        stdin, stdout, stderr = self.client.exec_command("crontab -r")
-        exit_status = stdout.channel.recv_exit_status()
-    
-    def test_politique_mot_passe (self) : 
-        
-        # expiration_policy
-
-        stdin, stdout, stderr = self.client.exec_command("sudo chage -M 999 $(whoami)")
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
-        self.assertEqual(result["R31"]["éléments_problématiques"]["expiration_policy"]["Détecté"] , 999)
-
-        # expiration_policy
-
-        stdin, stdout, stderr = self.client.exec_command("sudo chage -M 80 $(whoami)")
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
-        self.assertNotIn("expiration_policy" , result["R31"]["éléments_problématiques"].keys())
-
-        #faillock 
-
-        stdin, stdout, stderr = self.client.exec_command("sudo sed -i 's/^#*\s*deny\s*=.*/deny=4/' /etc/security/faillock.conf")
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
-        self.assertIn("faillock" ,list(result["R31"]["éléments_problématiques"].keys()))
-
-        #faillock 
-
-        stdin, stdout, stderr = self.client.exec_command("sudo sed -i 's/^#*\s*deny\s*=.*/deny=2/' /etc/security/faillock.conf")
-        exit_status = stdout.channel.recv_exit_status()
-
-        analyse_min(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/politique_mdp_minimal.yml")
-        self.assertNotIn("faillock" ,list(result["R31"]["éléments_problématiques"].keys()))
-
-    def test_reseaux (self) : 
-        """ R80 : Réduire la surface d'attaque des services réseau """
-        self.assertTrue(True)
-
-    
-    def run_tests(self):
-        """Exécuter les tests"""
-        suite = unittest.TestSuite()
-        suite.addTest(Analyse_min_test(self.client, "test_gestion_acces_min"))
-        suite.addTest(Analyse_min_test(self.client, "test_service_min"))
-        suite.addTest(Analyse_min_test(self.client, "test_mises_a_jour_automatiques"))
-        suite.addTest(Analyse_min_test(self.client, "test_politique_mot_passe"))
-        suite.addTest(Analyse_min_test(self.client, "test_reseaux"))
-        runner = unittest.TextTestRunner()
-        runner.run(suite)
-
-class Application_ssh (unittest.TestCase):
-    def __init__(self, client , methodName="runTest"):
-        super().__init__(methodName)
-        self.client = client
-    def test_pubkey_authentication(self):
-
-        """ ----------- test_application R2: PubkeyAuthentication -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PubkeyAuthentication /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Mettre PubkeyAuthentication à no """
-        stdin, stdout, stderr = self.client.exec_command("echo 'PubkeyAuthentication no' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        print(result)
-        self.assertEqual(result['ssh_conformite']['R2']['appliquer'], True, "")
-        
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PubkeyAuthentication /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-
-    def test_password_authentication(self):
-
-        """ ----------- TEST R3: PasswordAuthentication -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PasswordAuthentication /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Mettre PasswordAuthentication à no """
-        stdin, stdout, stderr = self.client.exec_command("echo 'PasswordAuthentication yes' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R3']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PasswordAuthentication /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_challenge_response_authentication(self):
-        """ ----------- TEST R4: ChallengeResponseAuthentication -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^ChallengeResponseAuthentication /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Mettre ChallengeResponseAuthentication à no """
-        stdin, stdout, stderr = self.client.exec_command("echo 'ChallengeResponseAuthentication yes' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-        
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R4']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^ChallengeResponseAuthentication /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_permit_root_login(self):
-        """ ----------- TEST R5: PermitRootLogin -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitRootLogin /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Mettre PermitRootLogin à yes """
-        stdin, stdout, stderr = self.client.exec_command("echo 'PermitRootLogin yes' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R5']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitRootLogin /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-        """ supprimer PermitRootLogin"""
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitRootLogin /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-        #Lancer l'application pour corriger ( ajout automatique de l'option )
-
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R2']['appliquer'], True, "")
-
-
-    def test_x11_forwarding(self):
-        """ ----------- TEST R6: X11Forwarding -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^X11Forwarding /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-        
-        """ mettre l'option en commentaire """
-        stdin, stdout, stderr = self.client.exec_command("echo '#X11Forwarding no' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R6']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^#X11Forwarding /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_allow_tcp_forwarding(self):
-        """ ----------- TEST R7: AllowTcpForwarding -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowTcpForwarding /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Mettre AllowTcpForwarding à yes """
-        stdin, stdout, stderr = self.client.exec_command("echo 'AllowTcpForwarding yes' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R7']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowTcpForwarding /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-
-    def test_max_auth_tries(self):
-        """ ----------- TEST R8: MaxAuthTries -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^MaxAuthTries /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Mettre MaxAuthTries à 10 pour creer une erreur """
-        stdin, stdout, stderr = self.client.exec_command("echo 'MaxAuthTries 10' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R8']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^MaxAuthTries /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_permit_empty_passwords(self):
-        """ ----------- TEST R9: PermitEmptyPasswords -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitEmptyPasswords /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Mettre PermitEmptyPasswords à yes """
-        stdin, stdout, stderr = self.client.exec_command("echo 'PermitEmptyPasswords yes' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R9']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitEmptyPasswords /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_login_grace_time(self):
-        """ ----------- TEST R10: LoginGraceTime -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Mettre l'option en commentaire LoginGraceTime valeur par default 2min"""
-        stdin, stdout, stderr = self.client.exec_command("echo '#LoginGraceTime 30' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R10']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-        """ Mettre LoginGraceTime à 60 """
-        stdin, stdout, stderr = self.client.exec_command("echo 'LoginGraceTime 60' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R10']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^LoginGraceTime /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-
-
-    def test_use_privilege_separation(self):
-        """ ----------- TEST R11: UsePrivilegeSeparation -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^UsePrivilegeSeparation /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Mettre UsePrivilegeSeparation en commentaire """
-        stdin, stdout, stderr = self.client.exec_command("#echo 'UsePrivilegeSeparation sandbox' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R11']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^UsePrivilegeSeparation /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_allow_users(self):
-        """ ----------- TEST R12: AllowUsers -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowUsers /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Mettre AllowUsers vide """
-        stdin, stdout, stderr = self.client.exec_command("echo 'AllowUsers ' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R12']['appliquer'], False, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowUsers /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-
-    def test_allow_groups(self):
-        """ ----------- TEST R13: AllowGroups -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowGroups /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Mettre AllowGroups vide """
-        stdin, stdout, stderr = self.client.exec_command("echo 'AllowGroups ' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R13']['appliquer'], False, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowGroups /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-
-    def test_ciphers(self):
-        """ ----------- TEST R14: Ciphers -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^Ciphers /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        
-        """ Mettre ajouter aes128-cbc """
-        stdin, stdout, stderr = self.client.exec_command("echo 'Ciphers aes256-ctr,aes192-ctr,aes128-cbc' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        
-        self.assertEqual(result['ssh_conformite']['R14']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^Ciphers /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_macs(self):
-        """----------- TEST R15: MACs -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^MACs /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Mettre MACs à hmac-sha2-512,hmac-sha2-256,hmac-sha1 """
-        stdin, stdout, stderr = self.client.exec_command("echo 'MACs hmac-sha2-512,hmac-sha2-256,hmac-sha1' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R15']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^MACs /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_permit_user_environment(self):
-        """ ----------- TEST R16: PermitUserEnvironment -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitUserEnvironment /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Mettre PermitUserEnvironment à yes """
-        stdin, stdout, stderr = self.client.exec_command("echo 'PermitUserEnvironment yes' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R16']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^PermitUserEnvironment /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_allow_agent_forwarding(self):
-        """ ----------- TEST R17: AllowAgentForwarding -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowAgentForwarding /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Mettre AllowAgentForwarding à yes """
-        stdin, stdout, stderr = self.client.exec_command("echo 'AllowAgentForwarding yes' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R17']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^AllowAgentForwarding /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_strict_modes(self):
-        """ ----------- TEST R18: StrictModes -------------"""
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^StrictModes /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-        exit_status = stdout.channel.recv_exit_status()
-
-        """ Mettre StrictModes à no """
-        stdin, stdout, stderr = self.client.exec_command("echo 'StrictModes no' | sudo tee -a /etc/ssh/sshd_config ")
-        exit_status = stdout.channel.recv_exit_status()
-
-        #Lancer l'application pour corriger 
-
-        """ Test """
-        analyse_SSH(self.client)
-        result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
-        self.assertEqual(result['ssh_conformite']['R18']['appliquer'], True, "")
-
-        """ Clean """
-        stdin, stdout, stderr = self.client.exec_command("sed -i '/^StrictModes /d' /etc/ssh/sshd_config")
-        config_data = stdout.read().decode().strip()
-
-    def test_no_config_file(self):
-        """Test si le fichier de configuration SSH est absent"""
-        self.skipTest("Test ignoré")
-
-    def test_error_config_file(self):
-        """ Test d'une mauvaise configuration SSH """
-        self.skipTest("Test ignoré")
-
-    def run_tests (self):
-        """Exécuter les tests"""
-
-        suite = unittest.TestSuite()
-
-        suite.addTest(Application_ssh(self.client, "test_pubkey_authentication"))
-        suite.addTest(Application_ssh(self.client, "test_password_authentication"))
-        suite.addTest(Application_ssh(self.client, "test_challenge_response_authentication"))
-        suite.addTest(Application_ssh(self.client, "test_permit_root_login"))
-        suite.addTest(Application_ssh(self.client, "test_x11_forwarding"))
-        suite.addTest(Application_ssh(self.client, "test_allow_tcp_forwarding"))
-        suite.addTest(Application_ssh(self.client, "test_max_auth_tries"))
-
-        suite.addTest(Application_ssh(self.client, "test_no_config_file"))
-        suite.addTest(Application_ssh(self.client, "test_error_config_file"))
-        suite.addTest(Application_ssh(self.client, "test_permit_empty_passwords"))
-        suite.addTest(Application_ssh(self.client, "test_login_grace_time"))
-        suite.addTest(Application_ssh(self.client, "test_use_privilege_separation"))
-        suite.addTest(Application_ssh(self.client, "test_allow_users"))
-        suite.addTest(Application_ssh(self.client, "test_allow_groups"))
-        suite.addTest(Application_ssh(self.client, "test_ciphers"))
-
-        suite.addTest(Application_ssh(self.client, "test_macs"))
-        suite.addTest(Application_ssh(self.client, "test_permit_user_environment"))
-        suite.addTest(Application_ssh(self.client, "test_allow_agent_forwarding"))
-        suite.addTest(Application_ssh(self.client, "test_strict_modes"))
-        suite.addTest(Application_ssh(self.client, "test_host_key"))
-        suite.addTest(Application_ssh(self.client, "test_kex_algorithms"))
-
-        runner = unittest.TextTestRunner()
-        runner.run(suite)
-
-if __name__=="__main__" : 
-    print( "TEST SSH")
-    
-
-

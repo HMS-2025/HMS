@@ -45,33 +45,35 @@ def check_compliance(rule_id, rule_value, reference_data):
                 if result :
                     non_compliant_items[key] = result
             else : 
-                non_compliant_items[key] = {"Détecté": detected,"Attendu": expected}
+                non_compliant_items[key] = {"detected": detected,"expected": expected}
                 
 
     return {
-        "status": "Non conforme" if non_compliant_items else "Conforme",
-        "éléments_problématiques": non_compliant_items if non_compliant_items else "Aucun",
-        "éléments_attendus": expected_value,
-        "appliquer": False if non_compliant_items else True
+        "status": "Non-conforme" if non_compliant_items else "Conforme",
+        "detected_element": non_compliant_items if non_compliant_items else "Aucun",
+        "expected_element": expected_value,
+        "apply": False if non_compliant_items else True
     }
 def check_faillock_compliance (detected , expected) : 
     detected = int(detected)
     expected = int(expected)
     if detected <= expected : 
         return {}
-    return {"Détecté": detected,"Attendu": expected}
+    return {"detected": detected,"expected": expected}
     
 def check_expiration_policy_compliance (detected , expected) : 
     detected = int(detected)
     expected = int(expected)
     if detected <= expected : 
         return {}
-    return {"Détecté": detected,"Attendu": expected}
+    return {"detected": detected,"expected": expected}
 
 # Fonction principale pour analyser la politique de mot de passe
 def analyse_politique_mdp(serveur, niveau="min", reference_data=None):
     """Analyse la politique de mot de passe et génère un rapport YAML avec conformité."""
-    report = {}
+    report = {
+        "password" : {}
+    }
 
     if reference_data is None:
         reference_data = load_reference_yaml()
@@ -79,19 +81,19 @@ def analyse_politique_mdp(serveur, niveau="min", reference_data=None):
     if niveau == "min":
         print("-> Vérification de la politique de mot de passe (R31)")
         password_policy = get_password_policy(serveur)
-        report["R31"] = check_compliance("R31", password_policy, reference_data)
+        report["password"]["R31"] = check_compliance("R31", password_policy, reference_data)
 
     # Vérification de la protection des mots de passe stockés (R68)
     print("-> Vérification de la protection des mots de passe stockés (R68)")
     password_protection = get_stored_passwords_protection(serveur)
-    report["R68"] = check_compliance("R68", password_protection, reference_data)
+    report["password"]["R68"] = check_compliance("R68", password_protection, reference_data)
 
     # Enregistrement du rapport
-    save_yaml_report(report, "politique_mdp_minimal.yml")
+    save_yaml_report(report, "analyse_min.yml")
 
     # Calcul du taux de conformité
     total_rules = len(report)
-    conforming_rules = sum(1 for result in report.values() if result["status"] == "Conforme")
+    conforming_rules = sum(1 for result in report["password"].values() if result["status"] == "Conforme")
     compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 0
 
     print(f"\nTaux de conformité du niveau minimal (Politique de mot de passe) : {compliance_percentage:.2f}%")
@@ -173,7 +175,7 @@ def save_yaml_report(data, output_file):
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
 
-    with open(output_path, "w", encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
+    with open(output_path, "a", encoding="utf-8") as file:
+        yaml.dump(data, file, default_flow_style=False, allow_unicode=True , indent=4, sort_keys=False)
 
     print(f"Rapport généré : {output_path}")
