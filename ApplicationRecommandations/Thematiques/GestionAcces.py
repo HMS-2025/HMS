@@ -1,13 +1,9 @@
 import yaml
 import paramiko
 
-def ask_for_approval(rule, detected_elements):
-    """Demander à l'utilisateur s'il souhaite appliquer la règle spécifiée après avoir affiché les éléments détectés."""
-    print(f"\nÉléments détectés pour la règle {rule}:")
-    for elem in detected_elements:
-        print(f"- {elem}")
-    
-    response = input(f"Voulez-vous appliquer la règle {rule} sur ces éléments ? (o/n): ").strip().lower()
+def ask_for_approval(rule):
+    """Demander à l'utilisateur s'il souhaite appliquer la règle spécifiée."""
+    response = input(f"Voulez-vous appliquer la règle {rule} ? (o/n): ").strip().lower()
     return response == 'o'
 
 def update_yaml(yaml_file, rule, clear_keys=[]):
@@ -44,7 +40,8 @@ def apply_R30(yaml_file, client):
         print("R30 est déjà appliquée.")
         return
     
-    if ask_for_approval("R30", users_detected):
+    print(f"Utilisateurs détectés: {', '.join(users_detected)}")
+    if ask_for_approval("R30"):
         for user in users_detected:
             disable_user_shell(user, client)
         update_yaml(yaml_file, 'R30', ['comptes_inactifs_detectes'])
@@ -65,7 +62,8 @@ def apply_R53(yaml_file, client):
         print("R53 est déjà appliquée.")
         return
     
-    if ask_for_approval("R53", files_detected):
+    print(f"Fichiers orphelins détectés: {', '.join(files_detected)}")
+    if ask_for_approval("R53"):
         for file in files_detected:
             client.exec_command(f'sudo rm -f {file}')
         update_yaml(yaml_file, 'R53', ['fichiers_orphelins_detectes'])
@@ -86,7 +84,8 @@ def apply_R56(yaml_file, client):
         print("R56 est déjà appliquée.")
         return
     
-    if ask_for_approval("R56", elements_detectes):
+    print(f"Fichiers SUID/SGID détectés: {', '.join(elements_detectes)}")
+    if ask_for_approval("R56"):
         for file in elements_detectes:
             client.exec_command(f'test -f {file} && sudo chmod u-s,g-s {file}')
         update_yaml(yaml_file, 'R56', ['fichiers_suid_sgid_detectes'])
