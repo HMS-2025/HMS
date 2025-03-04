@@ -112,13 +112,13 @@ def get_password_policy(serveur):
     # 2. Vérifier l'expiration des mots de passe avec `chage`
     policy_data["expiration_policy"] = execute_remote_command(
         serveur, "sudo sudo chage -l $(whoami) | awk -F': ' '/Maximum number of days between password change/ {print $2}'",
-        "Détecté", "Expiration non définie"
+        "Détecté", "-1"
     )
 
     # 3. Vérifier si faillock est activé
     policy_data["faillock"] = execute_remote_command(
         serveur, "sudo grep '^deny\s*=' /etc/security/faillock.conf 2>/dev/null | awk -F= '{print $2}' | tr -d ' ' || grep 'pam_faillock.so' /etc/pam.d/*",
-        "Détecté", "Faillock non configuré"
+        "Détecté", "-1"
     )
 
     return policy_data

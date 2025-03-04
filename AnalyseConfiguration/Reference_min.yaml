@@ -46,19 +46,18 @@ R68:
       - "$scrypt$"
       - "$pbkdf2$"
 
+#C'est un exemple de conformité, l'utilisateur doit adapter afin que les interfaces locales par défaut ne soient pas en écoute.
+# Par exemple si 127.0.0.1 est pas utilisée par des services alors il faut la désactiver.
+# 10.171.165.118 : si le serveur fournit un service sur le réseau c'est ok, si ce n'est pas le cas, il faut forcer les services à écouter sur 127.0.0.1
 R80:
-  description: "Réduire la surface d’attaque des services réseau (aucune recommandation est proposée pour cette règle, cela sera à recouper avec une règle du niveau intermédiaire à propos du firewall)"
+  description: "Réduire la surface d’attaque des services réseau (aucune recommandation est proposée pour cette règle, coupler R79)"
   expected:
-    restricted_interfaces:
-      - "192.168.1.0/24"
-      - "10.0.0.0/24"
-    local_interfaces:
-      - "127.0.0.1"
-      - "::1"
-      - "fe80::/10"
-      - "127.0.0.53%lo"
-      - "127.0.0.54"
-      - "localhost"
+    lo:
+      ipv4: "127.0.0.1"
+      ipv6: "::1"
+    eth0:
+      ipv4: "10.171.165.118"
+      ipv6: "fe80::216:3eff:fea2:78g8"
 
 
 R62:

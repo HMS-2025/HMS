@@ -98,6 +98,8 @@ def analyse_reseau(server, niveau, reference_data=None):
             report[rule_id] = check_compliance(rule_id, detected_values, reference_data)
     
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
+    print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Réseau) : {compliance_percentage:.2f}%")
 
 # Sauvegarde le rapport d'analyse dans un fichier YAML
 def save_yaml_report(data, output_file, rules, niveau):
