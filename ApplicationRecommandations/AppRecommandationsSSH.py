@@ -42,7 +42,7 @@ def save_yaml(yaml_file, config):
         yaml.safe_dump(config, file, default_flow_style=False, allow_unicode=True)
 
 def apply_command(command, client):
-    """Appliquer la commande via le client SSH et retourner True si elle réussit"""
+    """apply la commande via le client SSH et retourner True si elle réussit"""
     try:
         stdin, stdout, stderr = client.exec_command(command)
         output = stdout.read().decode('utf-8')
@@ -50,40 +50,40 @@ def apply_command(command, client):
         if error:
             print(f"Erreur: {error}")
             return False
-        #print(f"Sortie: {output}")
         return True
     except Exception as e:
         print(f"Erreur lors de l'exécution de la commande: {e}")
         return False
 
 def apply_selected_recommendationsSSH(yaml_file, client):
-    """Appliquer les recommandations sélectionnées et mettre à jour le fichier YAML"""
+    """apply les recommandations sélectionnées et mettre à jour le fichier YAML"""
+    
+    # Vérifier si le fichier de sauvegarde existe avant de copier
+    if apply_command("test -f /etc/ssh/sshd_config.back || sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.back", client):
+        print("Sauvegarde de sshd_config effectuée (ou déjà existante).")
+    
     # Charger la configuration YAML
     config = load_yaml(yaml_file)
-
-    for rule, details in config.items():
-        # Vérifier si la règle a une clé 'appliquer' et est définie sur False
-        if isinstance(details, dict) and not details.get("appliquer", False):
-            # Si 'appliquer' est False et que la règle existe dans rule_commands
+    ssh_conformite = config.get("ssh_conformite", {})
+    
+    for rule, details in ssh_conformite.items():
+        if isinstance(details, dict) and not details.get("apply", False):
             if rule in rule_commands:
                 command = rule_commands[rule]
                 print(f"Application de la règle {rule}: {details.get('description', 'Description non fournie')}")
                 success = apply_command(command, client)
-
-                # Décommenter et mettre à jour la clé 'appliquer' avec True
-                details["appliquer"] = True
+                
+                details["apply"] = True
                 details["status"] = "Conforme" if success else "Non conforme"
-
-                # Mettre 'elements_detectes' à vide si conforme
                 if success:
-                    details["elements_detectes"] = []
+                    details["detected_elements"] = []
                 
                 print(f"Règle {rule} appliquée avec succès: {details['status']}")
-
-    apply_command("systemctl restart ssh", client) 
-                
-    # Sauvegarder les modifications dans le fichier YAML
+    
+    apply_command("sudo systemctl restart ssh", client)
+    
+    config["ssh_conformite"] = ssh_conformite
     save_yaml(yaml_file, config)
 
-# Appliquer les recommandations
+# apply les recommandations
 # apply_selected_recommendationsSSH('file.yaml', client)
