@@ -3,7 +3,7 @@ import os
 from Config import load_config, ssh_connect
 from Tests.Analyse_min_test  import Analyse_min_test
 from Tests.Ssh_test import SSH_TEST
-from Tests.test_prompt import CustomTerminal
+from Tests.Test_prompt import CustomTerminal
 
 if __name__ == "__main__":
     #main()
