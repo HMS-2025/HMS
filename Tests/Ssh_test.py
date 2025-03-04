@@ -24,7 +24,6 @@ class Application_ssh (unittest.TestCase):
         stdin, stdout, stderr = self.client.exec_command("sed -i '/^PubkeyAuthentication /d' /etc/ssh/sshd_config")
         config_data = stdout.read().decode().strip()
         exit_status = stdout.channel.recv_exit_status()
-
         
         """ Mettre PubkeyAuthentication à no """
         stdin, stdout, stderr = self.client.exec_command("echo 'PubkeyAuthentication no' | sudo tee -a /etc/ssh/sshd_config ")
