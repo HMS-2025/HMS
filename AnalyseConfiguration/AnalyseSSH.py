@@ -80,27 +80,27 @@ def generate_yaml_report(all_rules, filename="ssh_compliance_report.yaml"):
         output_path = os.path.join(output_dir, filename)
 
         total_rules = len(all_rules)
-        compliant_rules = sum(1 for rule in all_rules.values() if rule.get("appliquer", False))
+        compliant_rules = sum(1 for rule in all_rules.values() if rule.get("apply", False))
         compliance_percentage = (compliant_rules / total_rules) * 100 if total_rules > 0 else 0
 
         print(f"conformité ssh: {compliance_percentage:.1f} %")
         with open(output_path, "w") as file:
             file.write("# Rapport de l'analyse: ---\n")
-            file.write("# Changer la valeur de 'appliquer' à 'true' si vous voulez appliquer cette recommandation. \n\n\n")
+            file.write("# Changer la valeur de 'apply' à 'true' si vous voulez apply cette recommandation. \n\n\n")
             file.write("ssh_conformite:\n")
 
             for rule, details in all_rules.items():
                 status = details.get("status", "Inconnu")
-                apply = details.get("appliquer", False)
-                expected = details.get("elements_attendus", [])
-                detected = details.get("elements_detectes", "Non défini")
+                apply = details.get("apply", False)
+                expected = details.get("expected_elements", [])
+                detected = details.get("detected_elements", "Non défini")
 
                 if not isinstance(apply, bool):
                     apply = False
                 file.write(f"  {rule}:\n")
-                file.write(f"    appliquer: {'true' if apply else 'false'}\n")
-                file.write(f"    elements_attendus: {expected}\n")
-                file.write(f"    elements_detectes: {detected}\n")
+                file.write(f"    apply: {'true' if apply else 'false'}\n")
+                file.write(f"    expected_elements: {expected}\n")
+                file.write(f"    detected_elements: {detected}\n")
                 file.write(f"    status: \"{status}\"\n")
     except (OSError, IOError) as e:
         print(f"Erreur lors de la génération du fichier YAML : {e}")
@@ -163,9 +163,9 @@ def check_anssi_compliance(config):
 
         all_rules[rule] = {
             "status": status,
-            "appliquer": apply,
-            "elements_attendus": expected if isinstance(expected, list) else [expected],
-            "elements_detectes": detected
+            "apply": apply,
+            "expected_elements": expected if isinstance(expected, list) else [expected],
+            "detected_elements": detected
         }
 
     return all_rules
