@@ -16,14 +16,19 @@ class CustomTerminal:
             "clear": (self.clear_screen, "Clear the terminal screen"),
             "help": (self.show_help, "Show available commands"),
             "loader": (self.loader_demo, "Demonstrate the loader animation"),
-            "run_ssh_test": (self.run_ssh_test, "Run SSH tests"),
-            "run_analyse_min_test": (self.run_analyse_min_test, "Run Analyse Min tests")
+            "run_analyse_ssh_test": (self.run_analyse_ssh_test, "Run SSH tests"),
+            "run_analyse_min_test": (self.run_analyse_min_test, "Run Analyse Min tests"),
+            "run_application_ssh_test":(self.run_application_ssh_test ,"Run application tests")
         }
-        self.ssh_test = None
+        self.analyse_ssh_test = None
         self.analyse_min_test = None
+        self.application_ssh_test= None
 
-    def set_ssh_test(self, ssh_test): 
-        self.ssh_test = ssh_test
+    def set_analyse_ssh_test(self, analyse_ssh_test): 
+        self.analyse_ssh_test = analyse_ssh_test
+    
+    def set_application_ssh_test(self, application_ssh_test): 
+        self.application_ssh_test = application_ssh_test
 
     def set_analyse_min_test(self, analyse_min_test): 
         self.analyse_min_test = analyse_min_test
@@ -78,14 +83,20 @@ class CustomTerminal:
             self.console.print(f" - {cmd}: {desc}", style="blue")
         self.console.print("You can also run system commands.", style="yellow")
 
-    def run_ssh_test(self): 
+    def run_analyse_ssh_test(self): 
         self.console.print("Running SSH tests...", style="bold green")
         with self.console.status("[cyan]Tests in progress...", spinner="dots"):
-            self.ssh_test.run_tests()
+            self.analyse_ssh_test.run_tests()
         self.console.print("SSH tests completed!", style="bold green")
 
     def run_analyse_min_test(self): 
         self.console.print("Running Analyse min tests...", style="bold green")
         with self.console.status("[cyan]Tests in progress...", spinner="dots"):
             self.analyse_min_test.run_tests()
+        self.console.print("Analyse min tests completed!\nThe script is compatible with your version for the analyse", style="bold green")
+
+    def run_application_ssh_test(self): 
+        self.console.print("Running Analyse min tests...", style="bold green")
+        with self.console.status("[cyan]Tests in progress...", spinner="dots"):
+            self.application_ssh_test.run_tests()
         self.console.print("Analyse min tests completed!\nThe script is compatible with your version for the analyse", style="bold green")

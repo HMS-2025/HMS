@@ -2,7 +2,7 @@ import sys
 import os
 from Config import load_config, ssh_connect
 from Tests.Analyse_min_test  import Analyse_min_test
-from Tests.Ssh_test import Analyse_ssh_test
+from Tests.Ssh_test import Analyse_ssh_test , Application_ssh_test
 from Tests.Test_prompt import CustomTerminal
 
 if __name__ == "__main__":
@@ -21,11 +21,14 @@ if __name__ == "__main__":
     if not client:
         print("Échec de la connexion SSH")
     
-    test_ssh = Analyse_ssh_test(client)
+    test_analyse_ssh = Analyse_ssh_test(client)
     test_analyse_min = Analyse_min_test(client)
+    test_application_ssh = Application_ssh_test(client)
+
     terminal = CustomTerminal()
-    terminal.set_ssh_test(test_ssh)
+    terminal.set_analyse_ssh_test(test_analyse_ssh)
     terminal.set_analyse_min_test(test_analyse_min)
+    terminal.set_application_ssh_test(test_application_ssh)
 
     terminal.run()
     
