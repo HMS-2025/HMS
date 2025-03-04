@@ -1,11 +1,11 @@
 R1:
-  appliquer: true
+  appliquer: false
   elements_attendus:
   - Toujours valide
   elements_detectes: Automatiquement conforme car ubuntu 20.04 a SSH 2 de base.
   status: Conforme
 R10:
-  appliquer: true
+  appliquer: false
   elements_attendus:
   - '30'
   elements_detectes: "non d\xE9fini"
@@ -36,7 +36,7 @@ R14:
   elements_detectes: "non d\xE9fini"
   status: Non conforme
 R15:
-  appliquer: true
+  appliquer: false
   elements_attendus:
   - hmac-sha2-512,hmac-sha2-256,hmac-sha1
   elements_detectes: "non d\xE9fini"
@@ -84,7 +84,7 @@ R21:
   elements_detectes: "non d\xE9fini"
   status: Non conforme
 R22:
-  appliquer: true
+  appliquer: false
   elements_attendus:
   - '300'
   elements_detectes: "non d\xE9fini"
@@ -97,7 +97,7 @@ R23:
   elements_detectes: "non d\xE9fini"
   status: Non conforme
 R24:
-  appliquer: true
+  appliquer: false
   elements_attendus:
   - '20'
   elements_detectes: "non d\xE9fini"
@@ -110,20 +110,20 @@ R25:
   elements_detectes: "non d\xE9fini"
   status: Non conforme
 R26:
-  appliquer: true
+  appliquer: false
   elements_attendus:
   - '22'
   elements_detectes: "non d\xE9fini"
   status: Conforme
 R3:
-  appliquer: true
+  appliquer: false
   elements_attendus:
   - 'no'
   elements_detectes: false
   status: 'Conforme -> ''PasswordAuthentication: no'' | attendu: ''PasswordAuthentication:
     no'''
 R4:
-  appliquer: true
+  appliquer: false
   elements_attendus:
   - 'no'
   elements_detectes: false
