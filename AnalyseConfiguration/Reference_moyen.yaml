@@ -223,8 +223,18 @@ R69:
 R67:
   description: "Ensure remote authentication via PAM is secured with encryption, additional security modules, and no plaintext password storage."
   expected:
-    detected_pam_modules: "pam_ldap"
-    security_modules:
-      pam_faillock: "Enabled"
-      pam_pwquality: "Enabled"
-      pam_wheel: "Enabled"
+    pam_rules:
+      - "account required pam_nologin.so"
+      - "session [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so close"
+      - "session required pam_loginuid.so"
+      - "session optional pam_keyinit.so force revoke"
+      - "session optional pam_motd.so motd=/run/motd.dynamic"
+      - "session optional pam_motd.so noupdate"
+      - "session optional pam_mail.so standard noenv # [1]"
+      - "session required pam_limits.so"
+      - "session required pam_env.so # [1]"
+      - "session required pam_env.so user_readenv=1 envfile=/etc/default/locale"
+      - "session [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so open"
+      - "auth required pam_faillock.so preauth silent audit deny=5 unlock_time=300"
+      - "auth required pam_faillock.so authfail audit deny=5 unlock_time=300"
+      - "auth optional pam_pwquality.so retry=3 minlen=8 difok=2"
