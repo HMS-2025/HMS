@@ -3,7 +3,7 @@ import os
 import yaml
 import time
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
-
+from ApplicationRecommandations.AppRecommandationsSSH
 def load_config(path) : 
 
         # Chargement des secrets

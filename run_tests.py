@@ -3,17 +3,13 @@ import os
 from Config import load_config, ssh_connect
 from Tests.Analyse_min_test  import Analyse_min_test
 from Tests.Ssh_test import SSH_TEST
-from Tests.test_prompt import CustomTerminal
+from Tests.Test_prompt import CustomTerminal
 
 if __name__ == "__main__":
-    #main()
-    print("\n--- Début de l'application des recommandations générales ---\n")
-
     # Charger la configuration SSH
     config = load_config("ssh.yaml")
     if not config:
         print("Configuration invalide")
-
     # Établir la connexion SSH
     client = ssh_connect(
         hostname=config.get("hostname"),
@@ -22,7 +18,6 @@ if __name__ == "__main__":
         key_path=config.get("key_path"),
         passphrase=config.get("passphrase")
     )
-
     if not client:
         print("Échec de la connexion SSH")
     
@@ -31,8 +26,6 @@ if __name__ == "__main__":
     terminal = CustomTerminal()
     terminal.set_ssh_test(test_ssh)
     terminal.set_analyse_min_test(test_analyse_min)
-
-
 
     terminal.run()
     
