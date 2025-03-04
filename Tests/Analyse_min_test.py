@@ -229,7 +229,7 @@ class Analyse_min_test ( unittest.TestCase):
         result = load_config("GenerationRapport/RapportAnalyse/analyse_min.yml")
         self.assertNotIn("expiration_policy" , result["password"]["R31"]["detected_element"].keys())
 
-        #faillock 
+        #faillock
 
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i 's/^#*\s*deny\s*=.*/deny=4/' /etc/security/faillock.conf")
         exit_status = stdout.channel.recv_exit_status()
