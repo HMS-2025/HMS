@@ -132,7 +132,6 @@ R70:
 R8:
   description: "Configure memory security options at boot"
   expected:
-    memory_options:
       - "l1tf=full,force"
       - "page_poison=on"
       - "pti=on"
@@ -144,11 +143,9 @@ R8:
       - "mce=0"
       - "page_alloc.shuffle=1"
       - "rng_core.default_quality=500"
-
 R9:
   description: "Configure kernel security settings"
   expected:
-    kernel_settings:
       kernel.dmesg_restrict: "1"
       kernel.kptr_restrict: "2"
       kernel.pid_max: "65536"
@@ -163,13 +160,11 @@ R9:
 R11:
   description: "Enable and configure Yama LSM"
   expected:
-    yama_status:
       kernel.yama.ptrace_scope: "1"
 
 R14:
   description: "Configure filesystem security settings"
   expected:
-    filesystem_settings:
       fs.suid_dumpable: "0"
       fs.protected_fifos: "2"
       fs.protected_regular: "2"
@@ -220,6 +215,7 @@ R69:
     binddn_user: cn=service_account,dc=example,dc=com
     limited_rights: Yes
 
+#Ensure that the expected element matches the detected element exactly for compliance.
 R67:
   description: "Ensure remote authentication via PAM is secured with encryption, additional security modules, and no plaintext password storage."
   expected:
