@@ -1,7 +1,6 @@
 # Rapport de l'analyse: ---
 # Changer la valeur de 'apply' à 'true' si vous voulez apply cette recommandation. 
 
-
 ssh_conformite:
   R1:
     apply: true
@@ -9,7 +8,7 @@ ssh_conformite:
     detected_elements: Automatiquement conforme car ubuntu 20.04 a SSH 2 de base.
     status: "Conforme"
   R2:
-    apply: true
+    apply: false
     expected_elements: ['yes']
     detected_elements: yes
     status: "Conforme -> 'PubkeyAuthentication: yes' | attendu: 'PubkeyAuthentication: yes'"
@@ -19,32 +18,32 @@ ssh_conformite:
     detected_elements: no
     status: "Conforme -> 'PasswordAuthentication: no' | attendu: 'PasswordAuthentication: no'"
   R4:
-    apply: false
+    apply: true
     expected_elements: ['no']
     detected_elements: non défini
     status: "Non conforme -> 'ChallengeResponseAuthentication: non défini' | attendu: 'ChallengeResponseAuthentication: no'"
   R5:
-    apply: false
+    apply: true
     expected_elements: ['no']
     detected_elements: non défini
     status: "Non conforme -> 'PermitRootLogin: non défini' | attendu: 'PermitRootLogin: no'"
   R6:
-    apply: false
+    apply: true
     expected_elements: ['no']
     detected_elements: yes
     status: "Non conforme -> 'X11Forwarding: yes' | attendu: 'X11Forwarding: no'"
   R7:
-    apply: false
+    apply: true
     expected_elements: ['no']
     detected_elements: non défini
     status: "Non conforme -> 'AllowTcpForwarding: non défini' | attendu: 'AllowTcpForwarding: no'"
   R8:
-    apply: false
+    apply: true
     expected_elements: ['2']
     detected_elements: non défini
     status: "Non conforme -> 'MaxAuthTries: non défini' | attendu: 'MaxAuthTries: 2'"
   R9:
-    apply: false
+    apply: true
     expected_elements: ['no']
     detected_elements: non défini
     status: "Non conforme -> 'PermitEmptyPasswords: non défini' | attendu: 'PermitEmptyPasswords: no'"
@@ -54,57 +53,57 @@ ssh_conformite:
     detected_elements: non défini
     status: "Conforme -> 'LoginGraceTime: non défini' | attendu: 'LoginGraceTime: 30'"
   R11:
-    apply: false
+    apply: true
     expected_elements: ['sandbox']
     detected_elements: non défini
     status: "Non conforme -> 'UsePrivilegeSeparation: non défini' | attendu: 'UsePrivilegeSeparation: sandbox'"
   R12:
-    apply: false
+    apply: true
     expected_elements: ['']
     detected_elements: Aucun
     status: "Non conforme -> 'AllowUsers' est vide ou non défini, il doit être renseigné."
   R13:
-    apply: false
+    apply: true
     expected_elements: ['']
     detected_elements: Aucun
     status: "Non conforme -> 'AllowGroups' est vide ou non défini, il doit être renseigné."
   R14:
-    apply: false
+    apply: true
     expected_elements: ['aes256-ctr,aes192-ctr,aes128-ctr']
     detected_elements: non défini
     status: "Non conforme -> 'Ciphers: non défini' | attendu: 'Ciphers: aes256-ctr,aes192-ctr,aes128-ctr'"
   R15:
-    apply: false
+    apply: true
     expected_elements: ['hmac-sha2-512,hmac-sha2-256,hmac-sha1']
     detected_elements: non défini
     status: "Non conforme -> 'MACs: non défini' | attendu: 'MACs: hmac-sha2-512,hmac-sha2-256,hmac-sha1'"
   R16:
-    apply: false
+    apply: true
     expected_elements: ['no']
     detected_elements: non défini
     status: "Non conforme -> 'PermitUserEnvironment: non défini' | attendu: 'PermitUserEnvironment: no'"
   R17:
-    apply: false
+    apply: true
     expected_elements: ['no']
     detected_elements: non défini
     status: "Non conforme -> 'AllowAgentForwarding: non défini' | attendu: 'AllowAgentForwarding: no'"
   R18:
-    apply: false
+    apply: true
     expected_elements: ['yes']
     detected_elements: non défini
     status: "Non conforme -> 'StrictModes: non défini' | attendu: 'StrictModes: yes'"
   R19:
-    apply: false
+    apply: true
     expected_elements: ['/etc/ssh/ssh_host_rsa_key']
     detected_elements: non défini
     status: "Non conforme -> 'HostKey: non défini' | attendu: 'HostKey: /etc/ssh/ssh_host_rsa_key'"
   R20:
-    apply: false
+    apply: true
     expected_elements: ['diffie-hellman-group-exchange-sha256']
     detected_elements: non défini
     status: "Non conforme -> 'KexAlgorithms: non défini' | attendu: 'KexAlgorithms: diffie-hellman-group-exchange-sha256'"
   R21:
-    apply: false
+    apply: true
     expected_elements: ['.ssh/authorized_keys']
     detected_elements: non défini
     status: "Non conforme -> 'AuthorizedKeysFile: non défini' | attendu: 'AuthorizedKeysFile: .ssh/authorized_keys'"
@@ -114,7 +113,7 @@ ssh_conformite:
     detected_elements: non défini
     status: "Conforme -> 'ClientAliveInterval: non défini' | attendu: 'ClientAliveInterval: 300'"
   R23:
-    apply: false
+    apply: true
     expected_elements: ['0']
     detected_elements: non défini
     status: "Non conforme -> 'ClientAliveCountMax: non défini' | attendu: 'ClientAliveCountMax: 0'"
@@ -124,12 +123,12 @@ ssh_conformite:
     detected_elements: non défini
     status: "Conforme -> 'LoginGraceTime: non défini' | attendu: 'LoginGraceTime: 20'"
   R25:
-    apply: false
+    apply: true
     expected_elements: ['192.168.1.1']
     detected_elements: non défini
     status: "Non conforme -> 'ListenAddress: non défini' | attendu: 'ListenAddress: 192.168.1.1'"
   R26:
-    apply: false
+    apply: true
     expected_elements: ['22']
     detected_elements: non défini
     status: "Non conforme -> 'Port: non défini' | attendu: 'Port: 22'"
