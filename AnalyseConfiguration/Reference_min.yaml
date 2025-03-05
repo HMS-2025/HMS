@@ -36,19 +36,20 @@ R31:
 R68:
   description: "Protéger les mots de passe stockés"
   expected:
-    shadow_permissions: "-rw-r----- 1 root shadow"
+    shadow_permissions: "-rw-r----- root shadow"
     hashed_passwords: "Oui"
     cleartext_passwords: "Non"
     empty_passwords: []
     hash_algorithms:
-      - "$6$"  # SHA-512
-      - "$argon2$"
-      - "$scrypt$"
-      - "$pbkdf2$"
+      - "6"  # SHA-512
+#      - "argon2"
+#      - "scrypt"
+#      - "pbkdf2"
+# For compliance, the algorithm must be added to expected_elements if it is detected
 
-#C'est un exemple de conformité, l'utilisateur doit adapter afin que les interfaces locales par défaut ne soient pas en écoute.
-# Par exemple si 127.0.0.1 est pas utilisée par des services alors il faut la désactiver.
-# 10.171.165.118 : si le serveur fournit un service sur le réseau c'est ok, si ce n'est pas le cas, il faut forcer les services à écouter sur 127.0.0.1
+#This is an example of compliance; the user must adapt it to ensure that default local interfaces are not listening.
+#For example, if 127.0.0.1 is not used by any services, it should be disabled.
+# 10.171.165.118: If the server provides a service on the network, it's fine; otherwise, services should be forced to listen on 127.0.0.1.
 R80:
   description: "Réduire la surface d’attaque des services réseau (aucune recommandation est proposée pour cette règle, coupler R79)"
   expected:
