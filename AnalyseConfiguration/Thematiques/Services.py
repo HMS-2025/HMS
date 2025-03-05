@@ -22,24 +22,29 @@ def execute_ssh_command(serveur, command):
 # Vérification de conformité des règles
 def check_compliance(rule_id, detected_values, reference_data):
     """Vérifie la conformité des règles en comparant les valeurs détectées avec les références."""
+    
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
-    expected_values_list = []
     
-    if isinstance(expected_values, dict):
-        for key, value in expected_values.items():
-            if isinstance(value, list):
-                expected_values_list.extend(value)
-            else:
-                expected_values_list.append(value)
-    elif isinstance(expected_values, list):
-        expected_values_list = expected_values
-    
+    # Vérification spécifique pour R62 : la conformité dépend uniquement des services interdits détectés
+    if rule_id == "R62":
+        detected_prohibited_elements = detected_values.get("detected_prohibited_elements", [])
+        is_compliant = len(detected_prohibited_elements) == 0
+        
+        return {
+            "apply": is_compliant,
+            "status": "Conforme" if is_compliant else "Non-conforme",
+            "detected_elements": detected_values.get("detected_elements", []),  # Liste des services actifs
+            "detected_prohibited_elements": detected_prohibited_elements  # Liste des services interdits en cours d'exécution
+        }
+
+    # Gestion standard pour les autres règles
     return {
-        "apply": detected_values == expected_values_list,
-        "status": "Conforme" if detected_values == expected_values_list else "Non-conforme",
+        "apply": detected_values == expected_values,
+        "status": "Conforme" if detected_values == expected_values else "Non-conforme",
         "expected_elements": expected_values or "None",
         "detected_elements": detected_values or "None"
     }
+
 
 # Fonction principale d'analyse des services
 def analyse_services(serveur, niveau, reference_data=None):
@@ -72,33 +77,33 @@ def analyse_services(serveur, niveau, reference_data=None):
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
     print(f"\nTaux de conformité pour le niveau {niveau.upper()} : {compliance_percentage:.2f}%")
 
-# R62 - Disable unnecessary services
+# R62 - Désactiver les services non nécessaires
 def disable_unnecessary_services(serveur, reference_data):
     """Vérifie les services actifs et établit la conformité en fonction de la liste des services interdits."""
     
-     # Load prohibited services from reference_min.yaml
+    # Charger les services interdits depuis reference_min.yaml
     disallowed_services = reference_data.get("R62", {}).get("expected", {}).get("disallowed_services", [])
 
     if not disallowed_services:
-        print("No prohibited services defined. Check the reference_min.yaml file.")
-        return []
+        print("Aucun service interdit défini. Vérifiez le fichier reference_min.yaml.")
+        return {}
 
-    # Retrieve active services list
+    # Récupérer la liste des services actifs
     active_services = get_active_services(serveur)
 
-    # Prohibited services that are running
+    # Détecter les services interdits en cours d'exécution
     forbidden_running_services = [service for service in active_services if service in disallowed_services]
 
-    # Compliance verification
+    # Déterminer la conformité
     is_compliant = len(forbidden_running_services) == 0
 
     return {
-        "status": "Compliant" if is_compliant else "Non-compliant",
+        "status": "Conforme" if is_compliant else "Non-conforme",
         "apply": is_compliant,
-        "detected_elements": active_services,  # Complete list of running services
-        "detected_prohibited_elements": forbidden_running_services,  # Only detected prohibited services
-        "expected_elements": disallowed_services  # List of services that should not be active
+        "detected_elements": active_services,  # Liste complète des services en cours d'exécution
+        "detected_prohibited_elements": forbidden_running_services  # Liste des services interdits détectés
     }
+
 
 # Retrieve active services list on a remote machine via SSH
 def get_active_services(serveur):
