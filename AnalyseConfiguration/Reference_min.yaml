@@ -60,7 +60,6 @@ R80:
       ipv4: "10.171.165.118"
       ipv6: "fe80::216:3eff:fea2:78g8"
 
-
 R62:
   description: "Désactiver les services non nécessaires"
   expected:
@@ -69,6 +68,7 @@ R62:
       - bluetooth.service
       - avahi-daemon.service
       - rpcbind.service
+      - dbus.service
       - smbd.service
       - nfs-server.service  # Tous ces services doivent être désactivés
 
