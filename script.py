@@ -139,7 +139,7 @@ def main():
                 continue
 
             # Appliquer uniquement les recommandations SSH
-            apply_selected_recommendationsSSH("/GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml", client)
+            apply_selected_recommendationsSSH("./GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml", client)
 
             # Fermer la connexion après application
             client.close()
