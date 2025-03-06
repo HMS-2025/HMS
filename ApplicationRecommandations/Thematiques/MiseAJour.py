@@ -101,17 +101,20 @@ def update_yaml_status(yaml_file, rule, elements_problématiques):
     with open(yaml_file, 'w', encoding="utf-8") as file:
         yaml.safe_dump(data, file, allow_unicode=True)  # Assurez-vous que l'encodage UTF-8 et les caractères spéciaux sont gérés
 
-def apply_recommandation_mise_a_jour_min(yaml_file, client):
-    """Appliquer les recommandations de sécurité en fonction du fichier YAML."""
+def apply_rule(rule_name, yaml_file, client):
+    if rule_name == "R61":
+        apply_R61(yaml_file, client)   
+    else:
+        print(f"Règle inconnue : {rule_name}")
+
+def apply_recommandation_mise_a_jour(yaml_file, client):
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
     
-    for rule, rule_data in data.items():
-        if not rule_data.get('appliquer', False):
-            print(f"Application de la règle {rule}...")
-            if rule == "R61":
-                apply_R61(yaml_file, client)
-            else:
-                print(f"Règle inconnue : {rule}")
-        else:
+    for rule, rule_data in data['gestion_acces'].items():
+        if rule_data.get('appliquer', False):
             print(f"Règle {rule} déjà appliquée.")
+        else:
+            apply_rule(rule, yaml_file, client)
+
+

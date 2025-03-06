@@ -5,7 +5,7 @@ def update_yaml(yaml_file, thematique ,  rule, clear_keys=[]):
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
     
-    data[thematique][rule]['apply'] = True
+    data[thematique][rule]['apply'] = False
     data[thematique][rule]['status'] = 'Conforme'
     with open(yaml_file, 'w', encoding="utf-8") as file:
         yaml.safe_dump(data, file)
@@ -64,7 +64,6 @@ def apply_R56(yaml_file, client):
         return None
     else : 
         for file in uid_gid_files:
-            print(file)
             client.exec_command(f'sudo chmod u-s {file}')        
             client.exec_command(f'sudo chmod g-s {file}')
             client.exec_command(f'sudo chmod o-s {file}')        
@@ -84,7 +83,7 @@ def apply_rule(rule_name, yaml_file, client):
     else:
         print(f"Règle inconnue : {rule_name}")
 
-def apply_recommandation_acces_min(yaml_file, client):
+def apply_recommandation_acces(yaml_file, client):
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
     

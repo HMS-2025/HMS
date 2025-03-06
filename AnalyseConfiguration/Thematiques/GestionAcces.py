@@ -44,7 +44,12 @@ def find_orphan_files(serveur):
     return execute_ssh_command(serveur, "sudo find / -xdev \( -nouser -o -nogroup \) -print 2>/dev/null")
 
 def find_files_with_setuid_setgid(serveur):
-    return execute_ssh_command(serveur, "find / -type f -perm /6000 -print 2>/dev/null")
+    ro_mounts = execute_ssh_command(serveur, "findmnt -r -n -o TARGET")
+    ro_mounts_list = ro_mounts
+    exclusions = ' '.join([f"-path '{mount}/*' -prune -o" for mount in ro_mounts_list])
+    find_command = f"find / {exclusions} -type f -perm /6000 -print 2>/dev/null"
+
+    return execute_ssh_command(serveur, find_command)
 
 def get_service_accounts(serveur):
     return execute_ssh_command(serveur, "awk -F: '($3 < 1000) && ($1 != \"root\") {print $1}' /etc/passwd")
