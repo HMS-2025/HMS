@@ -181,6 +181,7 @@ R63:
   expected:
     disabled_service_features: []
 
+#Detected elements must exactly match expected elements.
 R74:
   description: "Harden the local mail service (ignored if no mail service is running) All the criteria present in the compliance file must be validated, so they need to be modified beforehand or afterward to ensure proper compliance."
   expected:

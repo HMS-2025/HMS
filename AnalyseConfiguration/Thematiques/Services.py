@@ -14,36 +14,74 @@ def load_reference_yaml(niveau):
         print(f"Erreur lors du chargement de {file_path} : {e}")
         return {}
 
-# Exécution d'une commande SSH
-def execute_ssh_command(serveur, command):
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return list(filter(None, stdout.read().decode().strip().split("\n")))
-
 # Vérification de conformité des règles
 def check_compliance(rule_id, detected_values, reference_data):
     """Vérifie la conformité des règles en comparant les valeurs détectées avec les références."""
-    
+
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
-    
-    # Vérification spécifique pour R62 : la conformité dépend uniquement des services interdits détectés
+
+    # Exception spécifique pour R62 : services interdits détectés
     if rule_id == "R62":
         detected_prohibited_elements = detected_values.get("detected_prohibited_elements", [])
         is_compliant = len(detected_prohibited_elements) == 0
-        
+
         return {
             "apply": is_compliant,
             "status": "Conforme" if is_compliant else "Non-conforme",
-            "detected_elements": detected_values.get("detected_elements", []),  # Liste des services actifs
-            "detected_prohibited_elements": detected_prohibited_elements  # Liste des services interdits en cours d'exécution
+            "detected_elements": detected_values.get("detected_elements", []),
+            "detected_prohibited_elements": detected_prohibited_elements,
+            "expected_elements": expected_values
+        }
+
+    # Exception spécifique pour R74 : interfaces et livraison locales
+    elif rule_id == "R74":
+        detected_interfaces = set(detected_values.get("listen_interfaces", []))
+        expected_interfaces = set(expected_values.get("hardened_mail_service", {}).get("listen_interfaces", []))
+
+        detected_local_delivery = set(detected_values.get("allow_local_delivery", []))
+        expected_local_delivery = set(expected_values.get("hardened_mail_service", {}).get("allow_local_delivery", []))
+
+        interfaces_compliant = detected_interfaces == expected_interfaces
+        local_delivery_compliant = detected_local_delivery == expected_local_delivery
+
+        is_compliant = interfaces_compliant and local_delivery_compliant
+
+        return {
+            "apply": is_compliant,
+            "status": "Conforme" if is_compliant else "Non-conforme",
+            "detected_elements": {
+                "listen_interfaces": list(detected_interfaces),
+                "allow_local_delivery": list(detected_local_delivery)
+            },
+            "expected_elements": {
+                "listen_interfaces": list(expected_interfaces),
+                "allow_local_delivery": list(expected_local_delivery)
+            }
+        }
+
+    # Cas spécifique pour R75 : au moins un alias attendu détecté
+    elif rule_id == "R75":
+        detected_aliases = detected_values.get("detected_elements", [])
+        expected_aliases = expected_values.get("mail_aliases", [])
+        is_compliant = any(alias in detected_aliases for alias in expected_aliases)
+
+        return {
+            "apply": is_compliant,
+            "status": "Conforme" if is_compliant else "Non-conforme",
+            "detected_elements": detected_aliases,
+            "expected_elements": expected_aliases
         }
 
     # Gestion standard pour les autres règles
-    return {
-        "apply": detected_values == expected_values,
-        "status": "Conforme" if detected_values == expected_values else "Non-conforme",
-        "expected_elements": expected_values or "None",
-        "detected_elements": detected_values or "None"
-    }
+    else:
+        return {
+            "apply": detected_values == expected_values,
+            "status": "Conforme" if detected_values == expected_values else "Non-conforme",
+            "expected_elements": expected_values or "None",
+            "detected_elements": detected_values or "None"
+        }
+
+
 
 
 # Fonction principale d'analyse des services
@@ -143,54 +181,45 @@ def check_disabled_service_features(serveur):
 def check_hardened_mail_service(serveur):
     """Checks if the mail service only accepts local connections and allows only local delivery."""
 
-    # Vérifier si un service écoute sur le port 25
-    command_listen = "ss -tulnp | awk '$5 ~ /:25$/ {print $5}'"
+    # Vérifier si un service écoute uniquement en local
+    command_listen = "ss -tuln | grep ':25' | awk '{print $5}'"
     stdin, stdout, stderr = serveur.exec_command(command_listen)
     listening_ports = stdout.read().decode().strip().split("\n")
 
-    # Vérifier la configuration de la livraison locale avec Postfix
-    command_destination = "postconf -h mydestination"
-    stdin, stdout, stderr = serveur.exec_command(command_destination)
-    mydestination = stdout.read().decode().strip()
-
-    # Charger la référence attendue
-    reference_data = load_reference_yaml("moyen")
-    expected_interfaces = reference_data.get("R74", {}).get("expected", {}).get("hardened_mail_service", {}).get("listen_interfaces", [])
-    expected_local_delivery = reference_data.get("R74", {}).get("expected", {}).get("hardened_mail_service", {}).get("allow_local_delivery", [])
-
-    # Vérifier que le service écoute uniquement sur 127.0.0.1 ou [::1]
     detected_interfaces = [line.strip() for line in listening_ports if line.strip()]
 
-    # Vérifier que Postfix n'accepte que les mails locaux
-    detected_local_delivery = [item.strip() for item in mydestination.split(",")]
+    # Vérifier la configuration de livraison locale avec Postfix
+    command_destination = "postconf -h mydestination"
+    stdin, stdout, stderr = serveur.exec_command(command_destination)
+    mydestination_raw = stdout.read().decode().strip()
 
-    # Si aucun service de messagerie n'est détecté, la règle est conforme
-    if not detected_interfaces:
-        return {
-            "detected_elements": [],
-            "expected_elements": expected_interfaces + expected_local_delivery
-        }
+    # Correct : un seul split ici !
+    detected_local_delivery = [item.strip() for item in mydestination_raw.split(",") if item.strip()]
 
     return {
-        "detected_elements": detected_interfaces + detected_local_delivery,
-        "expected_elements": expected_interfaces + expected_local_delivery
+        "listen_interfaces": detected_interfaces,
+        "allow_local_delivery": detected_local_delivery
     }
+
 
 
 # R75 - Verify mail aliases for service accounts
 def check_mail_aliases(serveur):
     """Checks for the presence of mail aliases for service accounts via a Linux command."""
     
-    # Nouvelle commande pour extraire uniquement les alias
     command = "grep -E '^[a-zA-Z0-9._-]+:' /etc/aliases | awk -F':' '{print $1}' 2>/dev/null"
     stdin, stdout, stderr = serveur.exec_command(command)
     aliases_output = stdout.read().decode().strip().split("\n")
 
-    reference_data = load_reference_yaml("moyen")  # Charger la configuration pour le niveau moyen
+    reference_data = load_reference_yaml("moyen")
     expected_aliases = reference_data.get("R75", {}).get("expected", {}).get("mail_aliases", [])
 
-    # Nettoyage des alias détectés pour éviter des espaces superflus
-    detected_aliases = [alias.strip() for alias in aliases_output if alias.strip() in expected_aliases]
+    detected_aliases = [alias.strip() for alias in aliases_output if alias.strip()]
+
+    return {  # <-- Ajoute explicitement ce return !
+        "detected_elements": detected_aliases,
+        "expected_elements": expected_aliases
+    }
 
 def save_yaml_report(data, output_file):
     """Sauvegarde les résultats de l'analyse dans un fichier YAML sans alias."""

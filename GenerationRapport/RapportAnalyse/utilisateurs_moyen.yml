@@ -53,6 +53,8 @@ R70:
     - ubuntu
     system_users:
     - _apt
+    - _rpc
+    - avahi
     - backup
     - bin
     - daemon
