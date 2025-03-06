@@ -10,7 +10,8 @@ def application_recommandations_min(client):
     path_report="./GenerationRapport/RapportApplication/"
     # Ici, on passe le chemin complet du fichier à chaque fonction sans vérification préalable
     apply_recommandation_acces(f"{path_report}/application_min.yml", client)
-    apply_recommandation_mise_a_jour(f"{path_report}/mise_a_jour_minimal.yml", client)
+    apply_recommandation_mise_a_jour(f"{path_report}/application_min.yml", client)
+    
     #apply_recommandation_politique_mot_de_passe_min(f"{path_report}/politique_mdp_minimal.yml", client) #verifier aussi
     #apply_recommandation_reseau_min(f"{path_report}/reseau_minimal.yml", client)#verifier
     #apply_recommandation_maintenance_min(f"{path_report}/application_min.yml", client) #verifier

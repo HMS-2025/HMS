@@ -9,10 +9,10 @@ ssh_conformite:
     detected_elements: Automatiquement conforme car ubuntu 20.04 a SSH 2 de base.
     status: "Conforme"
   R2:
-    apply: true
+    apply: false
     expected_elements: ['yes']
-    detected_elements: yes
-    status: "Conforme -> 'PubkeyAuthentication: yes' | attendu: 'PubkeyAuthentication: yes'"
+    detected_elements: non défini
+    status: "Non conforme -> 'PubkeyAuthentication: non défini' | attendu: 'PubkeyAuthentication: yes'"
   R3:
     apply: true
     expected_elements: ['no']
@@ -31,8 +31,8 @@ ssh_conformite:
   R6:
     apply: false
     expected_elements: ['no']
-    detected_elements: yes
-    status: "Non conforme -> 'X11Forwarding: yes' | attendu: 'X11Forwarding: no'"
+    detected_elements: non défini
+    status: "Non conforme -> 'X11Forwarding: non défini' | attendu: 'X11Forwarding: no'"
   R7:
     apply: false
     expected_elements: ['no']
@@ -99,10 +99,10 @@ ssh_conformite:
     detected_elements: non défini
     status: "Non conforme -> 'HostKey: non défini' | attendu: 'HostKey: /etc/ssh/ssh_host_rsa_key'"
   R20:
-    apply: false
+    apply: true
     expected_elements: ['diffie-hellman-group-exchange-sha256']
-    detected_elements: non défini
-    status: "Non conforme -> 'KexAlgorithms: non défini' | attendu: 'KexAlgorithms: diffie-hellman-group-exchange-sha256'"
+    detected_elements: diffie-hellman-group-exchange-sha256
+    status: "Conforme -> 'KexAlgorithms: diffie-hellman-group-exchange-sha256' | attendu: 'KexAlgorithms: diffie-hellman-group-exchange-sha256'"
   R21:
     apply: false
     expected_elements: ['.ssh/authorized_keys']

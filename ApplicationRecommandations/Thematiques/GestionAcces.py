@@ -82,13 +82,23 @@ def apply_rule(rule_name, yaml_file, client):
         apply_R56(yaml_file, client)
     else:
         print(f"Règle inconnue : {rule_name}")
-
+        
 def apply_recommandation_acces(yaml_file, client):
-    with open(yaml_file, 'r', encoding="utf-8") as file:
-        data = yaml.safe_load(file)
-    
-    for rule, rule_data in data['gestion_acces'].items():
-        if rule_data.get('appliquer', False):
-            print(f"Règle {rule} déjà appliquée.")
-        else:
-            apply_rule(rule, yaml_file, client)
+    try:
+        with open(yaml_file, 'r', encoding="utf-8") as file:
+            data = yaml.safe_load(file)
+            
+        if not data or 'gestion_acces' not in data:
+            return
+        for rule, rule_data in data['gestion_acces'].items():
+            if rule_data.get('appliquer', False):
+                print(f"Règle {rule} déjà appliquée.")
+            else:
+                apply_rule(rule, yaml_file, client)
+                
+    except FileNotFoundError:
+        print(f"Fichier {yaml_file} non trouvé.")
+    except yaml.YAMLError as e:
+        print(f"Erreur lors de la lecture du fichier YAML : {e}")
+    except Exception as e:
+        print(f"Une erreur inattendue s'est produite : {e}")

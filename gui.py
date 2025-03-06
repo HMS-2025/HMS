@@ -79,10 +79,11 @@ class Gui:
 
         row = 0
         for section, rules in self.data.items():
-            for rule_key, rule in rules.items():
-                if isinstance(rule, dict) and "apply" in rule:
-                    self.create_rule_ui(self.rule_frame, section, rule_key, rule, row)
-                    row += 1
+            if rules : 
+                for rule_key, rule in rules.items():
+                    if isinstance(rule, dict) and "apply" in rule:
+                        self.create_rule_ui(self.rule_frame, section, rule_key, rule, row)
+                        row += 1
 
         save_button = ttk.Button(self.root, text="Sauvegarder", command=self.save_changes)
         save_button.pack(pady=20)
