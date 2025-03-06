@@ -73,7 +73,7 @@ def main():
                     # Ajouter ici la fonction analyse_renforcee(client)
 
                 elif choix_analyse == "5":
-                    print("\n[Analyse] Exécution de l'analyse SSH uniquement...")
+                    print("\n[Analyse] Exécution de l'analyse SSH uniquement...")GenerationRapport/RapportAnalyse/utilisateurs_min.yml
                     analyse_SSH(client)
 
                 # Fermer la connexion après l'analyse
@@ -139,7 +139,7 @@ def main():
                 continue
 
             # Appliquer uniquement les recommandations SSH
-            apply_selected_recommendationsSSH("testRecommandationSSH.yaml", client)
+            apply_selected_recommendationsSSH("./GenerationRapport/RapportAnalyse/utilisateurs_min.yml", client)
 
             # Fermer la connexion après application
             client.close()
