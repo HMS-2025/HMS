@@ -51,7 +51,6 @@ R44:
 R50:
   description: "Restrict access permissions to sensitive files and directories"
   expected:
-    secure_permissions:
       - "/etc/shadow 600"
       - "/etc/passwd 644"
       - "/etc/group 644"
@@ -70,24 +69,21 @@ R50:
       - "/etc/securetty 600"
       - "/etc/security/limits.conf 644"
       - "/boot/grub/grub.cfg 600"
+      
+
 R52:
-  description: "Restrict access to sockets and named pipes"
+  description: "Ensure named pipes and sockets have restricted permissions"
   expected:
-    protected_sockets:
-      - "/dev/log"
-      - "/run/systemd/journal/socket"
-      - "/var/run/docker.sock"
-      - "/run/dbus/system_bus_socket"
-      - "/run/udev/control"
-      - "/var/run/mysqld/mysqld.sock"
-      - "/var/run/postgresql/.s.PGSQL.5432"
-      - "/var/run/php/php-fpm.sock"
-      - "/run/systemd/private"
-      - "/run/snapd.socket"
-      - "/run/acpid.socket"
-      - "/run/cups/cups.sock"
-      - "/var/lib/lxcfs/cgroup"
-      - "/run/systemd/notify"
+    - "/run/dbus 755"
+    - "/run/dbus/system_bus_socket 660"
+    - "/run 755"
+    - "/run/snapd.socket 660"
+    - "/run/systemd/journal 755"
+    - "/run/systemd/journal/dev-log 750"
+    - "/run/systemd/journal/socket 660"
+    - "/run/systemd/journal/stdout 660"
+    - "/run/systemd 755"
+    - "/run/systemd/notify 750"
 
 R55:
   description: "Isolate user temporary directories"
