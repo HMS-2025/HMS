@@ -159,7 +159,7 @@ class Analyse_min_test ( unittest.TestCase):
         result = load_config("GenerationRapport/RapportAnalyse/analyse_min.yml")
 
         #Vérification que les fichiers sont bien détectés comme Non-conformes
-        self.assertIn("smbd.service", result["services"]["R62"]["detected_elements"]["detected_prohibited_elements"])
+        self.assertIn("smbd.service", result["services"]["R62"]["detected_prohibited_elements"])
         self.assertEqual(result["services"]["R62"]["status"], "Non-conforme")
 
         #Nettoyage après le test
@@ -218,7 +218,7 @@ class Analyse_min_test ( unittest.TestCase):
 
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_min.yml")
-        self.assertEqual(result["password"]["R31"]["detected_element"]["expiration_policy"]["detected"] , 999)
+        self.assertEqual(result["password"]["R31"]["detected_element"]["expiration_policy"] , 999)
 
         # expiration_policy
 
@@ -227,7 +227,7 @@ class Analyse_min_test ( unittest.TestCase):
 
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_min.yml")
-        self.assertNotIn("expiration_policy" , result["password"]["R31"]["detected_element"].keys())
+        self.assertEqual( 80 , result["password"]["R31"]["detected_element"]["expiration_policy"])
 
         #faillock
 
@@ -245,7 +245,7 @@ class Analyse_min_test ( unittest.TestCase):
 
         analyse_min(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_min.yml")
-        self.assertNotIn("faillock" ,list(result["password"]["R31"]["detected_element"].keys()))
+        self.assertEqual( 2,result["password"]["R31"]["detected_element"]["faillock"])
 
     def test_reseaux (self) : 
         """ R80 : Réduire la surface d'attaque des services réseau """

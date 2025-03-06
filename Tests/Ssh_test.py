@@ -29,8 +29,8 @@ class Application_ssh_test (unittest.TestCase):
         stdin, stdout, stderr = self.client.exec_command("echo 'PubkeyAuthentication no' | sudo tee -a /etc/ssh/sshd_config ")
         exit_status = stdout.channel.recv_exit_status()
 
-        #Lancer l'application pour corriger 
-
+        #Lancer l'application pour corriger
+        apply_selected_recommendationsSSH("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml" , self.client)
         analyse_SSH(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml")
         print(result)
