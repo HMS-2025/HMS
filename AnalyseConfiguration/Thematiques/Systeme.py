@@ -52,12 +52,13 @@ def analyse_systeme(serveur, niveau, reference_data=None):
     rules = {
         "min": {},
         "moyen": {
-            "R8": (check_memory_configuration, "Vérifier la configuration mémoire"),
-            "R9": (check_kernel_configuration, "Vérifier la configuration du noyau"),
-            "R11": (check_yama_lsm, "Vérifier l'activation de Yama LSM"),
-            "R14": (check_filesystem_configuration, "Vérifier la configuration du système de fichiers"),
+            "R8": (check_memory_configuration, "Verify memory configuration (To see what the values correspond to, check reference_moyen.yaml)"),
+            "R9": (check_kernel_configuration, "Verify kernel configuration (To see what the values correspond to, check reference_moyen.yaml)"),
+            "R11": (check_yama_lsm, "Verify Yama LSM activation (To see what the values correspond to, check reference_moyen.yaml)"),
+            "R14": (check_filesystem_configuration, "Verify filesystem configuration (To see what the values correspond to, check reference_moyen.yaml)"),
         }
     }
+
     
     if niveau in rules:
         for rule_id, (function, comment) in rules[niveau].items():

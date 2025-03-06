@@ -80,14 +80,14 @@ def analyse_reseau(server, niveau, reference_data=None):
     report = {}
     rules = {
         "min": {
-            "R80": (get_interfaces_with_ips, "Vérification des interfaces réseau avec IP"),
+            "R80": (get_interfaces_with_ips, "Check network interfaces with IP"),
         },
         "moyen": {
-            "R12": (check_ipv4_configuration, "Paramétrer les options IPv4"),
-            "R13": (disable_ipv6, "Désactiver IPv6"),
-            "R79": (harden_exposed_services, "Durcir les services exposés"),
-            "R67": (secure_remote_authentication_pam, "Sécuriser l'authentification PAM"),
-            "R81": (get_interfaces_with_ips, "Vérification des interfaces restreintes"),
+            "R12": (check_ipv4_configuration, "Configure IPv4 options (manual modifications required)"),
+            "R13": (disable_ipv6, "Disable IPv6 (manual modifications required)"),
+            "R79": (harden_exposed_services, "Harden exposed services (manual modifications required)"),
+            "R67": (secure_remote_authentication_pam, "Secure remote authentication with PAM"),
+            "R81": (get_interfaces_with_ips, "Verify restricted interfaces (R81 is the same as R80; it is simply included in the 'moyen' level analysis)"),
         }
     }
     

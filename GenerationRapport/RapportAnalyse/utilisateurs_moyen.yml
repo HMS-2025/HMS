@@ -53,6 +53,8 @@ R70:
     - ubuntu
     system_users:
     - _apt
+    - _rpc
+    - avahi
     - backup
     - bin
     - daemon
@@ -68,11 +70,14 @@ R70:
     - man
     - messagebus
     - news
+    - nslcd
+    - openldap
     - pollinate
     - postfix
     - proxy
     - root
     - sshd
+    - sssd
     - sync
     - sys
     - syslog

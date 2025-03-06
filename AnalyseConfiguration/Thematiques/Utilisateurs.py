@@ -1,302 +1,251 @@
 import yaml
 import os
+import paramiko
+import re
 
-# Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
+# Load reference data from Reference_min.yaml or Reference_Moyen.yaml based on level
 def load_reference_yaml(niveau):
-    """Charge le fichier de référence correspondant au niveau choisi (min ou moyen)."""
     file_path = f"AnalyseConfiguration/Reference_{niveau}.yaml"
     try:
         with open(file_path, "r", encoding="utf-8") as file:
-            reference_data = yaml.safe_load(file)
-        return reference_data or {}
+            return yaml.safe_load(file) or {}
     except Exception as e:
-        print(f"Erreur lors du chargement de {file_path} : {e}")
+        print(f"Error loading {file_path}: {e}")
         return {}
 
-def check_compliance(rule_id, rule_value, reference_data):
-    """Vérifie la conformité en fonction de la règle donnée."""
-    expected_value = reference_data.get(rule_id, {}).get("expected", {})
+# Convert a time value to seconds
+def convert_to_seconds(value):
+    if isinstance(value, str):
+        value = value.lower().replace(" ", "")  # Remove spaces
+        match = re.match(r"(\d+)(h|min|s)", value)
+        if match:
+            num, unit = match.groups()
+            num = int(num)
+            if unit == "h":
+                return num * 3600
+            elif unit == "min":
+                return num * 60
+            elif unit == "s":
+                return num
+        try:
+            return int(value)
+        except ValueError:
+            return value  # Return raw value if conversion fails
+    return value
 
-    # Comparaison adaptée pour différents types de valeurs attendues
-    is_compliant = rule_value == expected_value
+# Check compliance for a given rule by comparing detected values with expected reference values
+def check_compliance(rule_id, detected_values, reference_data):
+    if rule_id == "R32":
+        discrepancies = {}
+        is_compliant = True
 
-    # Gérer ce qui est affiché dans "éléments_detectés"
-    detected_elements = rule_value if rule_value else "Aucun"
+        def compare_values(detected, expected, path=""):
+            nonlocal is_compliant
+            if isinstance(detected, dict) and isinstance(expected, dict):
+                for key in expected:
+                    compare_values(detected.get(key, "Non défini"), expected[key], path + key + ".")
+            else:
+                detected_converted = convert_to_seconds(detected)
+                expected_converted = convert_to_seconds(expected)
+                if isinstance(detected_converted, int) and isinstance(expected_converted, int):
+                    if detected_converted > expected_converted:
+                        discrepancies[path[:-1]] = {"detected": detected, "expected": expected}
+                        is_compliant = False
 
-    compliance_result = {
-        "rule_id": rule_id,
-        "status": "Conforme" if is_compliant else "Non conforme",
-        "appliquer": is_compliant,  # Si conforme, appliquer = True
-        "éléments_detectés": detected_elements,
-        "éléments_attendus": expected_value
+        expected_values = reference_data.get(rule_id, {}).get("expected", {})
+        compare_values(detected_values, expected_values)
+        return {
+            "status": "Conforme" if is_compliant else "Non conforme",
+            "appliquer": is_compliant,
+            "éléments_detectés": detected_values or "None",
+            "éléments_attendus": expected_values or "None"
+        }
+
+    elif rule_id == "R70":
+        # Check separation of system and admin accounts
+        local_users = set(detected_values.get("local_users", []))
+        system_users = set(detected_values.get("system_users", []))
+        admin_users = set(detected_values.get("admin_users", []))
+        ldap_users = detected_values.get("ldap_users", [])
+
+        overlap = admin_users.intersection(local_users.union(system_users))
+        is_compliant = True
+        if overlap:
+            is_compliant = False
+
+        if ldap_users:
+            is_compliant = False
+
+        return {
+            "status": "Conforme" if is_compliant else "Non conforme",
+            "appliquer": is_compliant,
+            "éléments_detectés": detected_values,
+            "éléments_attendus": {
+                "admin_users": "Must be distinct from local_users and system_users",
+                "ldap_users": "Must be empty"
+            },
+        }
+
+    elif rule_id == "R69":
+        # Check security of remote user database access according to the standard
+        discrepancies = {}
+        is_compliant = True
+        expected_values = reference_data.get("R69", {}).get("expected", {})
+
+        # For uses_remote_db: if something is found, it's good
+        remote_db_detected = detected_values.get("uses_remote_db")
+        if not remote_db_detected or remote_db_detected == "None":
+            is_compliant = False
+
+        # For secure_connection: if the string does not contain "tls", then it's false
+        secure_connection_detected = detected_values.get("secure_connection", "").lower()
+        if "tls" not in secure_connection_detected:
+            is_compliant = False
+
+        # For binddn_user: if it does not contain fields like "cn=" and "dc=", then it's false
+        binddn_user_detected = detected_values.get("binddn_user", "")
+        if "cn=" not in binddn_user_detected or "dc=" not in binddn_user_detected:
+            is_compliant = False
+
+        return {
+            "status": "Conforme" if is_compliant else "Non conforme",
+            "appliquer": is_compliant,
+            "éléments_detectés": detected_values,
+        }
+
+    else:
+        return {
+            "status": "Conforme",
+            "appliquer": True,
+            "éléments_detectés": detected_values or "None"
+        }
+
+# Analyze user configurations on the server and generate a YAML report
+def analyse_utilisateurs(serveur, niveau, reference_data=None):
+    report = {}
+    reference_data = reference_data or load_reference_yaml(niveau)
+
+    rules = {
+        "moyen": {
+            "R32": (check_tmout, "Session timeout verification"),
+            "R70": (get_user_info, "Separation of system and admin accounts"),
+            "R69": (check_remote_user_database_security, "Securing remote user databases")
+        }
+    }
+    
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            print(f"-> {comment} ({rule_id})")
+            report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
+    
+    save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
+    print(f"\nCompliance rate for level {niveau.upper()} (Users): {compliance_percentage:.2f}%")
+
+# Check session timeout configuration and logind settings
+def check_tmout(serveur):
+    tmout_output = execute_ssh_command(serveur, "grep -E '^TMOUT=' /etc/profile /etc/bash.bashrc 2>/dev/null | awk -F= '{print $2}' | sort -u")
+    tmout_value = tmout_output[0] if tmout_output else "None"
+    return {
+        "TMOUT": tmout_value,
+        "logind_conf": check_logind_conf(serveur)
     }
 
-    return compliance_result
-
-# Fonction principale pour analyser les utilisateurs
-def analyse_utilisateurs(serveur, niveau, reference_data=None):
-    """Analyse les utilisateurs et génère un rapport YAML avec conformité."""
-    report = {}
-
-    if reference_data is None:
-        reference_data = load_reference_yaml(niveau)
-
-    if niveau == "min":
-        print("-> Aucune règle spécifique pour le niveau minimal en gestion des utilisateurs.")
-
-    elif niveau == "moyen":
-        print("-> Vérification de l'expiration des sessions (R32)")
-        tmout_value = check_tmout(serveur)
-        logind_conf = check_logind_conf(serveur)
-        report["R32"] = check_compliance("R32", {"TMOUT": tmout_value, "logind_conf": logind_conf}, reference_data)
-
-        print("-> Vérification de la séparation des comptes système et administrateurs (R70)")
-        local_users = get_local_users(serveur)
-        system_users = get_system_users(serveur)
-        admin_users = get_admin_users(serveur)
-        ldap_users = check_ldap_users(serveur)
-        report["R70"] = check_compliance("R70", {
-            "local_users": local_users,
-            "system_users": system_users,
-            "admin_users": admin_users,
-            "ldap_users": ldap_users
-        }, reference_data)
-
-    # Enregistrement du rapport
-    save_yaml_report(report, f"utilisateurs_{niveau}.yml")
-
-    # Calcul du taux de conformité
-    total_rules = len(report)
-    conforming_rules = sum(1 for result in report.values() if result["status"] == "Conforme") if total_rules > 0 else 0
-    compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 100  # 100% si pas de règles
-
-    print(f"\nTaux de conformité du niveau {niveau.upper()} (Utilisateurs) : {compliance_percentage:.2f}%")
-
-# R32 - Vérifier l'expiration des sessions et paramètres logind.conf
-def check_tmout(serveur):
-    """Vérifie la valeur de TMOUT dans /etc/profile et /etc/bash.bashrc."""
-    command_tmout = "grep -E '^TMOUT=' /etc/profile /etc/bash.bashrc 2>/dev/null | awk -F= '{print $2}' | sort -u"
-    stdin, stdout, stderr = serveur.exec_command(command_tmout)
-    
-    # Lire et nettoyer les valeurs
-    tmout_values = list(filter(None, stdout.read().decode().strip().split("\n")))
-
-    # Convertir en string pour correspondre à reference_moyen.yaml
-    try:
-        return str(int(tmout_values[0].strip())) if tmout_values else "Non défini"
-    except ValueError:
-        return "Non défini"
-
+# Check systemd-logind settings by excluding commented lines
 def check_logind_conf(serveur):
-    """Vérifie les paramètres de systemd-logind en excluant les lignes commentées."""
     logind_settings = {
         "IdleAction": "Non défini",
         "IdleActionSec": "Non défini",
         "RuntimeMaxSec": "Non défini"
     }
-
     command_logind = "sudo grep -E '^(IdleAction|IdleActionSec|RuntimeMaxSec)=' /etc/systemd/logind.conf | grep -v '^#'"
     stdin, stdout, stderr = serveur.exec_command(command_logind)
-    
     logind_output = stdout.read().decode().strip().split("\n")
-
     for line in logind_output:
         if "=" in line:
             key, value = line.strip().split("=", 1)
             if key in logind_settings:
                 logind_settings[key] = value.strip()
-
-    # Assurer que les valeurs en secondes sont conformes à reference_moyen.yaml
     for key in ["IdleActionSec", "RuntimeMaxSec"]:
         if logind_settings[key] != "Non défini" and not logind_settings[key].endswith("s"):
             try:
-                int_value = int(logind_settings[key])  # Vérifier si c'est un nombre
-                logind_settings[key] = f"{int_value}s"  # Ajouter 's' si nécessaire
+                int_value = int(logind_settings[key])
+                logind_settings[key] = f"{int_value}s"
             except ValueError:
-                pass  # Garder la valeur d'origine si elle est déjà une chaîne correcte
-
+                pass
     return logind_settings
 
-# R70 - Vérifier la séparation des comptes utilisateurs, système et administrateurs
-def get_local_users(serveur):
-    """Récupère les utilisateurs locaux définis dans /etc/passwd (UID >= 1000)."""
-    command_local_users = "awk -F: '$3 >= 1000 {print $1}' /etc/passwd"
-    stdin, stdout, stderr = serveur.exec_command(command_local_users)
-    users = sorted(list(filter(None, stdout.read().decode().strip().split("\n"))))  
-    return users
-
-def get_system_users(serveur):
-    """Récupère les comptes système (UID < 1000)."""
-    command_system_users = "awk -F: '$3 < 1000 {print $1}' /etc/passwd"
-    stdin, stdout, stderr = serveur.exec_command(command_system_users)
-    users = sorted(list(filter(None, stdout.read().decode().strip().split("\n"))))  
-    return users
-
-def get_admin_users(serveur):
-    """Récupère les utilisateurs appartenant aux groupes sudo ou admin."""
-    command_sudo_users = "getent group sudo | awk -F: '{print $4}'"
-    stdin, stdout, stderr = serveur.exec_command(command_sudo_users)
-    sudo_users = stdout.read().decode().strip().split(",")
-
-    command_admin_users = "getent group admin | awk -F: '{print $4}'"
-    stdin, stdout, stderr = serveur.exec_command(command_admin_users)
-    admin_users_cmd = stdout.read().decode().strip().split(",")
-
-    admin_users = sorted(list(set(filter(None, sudo_users + admin_users_cmd))))  
-    return admin_users
-
-def check_ldap_users(serveur):
-    """Vérifie si des utilisateurs administrateurs sont définis dans LDAP."""
-    command_ldap_users = "getent passwd | awk -F: '$1 ~ /^ldap/ {print $1}'"
-    stdin, stdout, stderr = serveur.exec_command(command_ldap_users)
-    ldap_users = sorted(list(filter(None, stdout.read().decode().strip().split("\n"))))  
-    return ldap_users
-
-def verify_account_separation(serveur):
-    """Vérifie que les comptes système et administrateurs ne sont pas mélangés et retourne les éléments détectés."""
-    local_users = get_local_users(serveur)
-    system_users = get_system_users(serveur)
-    admin_users = get_admin_users(serveur)
-    ldap_users = check_ldap_users(serveur)
-
-    # Initialisation du rapport des éléments détectés
-    detected_elements = {
-        "local_users": local_users,
-        "system_users": system_users,
-        "admin_users": admin_users,
-        "ldap_users": ldap_users
+# Retrieve user information from the server
+def get_user_info(serveur):
+    return {
+        "local_users": execute_ssh_command(serveur, "awk -F: '$3 >= 1000 {print $1}' /etc/passwd"),
+        "system_users": execute_ssh_command(serveur, "awk -F: '$3 < 1000 {print $1}' /etc/passwd"),
+        "admin_users": execute_ssh_command(serveur, "getent group sudo | awk -F: '{print $4}'"),
+        "ldap_users": execute_ssh_command(serveur, "getent passwd | awk -F: '$1 ~ /^ldap/ {print $1}'")
     }
 
-    # Vérifications des incohérences
-    issues = []
+# Check security of remote user databases according to reference data
+def check_remote_user_database_security(serveur, reference_data=None):
+    expected_values = {}
+    if reference_data:
+        expected_values = reference_data.get("R69", {}).get("expected", {})
+    command_nsswitch = ("grep -E '^(passwd|group|shadow):' /etc/nsswitch.conf | "
+                        "awk '{for (i=2; i<=NF; i++) print $0}' | sort -u")
+    nss_sources = execute_ssh_command(serveur, command_nsswitch)
+    nss_sources = [src.strip() for src in nss_sources if src.strip()]
+    expected_remote_db = expected_values.get("uses_remote_db", "None")
+    uses_remote_db = expected_remote_db if expected_remote_db in nss_sources else "None"
+    if uses_remote_db == "None":
+        print("No remote user database detected.")
+        return {
+            "uses_remote_db": "None",
+            "secure_connection": "None",
+            "binddn_user": "None",
+            "limited_rights": "None"
+        }
+    command_tls = ("grep -i 'tls' /etc/ldap/ldap.conf /etc/sssd/sssd.conf 2>/dev/null | "
+                   "grep -v '^#' | awk -F':' '{print $2}' | sed 's/^[ \\t]*//g' | sort -u")
+    tls_config = execute_ssh_command(serveur, command_tls)
+    expected_tls = expected_values.get("secure_connection", "").lower()
+    secure_connection = "None"
+    if expected_tls in ["start_tls", "ssl"] and any(expected_tls in item.lower() for item in tls_config):
+        secure_connection = expected_tls
+    elif "TLS_CACERT" in " ".join(tls_config) or "TLS_REQCERT" in " ".join(tls_config):
+        secure_connection = "tls"
+    command_binddn = ("grep -i 'bind' /etc/sssd/sssd.conf /etc/ldap/ldap.conf 2>/dev/null | "
+                      "awk -F'=' '{print substr($0, index($0,$2))}' | sed 's/^[ \\t]*//g'")
+    binddn_user_list = execute_ssh_command(serveur, command_binddn)
+    binddn_user = binddn_user_list[0] if binddn_user_list else ""
+    if not binddn_user:
+        binddn_user = "Not defined"
+    expected_binddn = expected_values.get("binddn_user", "")
+    binddn_user_status = binddn_user if binddn_user == expected_binddn else "Not properly defined"
+    expected_rights = expected_values.get("limited_rights", "")
+    limited_rights = expected_rights if "service_account" in binddn_user.lower() else "No"
+    return {
+        "uses_remote_db": uses_remote_db,
+        "secure_connection": secure_connection,
+        "binddn_user": binddn_user_status,
+        "limited_rights": limited_rights
+    }
 
-    # Vérifier si des comptes admin sont aussi des comptes système
-    overlapping_admin_system = set(admin_users) & set(system_users)
-    if overlapping_admin_system:
-        issues.append(f"Comptes admin présents parmi les comptes système : {', '.join(overlapping_admin_system)}")
+# Execute an SSH command on the server and return the output as a list of lines
+def execute_ssh_command(serveur, command):
+    stdin, stdout, stderr = serveur.exec_command(command)
+    return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-    # Vérifier si des comptes LDAP sont aussi des comptes système
-    overlapping_ldap_system = set(ldap_users) & set(system_users)
-    if overlapping_ldap_system:
-        issues.append(f"Comptes LDAP présents parmi les comptes système : {', '.join(overlapping_ldap_system)}")
-
-    # Vérifier si des comptes admin sont aussi présents dans LDAP
-    overlapping_admin_ldap = set(admin_users) & set(ldap_users)
-    if overlapping_admin_ldap:
-        issues.append(f"Comptes admin présents dans LDAP : {', '.join(overlapping_admin_ldap)}")
-
-    # Vérifier si des comptes locaux sont administrateurs
-    overlapping_local_admin = set(local_users) & set(admin_users)
-    if overlapping_local_admin:
-        issues.append(f"Comptes locaux ayant des privilèges admin : {', '.join(overlapping_local_admin)}")
-
-    # Retourne les éléments détectés avec une liste vide pour les incohérences si conforme
-    return detected_elements, issues
-
-
-# Fonction d'enregistrement des rapports
-def save_yaml_report(data, output_file):
-    """Enregistre les données d'analyse dans un fichier YAML dans le dossier dédié."""
+# Save the generated report in YAML format to the specified directory
+def save_yaml_report(data, output_file, rules, niveau):
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
-    with open(output_path, "w", encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
-    print(f"Rapport généré : {output_path}")
-
-
-
-# R69 -----------------------------
-# # R69 - Secure access to remote user databases
-# def check_remote_user_database_security(server, reference_data):
-#     """Retrieves security-related information about remote user databases (R69) and ensures compliance."""
-
-#     # Load expected values from reference_moyen.yaml
-#     expected_values = reference_data.get("R69", {}).get("expected", {})
-
-#     # Check if NSS uses a remote database (LDAP or SSSD)
-#     command_nsswitch = "grep -E '^(passwd|group|shadow):' /etc/nsswitch.conf | awk '{for (i=2; i<=NF; i++) print $i}' | sort -u"
-#     stdin, stdout, stderr = server.exec_command(command_nsswitch)
-#     nss_sources = stdout.read().decode().strip().split("\n")
-
-#     # Ensure the list does not contain empty elements
-#     nss_sources = [src.strip() for src in nss_sources if src.strip()]
-
-#     # Detect if a remote user database is being used (compare with expected values)
-#     uses_remote_db = expected_values.get("uses_remote_db", "None") if expected_values.get("uses_remote_db") in nss_sources else "None"
-
-#     if uses_remote_db == "None":
-#         print("No remote user database detected.")
-#         return {
-#             "uses_remote_db": "None",
-#             "secure_connection": "Not applicable",
-#             "binddn_user": "Not applicable",
-#             "limited_rights": "Not applicable"
-#         }
-
-#     # Check if TLS is enabled to secure the LDAP/SSSD connection
-#     command_tls = "grep -i 'tls' /etc/ldap/ldap.conf /etc/sssd/sssd.conf 2>/dev/null | grep -v '^#' | awk -F':' '{print $2}' | sed 's/^[ \t]*//g' | sort -u"
-#     stdin, stdout, stderr = server.exec_command(command_tls)
-#     tls_config = stdout.read().decode().strip().split("\n")
-
-#     # Ensure TLS compliance: accept start_tls, ssl, or a TLS certificate configuration
-#     expected_tls = expected_values.get("secure_connection", "").lower()
-#     secure_connection = "None"
-#     if expected_tls in ["start_tls", "ssl"] and any(expected_tls in item.lower() for item in tls_config):
-#         secure_connection = expected_tls
-#     elif "TLS_CACERT" in " ".join(tls_config) or "TLS_REQCERT" in " ".join(tls_config):
-#         secure_connection = "tls"  # Accept if TLS certificates are set
-
-#     # Retrieve the bind user for LDAP/SSSD
-#     command_binddn = "grep -i 'bind' /etc/sssd/sssd.conf /etc/ldap/ldap.conf 2>/dev/null | awk -F'=' '{print substr($0, index($0,$2))}' | sed 's/^[ \t]*//g'"
-#     stdin, stdout, stderr = server.exec_command(command_binddn)
-#     binddn_user = stdout.read().decode().strip()
-
-#     # If binddn_user is empty, set it to "Not defined"
-#     if not binddn_user:
-#         binddn_user = "Not defined"
-
-#     # Ensure the bind user matches the expected value
-#     expected_binddn = expected_values.get("binddn_user", "")
-#     binddn_user_status = binddn_user if binddn_user == expected_binddn else "Not properly defined"
-
-#     # Check if the account has limited rights (compare with expected values)
-#     expected_rights = expected_values.get("limited_rights", "")
-#     limited_rights = expected_rights if "service_account" in binddn_user.lower() else "No"
-
-#     return {
-#         "uses_remote_db": uses_remote_db,
-#         "secure_connection": secure_connection,
-#         "binddn_user": binddn_user_status,  # Only one field for the bind user check
-#         "limited_rights": limited_rights
-#     }
-
-# print("-> Checking security of remote user databases (R69)")
-# rule_value = check_remote_user_database_security(server, reference_data)  # Retrieve detected values
-# report["R69"] = check_compliance("R69", rule_value, reference_data)  # Verify compliance
-
-# def check_compliance(rule_id, rule_value, reference_data):
-#     """Checks compliance based on the given rule and includes the rule description in the report."""
-    
-#     # Retrieve the rule description
-#     description = reference_data.get(rule_id, {}).get("description", "No description available.")
-
-#     # Retrieve expected values from the reference file
-#     expected_value = reference_data.get(rule_id, {}).get("expected", {})
-
-#     # Compliance check adapted for different types of expected values
-#     is_compliant = rule_value == expected_value
-
-#     # Manage displayed detected elements
-#     detected_elements = rule_value if rule_value else "None"
-
-#     compliance_result = {
-#         "description": description,  # Add rule description
-#         "status": "Compliant" if is_compliant else "Non-compliant",
-#         "apply": is_compliant,  # If compliant, apply = True
-#         "detected_elements": detected_elements,
-#         "expected_elements": expected_value
-#     }
-
-#     return compliance_result
-
+    with open(output_path, "a", encoding="utf-8") as file:
+        file.write("utilisateurs:\n")
+        for rule_id, content in data.items():
+            comment = rules[niveau].get(rule_id, (None, ""))[1]
+            file.write(f"  {rule_id}:  # {comment}\n")
+            yaml_content = yaml.safe_dump(content, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False)
+            indented_yaml = "\n".join(["    " + line for line in yaml_content.split("\n") if line.strip()])
+            file.write(indented_yaml + "\n")
+        file.write("\n")
+    print(f"Report generated: {output_path}")

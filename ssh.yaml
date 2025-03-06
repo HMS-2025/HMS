@@ -1,6 +1,8 @@
+#10.171.165.118 lxc florian
+#10.118.117.219 - administrateur
 ssh:
-  hostname: "10.118.117.219"
+  hostname: "10.171.165.118"
   port: 22
-  username: "administrateur"
+  username: "ubuntu"
   key_path: "id_rsa"
   passphrase: "toto"
