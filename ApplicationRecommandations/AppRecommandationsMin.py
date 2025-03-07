@@ -12,7 +12,7 @@ def application_recommandations_min(client):
     apply_recommandation_acces(f"{path_report}/application_min.yml", client)
     apply_recommandation_mise_a_jour(f"{path_report}/application_min.yml", client)
     apply_recommandation_politique_mot_de_passe(f"{path_report}/application_min.yml", client) #verifier aussi
-    apply_recommandation_service(f"{path_report}/services_minimal.yml", client)#verifier
+    apply_recommandation_service(f"{path_report}/application_min.yml", client)#verifier
 
     #apply_recommandation_maintenance_min(f"{path_report}/application_min.yml", client) #verifier
     #apply_recommandation_reseau_min(f"{path_report}/reseau_minimal.yml", client)#verifier
