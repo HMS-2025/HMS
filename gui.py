@@ -94,9 +94,21 @@ class Gui:
         self.description_label.config(text=description)
 
     def save_changes(self):
+        
+        # Supprimer les règles avec "apply" = False de modified_data
+        for section, rules in list(self.modified_data.items()):
+            self.modified_data[section] = {key: rule for key, rule in rules.items() if rule["apply"]}
+            
+            # Supprimer la section si elle est vide
+            if not self.modified_data[section]:
+                del self.modified_data[section]
+
+        # Sauvegarder uniquement les données non vides
         with open(self.save_file, "w") as file:
-            yaml.dump(self.modified_data, file, default_flow_style=False, allow_unicode=True)
+            if self.modified_data : # si ce n'est pas vide
+                yaml.dump(self.modified_data, file, default_flow_style=False, allow_unicode=True)
         print("Modifications sauvegardées")
+
 
 # Exemple d'utilisation :
 # Gui("fichier.yaml", "sauvegarde.yaml")

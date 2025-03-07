@@ -1,117 +1,93 @@
 import paramiko
 import yaml
 
-def ask_for_approval(rule):
-    response = input(f"Voulez-vous appliquer la règle {rule} ? (o/n): ").strip().lower()
-    return response == 'o'
-
-def update_yaml(yaml_file, rule, success, elements_problématiques):
-    """Mettre à jour directement le fichier YAML en fonction du succès de l'application de la règle."""
+def update_yaml(yaml_file, thematique ,  rule, clear_keys=[]):
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
-
-    rule_data = data.get(rule, {})
-
-    if success:
-        rule_data['status'] = 'Conforme'
-        rule_data['appliquer'] = True
-    else:
-        rule_data['status'] = 'Non conforme'
-        rule_data['appliquer'] = False
-
-    rule_data['éléments_problématiques'] = elements_problématiques
-    data[rule] = rule_data
-
-    with open(yaml_file, 'w', encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
-
-    print(f"Le statut de la règle {rule} a été mis à jour dans {yaml_file}.")
-
-def execute_ssh_command(client, command):
-    """Exécute une commande SSH sur le client distant et retourne la sortie."""
-    stdin, stdout, stderr = client.exec_command(command)
-    output = stdout.read().decode()
-    error = stderr.read().decode()
-
-    if error:
-        print(f"Erreur lors de l'exécution de '{command}': {error.strip()}")
     
-    return output.strip()
+    data[thematique][rule]['apply'] = False
+    data[thematique][rule]['status'] = 'Conforme'
+    with open(yaml_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
 def apply_R31(yaml_file, client):
+    
+    """Appliquer la recommandation R31 (Politique de mot de passe) et mettre à jour le YAML."""
     print("Application de la recommandation R31")
-    success = False
-    elements_problématiques = {}
-
-    if not ask_for_approval("R31"):
-        print("Règle R31 non appliquée.")
-        update_yaml(yaml_file, "R31", success, elements_problématiques)
-        return
-
+    
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
 
-    rule_data = data.get("R31", {})
-    if rule_data.get('appliquer', False):
-        print("La règle R31 est déjà appliquée.")
-        update_yaml(yaml_file, "R31", success, elements_problématiques)
-        return
+    if not data["password"]["R31"]["apply"]:
+        return None
+    else:
+        # Mise à jour de la politique PAM
+        client.exec_command(
+            "sudo sed -i 's/^password.*pam_unix.so.*/"
+            "password requisite pam_pwquality.so retry=3 minlen=12 difok=3/' /etc/pam.d/common-password"
+        )
 
-    # Appliquer la règle R31 via SSH
-    execute_ssh_command(client, "sudo sed -i '/pam_pwquality.so/d' /etc/pam.d/common-password")
-    execute_ssh_command(client, "echo 'password requisite pam_pwquality.so retry=3 minlen=12 difok=3' | sudo tee -a /etc/pam.d/common-password")
-    execute_ssh_command(client, "sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS   90/' /etc/login.defs")
-    execute_ssh_command(client, "sudo sed -i 's/^deny=.*/deny=3/' /etc/security/faillock.conf")
+        # Mise à jour de la politique d'expiration des mots de passe
+        client.exec_command(
+            "sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS\t90/' /etc/login.defs"
+        )
 
-    print("Politique de mot de passe robuste appliquée.")
-    success = True
+        # Configuration de faillock
+        client.exec_command(
+            "sudo sed -i 's/^deny=.*/deny=3/' /etc/security/faillock.conf || "
+            "echo 'deny=3' | sudo tee -a /etc/security/faillock.conf"
+        )
 
-    update_yaml(yaml_file, "R31", success, elements_problématiques)
+        # Mettre à jour le fichier YAML pour indiquer la conformité
+        update_yaml(yaml_file, "password", "R31")
+
 
 def apply_R68(yaml_file, client):
+
+    """Appliquer la recommandation R68 (Protection des mots de passe stockés) et mettre à jour le YAML."""
     print("Application de la recommandation R68")
-    success = False
-    elements_problématiques = {}
-
-    if not ask_for_approval("R68"):
-        print("Règle R68 non appliquée.")
-        update_yaml(yaml_file, "R68", success, elements_problématiques)
-        return
-
+    
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
 
-    rule_data = data.get("R68", {})
-    if rule_data.get('appliquer', False):
-        print("La règle R68 est déjà appliquée.")
-        update_yaml(yaml_file, "R68", success, elements_problématiques)
-        return
+    if not data["password"]["R68"]["apply"]:
+        print("La règle R68 n'est pas marquée pour application.")
+        return None
+    else : 
+        # Appliquer les modifications pour rendre conforme R68
+        client.exec_command("sudo chmod 640 /etc/shadow")
+        client.exec_command("sudo chown root:shadow /etc/shadow")
 
-    # Appliquer la règle R68 via SSH
-    execute_ssh_command(client, "sudo chmod 640 /etc/shadow")
-    execute_ssh_command(client, "sudo chown root:shadow /etc/shadow")
+        print("Permissions de /etc/shadow corrigées.")
 
-    print("Permissions de /etc/shadow corrigées.")
-    success = True
-
-    update_yaml(yaml_file, "R68", success, elements_problématiques)
-
-def apply_recommandation_politique_mot_de_passe_min(yaml_file,client):
-    """Connexion SSH et application des recommandations."""
-    apply_R31(yaml_file, client)
-    apply_R68(yaml_file, client)
+        # Mettre à jour le fichier YAML pour indiquer la conformité
+        update_yaml(yaml_file, "password", "R68")
 
 
-"""
+def apply_rule(rule_name, yaml_file, client):
+    if rule_name == "R31":
+        apply_R31(yaml_file, client)
+    elif rule_name == "R68":
+        apply_R68(yaml_file, client)      
+    else:
+        print(f"Règle inconnue : {rule_name}")
 
-print("R31 : Attention, l'application de cette règle risque de bloquer l'accès des utilisateurs dont les mots de passe ne respectent pas les nouvelles contraintes (longueur, complexité) et d’interrompre des services automatisés utilisant des identifiants non conformes. Pour cela, il faut tester les modifications sur votre serveur de test (copie du prod), informer les utilisateurs des nouvelles exigences afin qu’ils mettent à jour leurs mots de passe en amont, vérifier l'impact sur les services critiques et prévoir un accès de secours en cas de verrouillage involontaire. Pour appliquer cette regle voici les commande à executer:")
-
-print("\n 1) sudo sed -i '/pam_pwquality.so/d' /etc/pam.d/common-password\n 2) echo 'password requisite pam_pwquality.so retry=3 minlen=12 difok=3' | sudo tee -a /etc/pam.d/common-password\n 3) sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS   90/' /etc/login.defs\n 4) sudo sed -i 's/^deny=.*/deny=3/' /etc/security/faillock.conf\n ")
-
-print("R68 : Attention, l'application de cette règle risque d'empêcher certains services d’accéder au fichier /etc/shadow, ce qui peut bloquer l’authentification de certains processus dépendants. Pour cela, il faudra identifier vos services nécessitant un accès à ce fichier, vérifier leur compatibilité après modification, tester la configuration sur votre serveur de test (copie du prod) et s’assurer qun’un accès root est disponible pour rétablir rapidement les permissions si nécessaire. Voici les commandes à executer pour appliquer cette regle: ")
-
-print("\n 1) sudo chmod 640 /etc/shadow \n 2) sudo chown root:shadow /etc/shadow")
-
-
-
-"""
+def apply_recommandation_politique_mot_de_passe(yaml_file,client):
+    try:
+        with open(yaml_file, 'r', encoding="utf-8") as file:
+            data = yaml.safe_load(file)
+            
+        if not data or 'password' not in data:
+            return
+        for rule, rule_data in data['password'].items():
+            if rule_data.get('appliquer', False):
+                print(f"Règle {rule} déjà appliquée.")
+            else:
+                apply_rule(rule, yaml_file, client)
+                
+    except FileNotFoundError:
+        print(f"Fichier {yaml_file} non trouvé.")
+    except yaml.YAMLError as e:
+        print(f"Erreur lors de la lecture du fichier YAML : {e}")
+    except Exception as e:
+        print(f"Une erreur inattendue s'est produite : {e}")

@@ -10,7 +10,7 @@ def ask_for_approval(service, rule):
             return response
         print("Réponse invalide. Entrez 'o' pour oui, 'n' pour non, ou 'q' pour quitter.")
 
-def apply_recommandation_service_min(yaml_file, client):
+def apply_recommandation_service(yaml_file, client):
     """Applique les recommandations de la regle R62 pour désactiver les services non nécessaires 
        et met à jour le fichier YAML uniquement si l'application de la règle est un succès."""
     
