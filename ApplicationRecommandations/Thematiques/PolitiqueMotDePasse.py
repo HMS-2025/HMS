@@ -22,9 +22,13 @@ def apply_R31(yaml_file, client):
         return None
     else:
         # Mise à jour de la politique PAM
+
         client.exec_command(
-            "sudo sed -i 's/^password.*pam_unix.so.*/"
-            "password requisite pam_pwquality.so retry=3 minlen=12 difok=3/' /etc/pam.d/common-password"
+            "sudo apt install libpam-pwquality -y"
+        )
+
+        client.exec_command(
+            "grep -q 'pam_pwquality.so' /etc/pam.d/common-password || echo 'password requisite pam_pwquality.so retry=3 minlen=12 difok=3' | sudo tee -a /etc/pam.d/common-password "
         )
 
         # Mise à jour de la politique d'expiration des mots de passe
@@ -64,15 +68,20 @@ def apply_R68(yaml_file, client):
         update_yaml(yaml_file, "password", "R68")
 
 
-def apply_rule(rule_name, yaml_file, client):
-    if rule_name == "R31":
-        apply_R31(yaml_file, client)
-    elif rule_name == "R68":
-        apply_R68(yaml_file, client)      
-    else:
-        print(f"Règle inconnue : {rule_name}")
+def apply_rule(rule_name, yaml_file, client , level):
+    if level == "min" : 
+        if rule_name == "R31":
+            apply_R31(yaml_file, client)
+        elif rule_name == "R68":
+            apply_R68(yaml_file, client)      
+        else:
+            print(f"Règle inconnue : {rule_name}")
+    elif level == "moyen" : 
+        pass
+    else : 
+        pass
 
-def apply_recommandation_politique_mot_de_passe(yaml_file,client):
+def apply_recommandation_politique_mot_de_passe(yaml_file,client , level):
     try:
         with open(yaml_file, 'r', encoding="utf-8") as file:
             data = yaml.safe_load(file)
@@ -83,7 +92,7 @@ def apply_recommandation_politique_mot_de_passe(yaml_file,client):
             if rule_data.get('appliquer', False):
                 print(f"Règle {rule} déjà appliquée.")
             else:
-                apply_rule(rule, yaml_file, client)
+                apply_rule(rule, yaml_file, client , level)
                 
     except FileNotFoundError:
         print(f"Fichier {yaml_file} non trouvé.")

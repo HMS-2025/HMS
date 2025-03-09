@@ -52,13 +52,18 @@ def apply_R62(yaml_file, client):
         update_yaml(yaml_file, "services", "R62")
 
 
-def apply_rule(rule_name, yaml_file, client):
-    if rule_name == "R62":
-        apply_R62(yaml_file, client)
-    else:
-        print(f"Règle inconnue : {rule_name}")
+def apply_rule(rule_name, yaml_file, client , level):
+    if level == 'min' : 
+        if rule_name == "R62":
+            apply_R62(yaml_file, client)
+        else:
+            print(f"Règle inconnue : {rule_name}")
+    elif level == "moyen" : 
+        pass
+    else : 
+        pass
 
-def apply_recommandation_service(yaml_file, client):
+def apply_recommandation_service(yaml_file, client , level ):
     try:
         with open(yaml_file, 'r', encoding="utf-8") as file:
             data = yaml.safe_load(file)
@@ -69,7 +74,7 @@ def apply_recommandation_service(yaml_file, client):
             if rule_data.get('appliquer', False):
                 print(f"Règle {rule} déjà appliquée.")
             else:
-                apply_rule(rule, yaml_file, client)
+                apply_rule(rule, yaml_file, client , level)
                 
     except FileNotFoundError:
         print(f"Fichier {yaml_file} non trouvé.")

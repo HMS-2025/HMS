@@ -72,18 +72,20 @@ def apply_R56(yaml_file, client):
         #Mettre a jour le fichier 
         update_yaml(yaml_file, 'gestion_acces' , 'R56')
 
-    
-def apply_rule(rule_name, yaml_file, client):
-    if rule_name == "R30":
-        apply_R30(yaml_file, client)
-    elif rule_name == "R53":
-        apply_R53(yaml_file, client)
-    elif rule_name == "R56":
-        apply_R56(yaml_file, client)
-    else:
-        print(f"Règle inconnue : {rule_name}")
+def apply_rule(rule_name, yaml_file, client , level):
+    if level == "min" : 
+        if rule_name == "R30":
+            apply_R30(yaml_file, client)
+        elif rule_name == "R53":
+            apply_R53(yaml_file, client)
+        elif rule_name == "R56":
+            apply_R56(yaml_file, client)
+    elif level == "moyen" : 
+        pass
+    else : 
+        pass
         
-def apply_recommandation_acces(yaml_file, client):
+def apply_recommandation_acces(yaml_file, client , level ):
     try:
         with open(yaml_file, 'r', encoding="utf-8") as file:
             data = yaml.safe_load(file)
@@ -94,7 +96,7 @@ def apply_recommandation_acces(yaml_file, client):
             if rule_data.get('appliquer', False):
                 print(f"Règle {rule} déjà appliquée.")
             else:
-                apply_rule(rule, yaml_file, client)
+                apply_rule(rule, yaml_file, client , level)
                 
     except FileNotFoundError:
         print(f"Fichier {yaml_file} non trouvé.")

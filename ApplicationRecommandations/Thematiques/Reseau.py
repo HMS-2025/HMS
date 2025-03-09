@@ -1,5 +1,6 @@
+############ Mise a jour à venir pour ce fichiers ###################
+
 import yaml
-import subprocess
 import re
 
 def extract_interface_name(entry):

@@ -1,5 +1,3 @@
-import subprocess
-import os
 import yaml
 
 def ask_for_approval(rule, detected_elements):
@@ -20,6 +18,15 @@ def ask_for_element_approval(rule, elem):
             return response
         else:
             print("Réponse invalide. Entrez 'o' pour oui, 'n' pour non ou 'q' pour quitter.")
+
+def update_yaml(yaml_file, thematique ,  rule, clear_keys=[]):
+    with open(yaml_file, 'r', encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    
+    data[thematique][rule]['apply'] = False
+    data[thematique][rule]['status'] = 'Conforme'
+    with open(yaml_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
 def apply_R58(yaml_file, client):
     print("Application de la recommandation R58")
@@ -68,7 +75,7 @@ def apply_R59(yaml_file, client):
     with open(yaml_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
     
-    problematic_repos = data.get("R59", {}).get("éléments_problématiques", [])
+    problematic_repos = data.get("R59", {}).get("detected_elements", [])
     
     if not problematic_repos:
         print("Aucun dépôt problématique défini dans la règle R59.")
@@ -97,40 +104,34 @@ def apply_R59(yaml_file, client):
     
         update_yaml(yaml_file, "R59", detected_elements)
 
-def update_yaml(yaml_file, rule, detected_elements):
-    """Met à jour le fichier YAML en fonction des éléments détectés."""
-    with open(yaml_file, 'r', encoding="utf-8") as file:
-        data = yaml.safe_load(file)
-    
-    rule_data = data.get(rule, {})
-    rule_data['elements_detectes'] = detected_elements
-    rule_data['status'] = 'Conforme' if not detected_elements else 'Non conforme'
-    rule_data['appliquer'] = True
-    
-    data[rule] = rule_data
-    
-    with open(yaml_file, 'w', encoding="utf-8") as file:
-        yaml.safe_dump(data, file, default_flow_style=False, allow_unicode=True)
-
-def apply_rule(rule_name, yaml_file, client):
-    if rule_name == "R58":
-        apply_R58(yaml_file, client)
-    elif rule_name == "R59":
-        apply_R59(yaml_file, client)
-    else:
-        print(f"Règle inconnue : {rule_name}")
-
-def apply_recommandation_maintenance_min(yaml_file, client):
-    with open(yaml_file, 'r', encoding="utf-8") as file:
-        data = yaml.safe_load(file)
-    
-    for rule, rule_data in data.items():
-        if not rule_data.get('appliquer', False):
-            print(f"Application de la règle {rule}...")
-            apply_rule(rule, yaml_file, client)
+def apply_rule(rule_name, yaml_file, client , level):
+    if level : 
+        if rule_name == "R58":
+            apply_R58(yaml_file, client)
+        elif rule_name == "R59":
+            apply_R59(yaml_file, client)
         else:
-            print(f"Règle {rule} déjà appliquée.")
+            print(f"Règle inconnue : {rule_name}")
+    elif level == "moyen" : 
+        pass
+    else : 
+        pass
 
-
-# Appeler la fonction de maintenance avec le chemin du fichier YAML et le client SSH
-# apply_recommandation_maintenance_min("/path/to/maintenance_minimal.yml", client)
+def apply_recommandation_maintenance(yaml_file, client , level):
+    try:
+        with open(yaml_file, 'r', encoding="utf-8") as file:
+            data = yaml.safe_load(file)  
+        if not data or 'maintenance' not in data:
+            return
+        for rule, rule_data in data['maintenance'].items():
+            if rule_data.get('appliquer', False):
+                print(f"Règle {rule} déjà appliquée.")
+            else:
+                apply_rule(rule, yaml_file, client , level)
+                
+    except FileNotFoundError:
+        print(f"Fichier {yaml_file} non trouvé.")
+    except yaml.YAMLError as e:
+        print(f"Erreur lors de la lecture du fichier YAML : {e}")
+    except Exception as e:
+        print(f"Une erreur inattendue s'est produite : {e}")
