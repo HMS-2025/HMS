@@ -2,8 +2,8 @@ import sys
 from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
-from ApplicationRecommandations.AppRecommandations import appRecommandationsMin
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen
+from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
 from gui import Gui
 # Fonction pour afficher le menu principal
 def afficher_menu():
@@ -29,8 +29,9 @@ def selectionner_niveau_application():
 
     print("\n===== Sélection du niveau d'application =====")
     print("1 - Application minimal")
+    print("2 - Application manuelle (GenerationRapport/RapportApplication/application.yml)")
     print("3 - Retourner au menu principal")
-    return input("Sélectionnez une option (1) : ")
+    return input("Sélectionnez une option (1-4) : ")
 
 # Fonction principale du script
 def main():
@@ -114,14 +115,39 @@ def main():
                 if not client:
                     print("Échec de la connexion SSH")
                     continue
-                Gui ("GenerationRapport/RapportAnalyse/analyse_min.yml" , "GenerationRapport/RapportApplication/application_min.yml")
-                appRecommandationsMin(client)
+                Gui ("GenerationRapport/RapportAnalyse/analyse_min.yml" , "GenerationRapport/RapportApplication/application.yml")
+                application_recommandations_min(client)
 
                 # Fermer la connexion après application
             
                 client.close()
                 print("\n--- Fin de l'application des recommandations générales ---\n")
+            elif choix_application =="2" : 
+                # Charger la configuration SSH
+                config = load_config("ssh.yaml")
+                if not config:
+                    print("Configuration invalide")
+                    continue
+
+                # Établir la connexion SSH
+                client = ssh_connect(
+                    hostname=config.get("hostname"),
+                    port=config.get("port"),
+                    username=config.get("username"),
+                    key_path=config.get("key_path"),
+                    passphrase=config.get("passphrase")
+                )
+
+                if not client:
+                    print("Échec de la connexion SSH")
+                    continue
+                application_recommandations_min(client)
+
+                # Fermer la connexion après application
             
+                client.close()
+                print("\n--- Fin de l'application des recommandations générales ---\n")
+
             elif choix_application == "3":
                 continue
         elif choix_menu == "3":  #Appliquer les recommandations spécifiques SSH
