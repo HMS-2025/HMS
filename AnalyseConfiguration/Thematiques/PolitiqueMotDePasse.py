@@ -52,8 +52,8 @@ def check_compliance(rule_id, rule_value, reference_data):
     return {
         "apply": False if non_compliant_items else True,
         "status": "Non-conforme" if non_compliant_items else "Conforme",
-        "detected_element": detected_items,  # Contient toutes les valeurs détectées
-        "expected_element": expected_value  # Conserve expected dans une section distincte
+        "detected_elements": detected_items,  # Contient toutes les valeurs détectées
+        "expected_elements": expected_value  # Conserve expected dans une section distincte
     }
 
 def check_faillock_compliance (detected , expected) : 

@@ -28,8 +28,9 @@ def generate_html_report(yaml_path, html_path, niveau):
             total_rules += 1
             status = details.get('status', 'N/A')
             apply = details.get('apply', False)
-            detected = details.get('detected_elements', 'N/A')
-            expected = details.get('expected_elements', 'N/A')
+            detected = details.get("éléments_detectés", details.get("detected_elements", "N/A"))
+            expected = details.get("éléments_attendus", details.get("expected_elements", "N/A"))
+
 
             if status.lower().startswith('conforme'):
                 compliant_rules += 1
