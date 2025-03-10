@@ -1,6 +1,6 @@
 id_rsa
-GenerationRapport/
-GenerationRapport/
+GenerationRapport/*
+!GenerationRapport/GenerationRapport.py
 *.pyc
 __pycache__/
 ApplicationRecommandations/Thematiques/__pycache__/
