@@ -1,6 +1,7 @@
 import yaml
 import os
 import paramiko
+from GenerationRapport.GenerationRapport import generate_html_report
 
 # Charger le fichier de référence YAML
 
@@ -101,9 +102,12 @@ def analyse_maintenance(server, niveau, reference_data):
                 report[rule_id] = detected_values
     
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
+    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
+    html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
+
     compliance_percentage = sum(1 for r in report.values() if isinstance(r, dict) and r.get("status") == "Conforme") / len(report) * 100 if report else 0
     print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Maintenance): {compliance_percentage:.2f}%")
-
+    generate_html_report(yaml_path, html_path, niveau)
 # Sauvegarder le rapport d'analyse au format YAML
 
 def save_yaml_report(data, output_file, rules, niveau):

@@ -1,6 +1,7 @@
 import yaml
 import os
 import paramiko
+from GenerationRapport.GenerationRapport import generate_html_report
 
 # Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
 def load_reference_yaml(niveau):
@@ -112,8 +113,12 @@ def analyse_services(serveur, niveau, reference_data=None):
                 report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
 
     save_yaml_report(report, f"analyse_{niveau}.yml")
+    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
+    html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
+
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
     print(f"\nTaux de conformité pour le niveau {niveau.upper()} : {compliance_percentage:.2f}%")
+    generate_html_report(yaml_path, html_path, niveau)
 
 # R62 - Désactiver les services non nécessaires
 def disable_unnecessary_services(serveur, reference_data):

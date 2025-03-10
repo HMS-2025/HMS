@@ -2,6 +2,7 @@ import yaml
 import os
 import paramiko
 import re
+from GenerationRapport.GenerationRapport import generate_html_report
 
 # Load reference data from Reference_min.yaml or Reference_Moyen.yaml based on level
 def load_reference_yaml(niveau):
@@ -141,9 +142,13 @@ def analyse_utilisateurs(serveur, niveau, reference_data=None):
         print(f"-> No specific rules for level {niveau} in Users.")
 
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
+    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
+    html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
+
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
     print(f"\nCompliance rate for level {niveau.upper()} (Users): {compliance_percentage:.2f}%")
-
+    generate_html_report(yaml_path, html_path, niveau)
+    
 # Check session timeout configuration and logind settings
 def check_tmout(serveur):
     tmout_output = execute_ssh_command(serveur, "grep -E '^TMOUT=' /etc/profile /etc/bash.bashrc 2>/dev/null | awk -F= '{print $2}' | sort -u")

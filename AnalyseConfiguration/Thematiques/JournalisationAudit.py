@@ -1,5 +1,6 @@
 import yaml
 import os
+from GenerationRapport.GenerationRapport import generate_html_report
 
 # Execute an SSH command on the remote server and return the result
 def execute_ssh_command(serveur, command):
@@ -97,8 +98,12 @@ def analyse_journalisation(serveur, niveau="min", reference_data=None):
     
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
     
+    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
+    html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
+
     compliance_percentage = (sum(1 for result in report.values() if result["status"] == "Compliant") / len(report) * 100) if report else 100
     print(f"\nCompliance rate for level {niveau.upper()} (Logging / Audit) : {compliance_percentage:.2f}%")
+    generate_html_report(yaml_path, html_path, niveau)
 
 # Fonction d'enregistrement des rapports
 def save_yaml_report(data, output_file, rules, niveau):

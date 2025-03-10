@@ -1,6 +1,7 @@
 import paramiko
 import yaml
 import os
+from GenerationRapport.GenerationRapport import generate_html_report
 
 # Charger les références depuis Reference_min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
@@ -55,8 +56,6 @@ def check_compliance(rule_id, rule_value, reference_data):
         "expected_element": expected_value  # Conserve expected dans une section distincte
     }
 
-
-
 def check_faillock_compliance (detected , expected) : 
     detected = int(detected)
     expected = int(expected)
@@ -99,6 +98,8 @@ def analyse_politique_mdp(serveur, niveau, reference_data=None):
 
     # Enregistrement du rapport
     save_yaml_report(report, f"analyse_{niveau}.yml")
+    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
+    html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
 
     # Calcul du taux de conformité
     total_rules = len(report["password"])
@@ -106,7 +107,8 @@ def analyse_politique_mdp(serveur, niveau, reference_data=None):
     compliance_percentage = (conforming_rules / total_rules) * 100 if total_rules > 0 else 0
 
     print(f"\nTaux de conformité du niveau {niveau} (Politique de mot de passe) : {compliance_percentage:.2f}%")
-
+    generate_html_report(yaml_path, html_path, niveau)
+    
 # R31 - Vérifier la politique de mot de passe
 def get_password_policy(serveur):
     """Analyse la politique de mots de passe du système."""

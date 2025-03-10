@@ -2,6 +2,7 @@ import yaml
 import os
 import paramiko
 import re
+from GenerationRapport.GenerationRapport import generate_html_report
 
 # Execute an SSH command on the remote server and return the result as a list of lines
 def execute_ssh_command(serveur, command):
@@ -286,9 +287,12 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
             else:
                 report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
+    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
+    html_path = f"GenerationRapport/RapportAnalyseHTML/analyse_{niveau}.html"
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
-
+    generate_html_report(yaml_path, html_path, niveau)
+    
 # Save the analysis report in YAML format to the specified directory
 def save_yaml_report(data, output_file, rules, niveau):
     if not data:
@@ -365,9 +369,14 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
             else:
                 report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
+    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
+    html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
+
+    print(f"Vérification des chemins :\nYAML: {yaml_path}\nHTML: {html_path}")
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
-
+    generate_html_report(yaml_path, html_path, niveau)
+    
 # Save the analysis report in YAML format to the specified directory
 def save_yaml_report(data, output_file, rules, niveau):
     if not data:

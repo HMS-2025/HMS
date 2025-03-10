@@ -1,6 +1,7 @@
 import yaml
 import os
 import paramiko
+from GenerationRapport.GenerationRapport import generate_html_report
 
 # Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
 def load_reference_yaml(niveau):
@@ -70,9 +71,12 @@ def analyse_systeme(serveur, niveau, reference_data=None):
         print(f"-> No specific rules for level {niveau} in System.")
         
     save_yaml_report(report, f"analyse_{niveau}.yml")
+    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
+    html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
+
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
     print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Système) : {compliance_percentage:.2f}%")
-
+    generate_html_report(yaml_path, html_path, niveau)
 
 # --- R8: Memory Configuration Settings ---
 def check_memory_configuration(serveur, expected_params):
