@@ -133,11 +133,13 @@ def analyse_utilisateurs(serveur, niveau, reference_data=None):
         }
     }
     
-    if niveau in rules:
+    if niveau in rules and rules[niveau]:
         for rule_id, (function, comment) in rules[niveau].items():
             print(f"-> {comment} ({rule_id})")
             report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
-    
+    else:
+        print(f"-> No specific rules for level {niveau} in Users.")
+
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
     print(f"\nCompliance rate for level {niveau.upper()} (Users): {compliance_percentage:.2f}%")
@@ -236,6 +238,9 @@ def execute_ssh_command(serveur, command):
 
 # Save the generated report in YAML format to the specified directory
 def save_yaml_report(data, output_file, rules, niveau):
+    if not data:
+        return
+
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)

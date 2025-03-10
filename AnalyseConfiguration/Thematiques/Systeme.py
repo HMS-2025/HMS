@@ -60,13 +60,15 @@ def analyse_systeme(serveur, niveau, reference_data=None):
     }
 
     
-    if niveau in rules:
+    if niveau in rules and rules[niveau]:
         for rule_id, (function, comment) in rules[niveau].items():
             print(f"-> Vérification de la règle {rule_id} # {comment}")
             expected_values = reference_data.get(rule_id, {}).get("expected", {})
             detected_values = function(serveur, expected_values)
             report[rule_id] = check_compliance(rule_id, detected_values, reference_data)
-    
+    else:
+        print(f"-> No specific rules for level {niveau} in System.")
+        
     save_yaml_report(report, f"analyse_{niveau}.yml")
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
     print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Système) : {compliance_percentage:.2f}%")
