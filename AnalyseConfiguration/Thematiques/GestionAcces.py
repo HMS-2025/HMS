@@ -166,7 +166,8 @@ def find_files_with_setuid_setgid(serveur):
 
 # Get service accounts (system accounts with UID < 1000 except root)
 def get_service_accounts(serveur):
-    return execute_ssh_command(serveur, "awk -F: '($3 < 1000) && ($1 != \"root\") {print $1}' /etc/passwd")
+    command = "sudo awk -F: 'FNR==NR { shadow[$1]=$2; next } ($3 < 1000 && $3 != 0) && ($7 !~ /^(\\/usr\\/sbin\\/nologin|\\/bin\\/false)$/) && (shadow[$1] !~ /^[!*]/ && shadow[$1] != \"\") {print $1}' /etc/shadow /etc/passwd"
+    return execute_ssh_command(serveur, command)
 
 # Get sudo directives from /etc/sudoers
 def get_sudo_directives(serveur):
