@@ -7,16 +7,16 @@ def execute_ssh_command(serveur, command):
     stdin, stdout, stderr = serveur.exec_command(command)
     return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-# Charger les références depuis Reference_min.yaml
+# Load references from Reference_min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             return yaml.safe_load(file) or {}
     except Exception as e:
-        print(f"Erreur lors du chargement de {file_path} : {e}")
+        print(f"Error loading  {file_path} : {e}")
         return {}
 
-# Comparer les résultats de l'analyse avec les références
+# Compare analysis results with reference data
 def check_compliance(rule_id, detected_values, reference_data):
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
     expected_values_list = []
@@ -38,11 +38,11 @@ def check_compliance(rule_id, detected_values, reference_data):
     
     return {
         "apply": set(detected_values) == set(expected_values),
-        "status": "Conforme" if set(detected_values) == set(expected_values) else "Non-conforme",
+        "status": "Compliant" if set(detected_values) == set(expected_values) else "Non-Compliant",
         "expected_elements": expected_values or "None",
         "detected_elements": detected_values or "None"
     }
-# Fonctions spécifiques aux règles de journalisation
+# Specific functions for logging rules
 def get_audit_log_status(serveur):
     result = execute_ssh_command(serveur, "systemctl is-active auditd")
     if not result:
@@ -75,7 +75,7 @@ def check_r33(serveur):
         "log_rotation": get_log_rotation(serveur) if audit_status != "Not Installed" else None
     }
 
-# Fonction principale pour analyser la journalisation et l'audit
+# Main function to analyze logging and auditing
 def analyse_journalisation(serveur, niveau="min", reference_data=None):
     if reference_data is None:
         reference_data = load_reference_yaml()
@@ -105,7 +105,7 @@ def analyse_journalisation(serveur, niveau="min", reference_data=None):
     print(f"\nCompliance rate for level {niveau.upper()} (Logging / Audit) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
 
-# Fonction d'enregistrement des rapports
+# Save the analysis report in YAML format
 def save_yaml_report(data, output_file, rules, niveau):
     if not data:
         return
@@ -115,7 +115,7 @@ def save_yaml_report(data, output_file, rules, niveau):
     output_path = os.path.join(output_dir, output_file)
 
     with open(output_path, "a", encoding="utf-8") as file:
-        file.write("journalisation:\n")
+        file.write("logging:\n")
         
         for rule_id, content in data.items():
             comment = rules[niveau].get(rule_id, ("", ""))[1]
