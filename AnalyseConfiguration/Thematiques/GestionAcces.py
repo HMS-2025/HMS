@@ -12,14 +12,15 @@ def execute_ssh_command(serveur, command):
 # Check compliance of rules by comparing detected values with reference data
 def check_compliance(rule_id, detected_values, reference_data):
     if rule_id == 'R44':
+        # For R44, compliance is achieved only if there are no violations
+        # and there is at least one occurrence of proper sudoedit usage.
+        is_compliant = (not detected_values.get("violations")) and bool(detected_values.get("sudoedit_usage"))
         return {
-            "apply": bool(detected_values),
-            "status": "Compliant" if detected_values else "Non-Compliant",
-            "detected_elements": detected_values or "None"
+            "apply": is_compliant,
+            "status": "Compliant" if is_compliant else "Non-Compliant",
+            "detected_elements": detected_values  # This contains both "violations" and "sudoedit_usage"
         }
     elif rule_id == 'R52':
-        # Protect named sockets and pipes
-        # Expected values are a list of entries like "/run/dbus 755"
         expected_list = reference_data.get(rule_id, {}).get("expected", [])
         expected_dict = {}
         for entry in expected_list:
@@ -27,7 +28,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             if len(parts) == 2:
                 expected_dict[parts[0]] = parts[1]
 
-        # Function to convert symbolic permission (e.g., drwxr-xr-x) to numeric (e.g., 755)
         def symbolic_to_numeric(sym):
             mapping = {'r': 4, 'w': 2, 'x': 1, '-': 0}
             if len(sym) == 10:
@@ -40,7 +40,6 @@ def check_compliance(rule_id, detected_values, reference_data):
                 nums.append(str(total))
             return "".join(nums)
 
-        # Build a dictionary from detected elements: key = file path, value = numeric permission
         detected_dict = {}
         detected_numeric_list = []
         for line in detected_values:
@@ -65,7 +64,6 @@ def check_compliance(rule_id, detected_values, reference_data):
                 discrepancies[path] = {"detected": det_perm, "expected": exp_perm}
                 is_compliant = False
 
-        # Consolidate discrepancies into a single list of differences
         differences_list = []
         for path, diff in discrepancies.items():
             differences_list.append(f"{path} '{diff['detected']}' (expected '{diff['expected']}')")
@@ -78,9 +76,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             "differences": differences_list if differences_list else None
         }
     elif rule_id == 'R55':
-        # Separate user temporary directories
-        # Compliant if PAM configuration contains references to pam_namespace or pam_mktemp.
-        # These modules create per-user temporary directories.
         is_compliant = bool(detected_values)
         status = "Compliant" if is_compliant else "Non-Compliant"
         return {
@@ -89,7 +84,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             "detected_elements": detected_values if detected_values else "None"
         }
     elif rule_id == 'R67':
-        # Secure remote authentication via PAM
         is_compliant = True
         discrepancies = {}
         for entry in detected_values:
@@ -161,7 +155,6 @@ def find_files_with_setuid_setgid(serveur):
     ro_mounts_list = ro_mounts
     exclusions = ' '.join([f"-path '{mount}/*' -prune -o" for mount in ro_mounts_list])
     find_command = f"find / {exclusions} -type f -perm /6000 -print 2>/dev/null"
-
     return execute_ssh_command(serveur, find_command)
 
 # Get service accounts (system accounts with UID < 1000 except root)
@@ -187,13 +180,50 @@ def get_strict_sudo_arguments(serveur):
     cleaned_elements = [element.replace("\t", " ") for element in result]
     return cleaned_elements
 
-# Get sudoedit usage from /etc/sudoers
+# Get sudoedit usage from /etc/sudoers for rule R44
 def get_sudoedit_usage(serveur):
-    return execute_ssh_command(serveur, "sudo grep -E 'ALL=.*sudoedit' /etc/sudoers")
+    sudoers_lines = execute_ssh_command(serveur, "sudo cat /etc/sudoers")
+    violations = []
+    sudoedit_used = []
+    known_editors = ["vi", "vim", "nano", "emacs", "gedit", "kate"]
+    
+    for line in sudoers_lines:
+        stripped_line = line.strip()
+        if not stripped_line or stripped_line.startswith("#"):
+            continue
+        if "=" not in stripped_line:
+            continue
+        spec, cmd_part = stripped_line.split("=", 1)
+        cmd_part = cmd_part.strip()
+        if cmd_part.startswith("("):
+            end_paren = cmd_part.find(")")
+            if end_paren != -1:
+                cmd_list_str = cmd_part[end_paren+1:].strip()
+            else:
+                cmd_list_str = cmd_part
+        else:
+            cmd_list_str = cmd_part
+        commands = [cmd.strip() for cmd in cmd_list_str.split(",")]
+        line_violation = False
+        for cmd in commands:
+            if cmd.upper() == "ALL":
+                violations.append(f"\"{stripped_line}\" # The 'ALL' command allows execution of any command, which contradicts the requirement to use sudoedit for file editing.")
+                line_violation = True
+                break
+            for editor in known_editors:
+                if re.search(r'\b' + re.escape(editor) + r'\b', cmd) and "sudoedit" not in cmd:
+                    violations.append(f"\"{stripped_line}\" # The command uses the editor '{editor}' without using sudoedit, which contradicts the requirement to use sudoedit for file editing.")
+                    line_violation = True
+                    break
+            if line_violation:
+                break
+        # If no violation and the line uses 'sudoedit', record it.
+        if not line_violation and "sudoedit" in stripped_line:
+            sudoedit_used.append(stripped_line)
+    return {"violations": violations, "sudoedit_usage": sudoedit_used}
 
 # Get user private temporary directory configuration by checking PAM configuration
 def get_user_private_tmp(serveur):
-    # Check PAM configuration files for references to pam_namespace or pam_mktemp
     files_to_check = ["/etc/pam.d/login", "/etc/pam.d/sshd"]
     results = []
     for f in files_to_check:
@@ -313,7 +343,6 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
-
     print(f"Checking paths: \nYAML: {yaml_path}\nHTML: {html_path}")
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
@@ -327,15 +356,32 @@ def save_yaml_report(data, output_file, rules, niveau):
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
     with open(output_path, "w", encoding="utf-8") as file:
-        print(output_path)
         file.write("gestion_acces:\n")
         for rule_id, content in data.items():
             comment = rules[niveau].get(rule_id, ("", ""))[1]
             file.write(f"  {rule_id}:  # {comment}\n")
-            yaml_content = yaml.safe_dump(
-                content, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False
-            )
-            indented_yaml = "\n".join(["    " + line for line in yaml_content.split("\n") if line.strip()])
-            file.write(indented_yaml + "\n")
+            # For R44, format detected_elements manually
+            if rule_id == "R44" and isinstance(content.get("detected_elements"), dict):
+                file.write(f"    apply: {str(content.get('apply')).lower()}\n")
+                file.write(f"    status: {content.get('status')}\n")
+                file.write("    detected_elements:\n")
+                # Write violations
+                file.write("      violations:\n")
+                if content["detected_elements"]["violations"]:
+                    for violation in content["detected_elements"]["violations"]:
+                        file.write(f"        - {violation}\n")
+                else:
+                    file.write("        - None\n")
+                # Write sudoedit usage info
+                file.write("      sudoedit_usage:\n")
+                if content["detected_elements"]["sudoedit_usage"]:
+                    for usage in content["detected_elements"]["sudoedit_usage"]:
+                        file.write(f"        - {usage}\n")
+                else:
+                    file.write("        - None\n")
+            else:
+                yaml_content = yaml.safe_dump(content, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False)
+                indented_yaml = "\n".join(["    " + line for line in yaml_content.split("\n") if line.strip()])
+                file.write(indented_yaml + "\n")
         file.write("\n")
     print(f"Report generated: {output_path}")
