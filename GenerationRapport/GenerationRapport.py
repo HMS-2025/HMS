@@ -26,13 +26,12 @@ def generate_html_report(yaml_path, html_path, niveau):
         """
         for rule_id, details in rules.items():
             total_rules += 1
-            status = details.get('status', 'None')
+            status = details.get('status', 'None').lower()  # Convert to lowercase for comparison
             apply = details.get('apply', False)
-            detected = details.get("éléments_detectés", details.get("detected_elements", "None"))
-            expected = details.get("éléments_attendus", details.get("expected_elements", "None"))
+            detected = details.get("detected_elements", "None")
+            expected = details.get("expected_elements", "None")
 
-
-            if status.lower().startswith('conforme'):
+            if status == "compliant":
                 compliant_rules += 1
                 css_class = "compliant"
             else:
@@ -42,7 +41,7 @@ def generate_html_report(yaml_path, html_path, niveau):
             section_html += f"""
                 <tr class="{css_class}">
                     <td>{rule_id}</td>
-                    <td>{status}</td>
+                    <td>{status.capitalize()}</td>
                     <td>{"Yes" if apply else "No"}</td>
                     <td><pre>{yaml.dump(detected, allow_unicode=True)}</pre></td>
                     <td><pre>{yaml.dump(expected, allow_unicode=True)}</pre></td>
@@ -53,7 +52,7 @@ def generate_html_report(yaml_path, html_path, niveau):
 
     compliance_rate = (compliant_rules / total_rules) * 100 if total_rules else 100
 
-    # Contenu HTML complet
+    # Complete HTML content
     html_content = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -66,8 +65,8 @@ def generate_html_report(yaml_path, html_path, niveau):
             table {{ border-collapse: collapse; width: 100%; margin-bottom: 40px; }}
             th, td {{ border: 1px solid #ddd; padding: 8px; }}
             th {{ background-color: #003366; color: white; }}
-            .compliant {{ background-color: #c8e6c9; }}
-            .non-compliant {{ background-color: #ffcdd2; }}
+            .compliant {{ background-color: #c8e6c9; }}  /* Green for compliant */
+            .non-compliant {{ background-color: #ffcdd2; }}  /* Red for non-compliant */
         </style>
     </head>
     <body>
@@ -87,10 +86,10 @@ def generate_html_report(yaml_path, html_path, niveau):
     </html>
     """
 
-    # Assurer la création du dossier
+    # Ensure the directory exists
     os.makedirs(os.path.dirname(html_path), exist_ok=True)
 
-    # Écriture du fichier HTML
+    # Write the HTML file
     with open(html_path, "w", encoding="utf-8") as html_file:
         html_file.write(html_content)
 
