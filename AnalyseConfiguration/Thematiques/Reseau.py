@@ -3,12 +3,12 @@ import os
 import paramiko
 from GenerationRapport.GenerationRapport import generate_html_report
 
-# Exécute une commande SSH sur le serveur distant et retourne le résultat
+# Execute an SSH command on the remote server and return the result
 def execute_ssh_command(server, command):
     stdin, stdout, stderr = server.exec_command(command)
     return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-# Vérifie la conformité des règles en comparant les valeurs détectées aux références
+# Check rule compliance by comparing detected values with reference data
 def check_compliance(rule_id, detected_values, reference_data):
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
     expected_values_list = []
@@ -24,12 +24,12 @@ def check_compliance(rule_id, detected_values, reference_data):
     
     return {
         "apply": detected_values == expected_values,
-        "status": "Conforme" if detected_values == expected_values else "Non-conforme",
+        "status": "Compliant" if detected_values == expected_values else "Non-Compliant",
         "expected_elements": expected_values or "None",
         "detected_elements": detected_values or "None"
     }
 
-# Vérifie la configuration IPv4 via sysctl
+# Check IPv4 configuration via sysctl
 def check_ipv4_configuration(server):
     command = "sysctl net.ipv4"
     results = {}
@@ -39,7 +39,7 @@ def check_ipv4_configuration(server):
             results[key.strip()] = value.strip()
     return results
 
-# Vérifie la configuration de désactivation IPv6 via sysctl
+# Check IPv6 disable configuration via sysctl
 def disable_ipv6(server):
     command = "sysctl -a | grep 'net.ipv6.conf.*.disable_ipv6'"
     result = {}
@@ -49,17 +49,17 @@ def disable_ipv6(server):
             result[key.strip()] = value.strip()
     return result
 
-# Liste les services en cours d'exécution
+# List running services
 def harden_exposed_services(server):
     command = "systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}'"
     return {"running_services": execute_ssh_command(server, command)}
 
-# Vérifie certaines règles PAM dans /etc/pam.d/sshd
+# Check certain PAM rules in /etc/pam.d/sshd
 def secure_remote_authentication_pam(server):
     command = "grep -E '^(auth|account|password|session)' /etc/pam.d/sshd | awk '{$1=$1};1'"
     return {"pam_rules": execute_ssh_command(server, command)}
 
-# Récupère la liste des interfaces réseau et leurs adresses IP
+# Retrieve the list of network interfaces and their IP addresses
 def get_interfaces_with_ips(server):
     command = "ip -o addr show"
     interfaces = {}
@@ -73,7 +73,7 @@ def get_interfaces_with_ips(server):
             interfaces[iface]["ipv6" if ':' in ip else "ipv4"] = ip
     return interfaces
 
-# Analyse du réseau et génération du rapport
+# Network analysis and report generation
 def analyse_reseau(server, niveau, reference_data=None):
     if reference_data is None:
         reference_data = {}
@@ -94,7 +94,7 @@ def analyse_reseau(server, niveau, reference_data=None):
     
     if niveau in rules:
         for rule_id, (function, description) in rules[niveau].items():
-            print(f"-> Vérification de la règle {rule_id} # {description}")
+            print(f"-> Checking rule {rule_id} # {description}")
             detected_values = function(server)
             report[rule_id] = check_compliance(rule_id, detected_values, reference_data)
     
@@ -102,11 +102,11 @@ def analyse_reseau(server, niveau, reference_data=None):
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
 
-    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
-    print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Réseau) : {compliance_percentage:.2f}%")
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 0
+    print(f"\nCompliance rate for level {niveau.upper()} (Network) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
     
-# Sauvegarde le rapport d'analyse dans un fichier YAML
+# Save the analysis report in a YAML file
 def save_yaml_report(data, output_file, rules, niveau):
     if not data:
         return
@@ -116,7 +116,7 @@ def save_yaml_report(data, output_file, rules, niveau):
     output_path = os.path.join(output_dir, output_file)
     
     with open(output_path, "a", encoding="utf-8") as file:
-        file.write("reseau:\n")
+        file.write("network:\n")
         
         for rule_id, content in data.items():
             comment = rules[niveau].get(rule_id, (None, ""))[1]
@@ -129,4 +129,4 @@ def save_yaml_report(data, output_file, rules, niveau):
             file.write(indented_yaml + "\n")
         file.write("\n")
     
-    print(f"Rapport généré : {output_path}")
+    print(f"Report generated : {output_path}")

@@ -3,38 +3,38 @@ import os
 import paramiko
 from GenerationRapport.GenerationRapport import generate_html_report
 
-# Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
+# Load references from Reference_min.yaml or Reference_Moyen.yaml
 def load_reference_yaml(niveau):
-    """Charge le fichier de référence correspondant au niveau choisi (min ou moyen)."""
+    """Loads the reference file corresponding to the selected level (min or moyen)."""
     file_path = f"AnalyseConfiguration/Reference_{niveau}.yaml"
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data or {}
     except Exception as e:
-        print(f"Erreur lors du chargement de {file_path} : {e}")
+        print(f"Error loading {file_path} : {e}")
         return {}
 
-# Vérification de conformité des règles
+# Check rule compliance
 def check_compliance(rule_id, detected_values, reference_data):
-    """Vérifie la conformité des règles en comparant les valeurs détectées avec les références."""
+    """Checks rule compliance by comparing detected values with reference data."""
 
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
 
-    # Exception spécifique pour R62 : services interdits détectés
+    # Specific exception for R62: detected prohibited services
     if rule_id == "R62":
         detected_prohibited_elements = detected_values.get("detected_prohibited_elements", [])
         is_compliant = len(detected_prohibited_elements) == 0
 
         return {
             "apply": is_compliant,
-            "status": "Conforme" if is_compliant else "Non-conforme",
+            "status": "Compliant" if is_compliant else "Non-Compliant",
             "detected_elements": detected_values.get("detected_elements", []),
             "detected_prohibited_elements": detected_prohibited_elements,
             "expected_elements": expected_values
         }
 
-    # Exception spécifique pour R74 : interfaces et livraison locales
+    # Specific exception for R74: interfaces and local delivery
     elif rule_id == "R74":
         detected_interfaces = set(detected_values.get("listen_interfaces", []))
         expected_interfaces = set(expected_values.get("hardened_mail_service", {}).get("listen_interfaces", []))
@@ -49,7 +49,7 @@ def check_compliance(rule_id, detected_values, reference_data):
 
         return {
             "apply": is_compliant,
-            "status": "Conforme" if is_compliant else "Non-conforme",
+            "status": "Compliant" if is_compliant else "Non-Compliant",
             "detected_elements": {
                 "listen_interfaces": list(detected_interfaces),
                 "allow_local_delivery": list(detected_local_delivery)
@@ -60,7 +60,7 @@ def check_compliance(rule_id, detected_values, reference_data):
             }
         }
 
-    # Cas spécifique pour R75 : au moins un alias attendu détecté
+    # Specific case for R75: at least one expected alias must be detected
     elif rule_id == "R75":
         detected_aliases = detected_values.get("detected_elements", [])
         expected_aliases = expected_values.get("mail_aliases", [])
@@ -68,45 +68,42 @@ def check_compliance(rule_id, detected_values, reference_data):
 
         return {
             "apply": is_compliant,
-            "status": "Conforme" if is_compliant else "Non-conforme",
+            "status": "Compliant" if is_compliant else "Non-Compliant",
             "detected_elements": detected_aliases,
             "expected_elements": expected_aliases
         }
 
-    # Gestion standard pour les autres règles
+    # Standard handling for other rules
     else:
         return {
             "apply": detected_values == expected_values,
-            "status": "Conforme" if detected_values == expected_values else "Non-conforme",
+            "status": "Compliant" if detected_values == expected_values else "Non-Compliant",
             "expected_elements": expected_values or "None",
             "detected_elements": detected_values or "None"
         }
 
-
-
-
-# Fonction principale d'analyse des services
+# Main function for service analysis
 def analyse_services(serveur, niveau, reference_data=None):
-    """Analyse les services et génère un rapport YAML détaillé avec la conformité."""
+    """Analyzes services and generates a detailed YAML compliance report."""
     if reference_data is None:
         reference_data = load_reference_yaml(niveau)
     
     report = {}
     rules = {
         "min": {
-            "R62": (disable_unnecessary_services, "Désactiver les services interdits"),
+            "R62": (disable_unnecessary_services, "Disable prohibited services"),
         },
         "moyen": {
-            "R35": (check_unique_service_accounts, "Vérifier l'unicité des comptes de service"),
-            "R63": (check_disabled_service_features, "Désactiver les fonctionnalités de service non essentielles"),
-            "R74": (check_hardened_mail_service, "Renforcer le service de messagerie local"),
-            "R75": (check_mail_aliases, "Vérifier les alias de messagerie pour les comptes de service"),
+            "R35": (check_unique_service_accounts, "Verify the uniqueness of service accounts"),
+            "R63": (check_disabled_service_features, "Disable non-essential service features"),
+            "R74": (check_hardened_mail_service, "Harden local mail service"),
+            "R75": (check_mail_aliases, "Verify mail aliases for service accounts"),
         }
     }
     
     if niveau in rules:
         for rule_id, (function, comment) in rules[niveau].items():
-            print(f"-> Vérification de la règle {rule_id} # {comment}")
+            print(f"-> Checking rule {rule_id} # {comment}")
             if rule_id == "R62":
                 report[rule_id] = check_compliance(rule_id, function(serveur, reference_data), reference_data)
             else:
@@ -116,35 +113,31 @@ def analyse_services(serveur, niveau, reference_data=None):
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
 
-    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
-    print(f"\nTaux de conformité pour le niveau {niveau.upper()} : {compliance_percentage:.2f}%")
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 0
+    print(f"\nCompliance rate for level {niveau.upper()} : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
 
-# R62 - Désactiver les services non nécessaires
+# R62 - Disable unnecessary services
 def disable_unnecessary_services(serveur, reference_data):
-    """Vérifie les services actifs et établit la conformité en fonction de la liste des services interdits."""
+    """Checks active services and determines compliance based on the prohibited services list."""
     
-    # Charger les services interdits depuis reference_min.yaml
     disallowed_services = reference_data.get("R62", {}).get("expected", {}).get("disallowed_services", [])
 
     if not disallowed_services:
-        print("Aucun service interdit défini. Vérifiez le fichier reference_min.yaml.")
+        print("No prohibited services defined. Check the reference_min.yaml file.")
         return {}
 
-    # Récupérer la liste des services actifs
     active_services = get_active_services(serveur)
 
-    # Détecter les services interdits en cours d'exécution
     forbidden_running_services = [service for service in active_services if service in disallowed_services]
 
-    # Déterminer la conformité
     is_compliant = len(forbidden_running_services) == 0
 
     return {
-        "status": "Conforme" if is_compliant else "Non-conforme",
+        "status": "Compliant" if is_compliant else "Non-Compliant",
         "apply": is_compliant,
-        "detected_elements": active_services,  # Liste complète des services en cours d'exécution
-        "detected_prohibited_elements": forbidden_running_services  # Liste des services interdits détectés
+        "detected_elements": active_services,
+        "detected_prohibited_elements": forbidden_running_services
     }
 
 
@@ -160,8 +153,7 @@ def get_active_services(serveur):
     except Exception as e:
         print(f"Error retrieving active services: {e}")
         return []
-    
-# Medium-level rules -------------------------------------------
+
 # R35 - Use unique and exclusive service accounts
 def check_unique_service_accounts(serveur):
     """Checks if each service has a unique system account and correctly formats the results."""
@@ -186,19 +178,16 @@ def check_disabled_service_features(serveur):
 def check_hardened_mail_service(serveur):
     """Checks if the mail service only accepts local connections and allows only local delivery."""
 
-    # Vérifier si un service écoute uniquement en local
     command_listen = "ss -tuln | grep ':25' | awk '{print $5}'"
     stdin, stdout, stderr = serveur.exec_command(command_listen)
     listening_ports = stdout.read().decode().strip().split("\n")
 
     detected_interfaces = [line.strip() for line in listening_ports if line.strip()]
 
-    # Vérifier la configuration de livraison locale avec Postfix
     command_destination = "postconf -h mydestination"
     stdin, stdout, stderr = serveur.exec_command(command_destination)
     mydestination_raw = stdout.read().decode().strip()
 
-    # Correct : un seul split ici !
     detected_local_delivery = [item.strip() for item in mydestination_raw.split(",") if item.strip()]
 
     return {
@@ -221,13 +210,13 @@ def check_mail_aliases(serveur):
 
     detected_aliases = [alias.strip() for alias in aliases_output if alias.strip()]
 
-    return {  # <-- Ajoute explicitement ce return !
+    return {
         "detected_elements": detected_aliases,
         "expected_elements": expected_aliases
     }
 
 def save_yaml_report(data, output_file):
-    """Sauvegarde les résultats de l'analyse dans un fichier YAML sans alias."""
+    """Saves the analysis results in a YAML file without aliases."""
     if not data:
         return
     output_dir = "GenerationRapport/RapportAnalyse"
@@ -238,4 +227,4 @@ def save_yaml_report(data, output_file):
 
     with open(output_path, "a", encoding="utf-8") as file:
         yaml.dump({"services": data}, file, default_flow_style=False, allow_unicode=True, sort_keys=False, default_style=None)
-    print(f"Rapport généré : {output_path}")
+    print(f"Report generated : {output_path}")

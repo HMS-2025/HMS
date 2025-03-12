@@ -3,27 +3,27 @@ import os
 import paramiko
 from GenerationRapport.GenerationRapport import generate_html_report
 
-# Charger les références depuis Reference_min.yaml ou Reference_Moyen.yaml
+# Load references from Reference_min.yaml or Reference_Moyen.yaml
 def load_reference_yaml(niveau):
-    """Charge le fichier de référence correspondant au niveau choisi (min ou moyen)."""
+    """Loads the reference file corresponding to the selected level (min or moyen)."""
     file_path = f"AnalyseConfiguration/Reference_{niveau}.yaml"
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data or {}
     except Exception as e:
-        print(f"Erreur lors du chargement de {file_path} : {e}")
+        print(f"Error loading {file_path} : {e}")
         return {}
 
-# Exécution d'une commande SSH
+# Execute an SSH command
 def execute_ssh_command(serveur, command):
     stdin, stdout, stderr = serveur.exec_command(command)
     output = stdout.read().decode().strip().split("\n")
     return list(filter(None, output))
 
-# Vérification de conformité des règles
+# Check rule compliance
 def check_compliance(rule_id, detected_values, reference_data):
-    """Vérifie la conformité des règles en comparant les valeurs détectées avec les références."""
+    """Checks rule compliance by comparing detected values with reference data."""
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
     
     if isinstance(expected_values, dict):
@@ -38,14 +38,14 @@ def check_compliance(rule_id, detected_values, reference_data):
     
     return {
         "apply": detected_values_list == expected_values_list,
-        "status": "Conforme" if detected_values_list == expected_values_list else "Non-conforme",
+        "status": "Compliant" if detected_values_list == expected_values_list else "Non-Compliant",
         "expected_elements": expected_values_list if expected_values_list else "None",
         "detected_elements": detected_values_list if detected_values_list else "None"
     }
 
-# Fonction principale d'analyse du système
+# Main system analysis function
 def analyse_systeme(serveur, niveau, reference_data=None):
-    """Analyse le système et génère un rapport YAML avec les résultats de conformité."""
+    """Analyzes the system and generates a YAML report with compliance results."""
     if reference_data is None:
         reference_data = load_reference_yaml(niveau)
     
@@ -63,7 +63,7 @@ def analyse_systeme(serveur, niveau, reference_data=None):
     
     if niveau in rules and rules[niveau]:
         for rule_id, (function, comment) in rules[niveau].items():
-            print(f"-> Vérification de la règle {rule_id} # {comment}")
+            print(f"-> Checking rule {rule_id} # {comment}")
             expected_values = reference_data.get(rule_id, {}).get("expected", {})
             detected_values = function(serveur, expected_values)
             report[rule_id] = check_compliance(rule_id, detected_values, reference_data)
@@ -74,28 +74,24 @@ def analyse_systeme(serveur, niveau, reference_data=None):
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
 
-    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
-    print(f"\nTaux de conformité pour le niveau {niveau.upper()} (Système) : {compliance_percentage:.2f}%")
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 100
+    print(f"\nCompliance rate for level {niveau.upper()} (System) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
 
-# --- R8: Memory Configuration Settings ---
+#R8 Memory Configuration Settings
 def check_memory_configuration(serveur, expected_params):
     """Checks memory configuration parameters in GRUB settings."""
 
-    # Lire la configuration GRUB pour récupérer GRUB_CMDLINE_LINUX_DEFAULT
     command = "grep '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub | sed 's/GRUB_CMDLINE_LINUX_DEFAULT=\"//;s/\"$//'"
     stdin, stdout, stderr = serveur.exec_command(command)
     
-    # Extraction des options en supprimant les doublons
     grub_cmdline = list(set(stdout.read().decode().strip().split()))
 
-    # Vérifier les éléments détectés
     detected_elements = [param for param in grub_cmdline if param in expected_params]
 
-    # S'assurer que detected_elements est vide si aucun élément n'est trouvé
     return detected_elements if detected_elements else []
 
-# --- R9: Kernel Configuration ---
+#R9 Kernel Configuration
 def check_kernel_configuration(serveur, expected_settings):
     """Checks kernel configuration settings in sysctl based on reference_moyen.yaml."""
     
@@ -107,7 +103,7 @@ def check_kernel_configuration(serveur, expected_settings):
 
     return detected_settings
 
-# --- R11: Yama LSM Activation ---
+#R11 Yama LSM Activation
 def check_yama_lsm(serveur, expected_value):
     """Checks if Yama LSM is enabled and properly configured."""
     
@@ -117,7 +113,7 @@ def check_yama_lsm(serveur, expected_value):
 
     return {"kernel.yama.ptrace_scope": yama_status}
 
-# --- R14: Filesystem Configuration Settings ---
+#R14 Filesystem Configuration Settings
 def check_filesystem_configuration(serveur, expected_settings):
     """Checks recommended filesystem settings in sysctl based on reference_moyen.yaml."""
     
@@ -131,7 +127,7 @@ def check_filesystem_configuration(serveur, expected_settings):
 
 # Sauvegarde du rapport YAML
 def save_yaml_report(data, output_file):
-    """Sauvegarde les résultats de l'analyse dans un fichier YAML sans alias."""
+    """Saves the analysis results in a YAML file without aliases."""
     if not data:
         return
     output_dir = "GenerationRapport/RapportAnalyse"
@@ -140,4 +136,4 @@ def save_yaml_report(data, output_file):
     
     with open(output_path, "a", encoding="utf-8") as file:
         yaml.safe_dump({"system": data}, file, default_flow_style=False, allow_unicode=True, sort_keys=False)
-    print(f"Rapport généré : {output_path}")
+    print(f"Report generated : {output_path}")

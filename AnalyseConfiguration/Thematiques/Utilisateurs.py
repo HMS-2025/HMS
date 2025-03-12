@@ -44,7 +44,7 @@ def check_compliance(rule_id, detected_values, reference_data):
             nonlocal is_compliant
             if isinstance(detected, dict) and isinstance(expected, dict):
                 for key in expected:
-                    compare_values(detected.get(key, "Non défini"), expected[key], path + key + ".")
+                    compare_values(detected.get(key, "Not defined"), expected[key], path + key + ".")
             else:
                 detected_converted = convert_to_seconds(detected)
                 expected_converted = convert_to_seconds(expected)
@@ -56,10 +56,10 @@ def check_compliance(rule_id, detected_values, reference_data):
         expected_values = reference_data.get(rule_id, {}).get("expected", {})
         compare_values(detected_values, expected_values)
         return {
-            "status": "Conforme" if is_compliant else "Non conforme",
-            "appliquer": is_compliant,
-            "éléments_detectés": detected_values or "None",
-            "éléments_attendus": expected_values or "None"
+            "status": "Compliant" if is_compliant else "Non-Compliant",
+            "apply": is_compliant,
+            "detected_elements": detected_values or "None",
+            "expected_elements": expected_values or "None"
         }
 
     elif rule_id == "R70":
@@ -78,10 +78,10 @@ def check_compliance(rule_id, detected_values, reference_data):
             is_compliant = False
 
         return {
-            "status": "Conforme" if is_compliant else "Non conforme",
-            "appliquer": is_compliant,
-            "éléments_detectés": detected_values,
-            "éléments_attendus": {
+            "status": "Compliant" if is_compliant else "Non-Compliant",
+            "apply": is_compliant,
+            "detected_elements": detected_values,
+            "expected_elements": {
                 "admin_users": "Must be distinct from local_users and system_users",
                 "ldap_users": "Must be empty"
             },
@@ -109,16 +109,16 @@ def check_compliance(rule_id, detected_values, reference_data):
             is_compliant = False
 
         return {
-            "status": "Conforme" if is_compliant else "Non conforme",
-            "appliquer": is_compliant,
-            "éléments_detectés": detected_values,
+            "status": "Compliant" if is_compliant else "Non-Compliant",
+            "apply": is_compliant,
+            "detected_elements": detected_values,
         }
 
     else:
         return {
-            "status": "Conforme",
-            "appliquer": True,
-            "éléments_detectés": detected_values or "None"
+            "status": "Compliant",
+            "apply": True,
+            "detected_elements": detected_values or "None"
         }
 
 # Analyze user configurations on the server and generate a YAML report
@@ -145,7 +145,7 @@ def analyse_utilisateurs(serveur, niveau, reference_data=None):
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
 
-    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 100
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 100
     print(f"\nCompliance rate for level {niveau.upper()} (Users): {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
     
@@ -161,9 +161,9 @@ def check_tmout(serveur):
 # Check systemd-logind settings by excluding commented lines
 def check_logind_conf(serveur):
     logind_settings = {
-        "IdleAction": "Non défini",
-        "IdleActionSec": "Non défini",
-        "RuntimeMaxSec": "Non défini"
+        "IdleAction": "Not defined",
+        "IdleActionSec": "Not defined",
+        "RuntimeMaxSec": "Not defined"
     }
     command_logind = "sudo grep -E '^(IdleAction|IdleActionSec|RuntimeMaxSec)=' /etc/systemd/logind.conf | grep -v '^#'"
     stdin, stdout, stderr = serveur.exec_command(command_logind)
@@ -174,7 +174,7 @@ def check_logind_conf(serveur):
             if key in logind_settings:
                 logind_settings[key] = value.strip()
     for key in ["IdleActionSec", "RuntimeMaxSec"]:
-        if logind_settings[key] != "Non défini" and not logind_settings[key].endswith("s"):
+        if logind_settings[key] != "Not defined" and not logind_settings[key].endswith("s"):
             try:
                 int_value = int(logind_settings[key])
                 logind_settings[key] = f"{int_value}s"
@@ -250,7 +250,7 @@ def save_yaml_report(data, output_file, rules, niveau):
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
     with open(output_path, "a", encoding="utf-8") as file:
-        file.write("utilisateurs:\n")
+        file.write("users:\n")
         for rule_id, content in data.items():
             comment = rules[niveau].get(rule_id, (None, ""))[1]
             file.write(f"  {rule_id}:  # {comment}\n")
