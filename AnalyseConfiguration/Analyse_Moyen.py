@@ -9,47 +9,47 @@ from AnalyseConfiguration.Thematiques.JournalisationAudit import analyse_journal
 from AnalyseConfiguration.Thematiques.Utilisateurs import analyse_utilisateurs
 from AnalyseConfiguration.Thematiques.Systeme import analyse_systeme
 
-# Charger les références depuis Reference_moyen.yaml
+# Load references from Reference_moyen.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_moyen.yaml"):
-    """Charge le fichier Reference_moyen.yaml et retourne son contenu."""
+    """Loads the Reference_moyen.yaml file and returns its content."""
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data
     except Exception as e:
-        print(f"Erreur lors du chargement de Reference_moyen.yaml : {e}")
+        print(f"Error loading Reference_moyen.yaml: {e}")
         return {}
 
-# Analyse du niveau moyen avec conformité
+# Medium-level analysis with compliance
 def analyse_moyen(serveur):
-    """Exécute toutes les analyses du niveau moyen en utilisant Reference_moyen.yaml."""
+    """Executes all medium-level analyses using Reference_moyen.yaml."""
     
-    # Charger les données de référence pour la conformité
+    # Load reference data for compliance
     reference_data = load_reference_yaml()
     
-    print("\n[Analyse] Gestion des accès (niveau moyen)...")
+    print("\n[Analysis] Access management (medium level)...")
     analyse_gestion_acces(serveur, niveau="moyen", reference_data=reference_data)
 
-    print("\n[Analyse] Utilisateurs (niveau moyen)...")
+    print("\n[Analysis] Users (medium level)...")
     analyse_utilisateurs(serveur, niveau="moyen", reference_data=reference_data)
 
-    print("\n[Analyse] Système (niveau moyen)...")
+    print("\n[Analysis] System (medium level)...")
     analyse_systeme(serveur, niveau="moyen", reference_data=reference_data)
 
-    print("\n[Analyse] Services (niveau moyen)...")
+    print("\n[Analysis] Services (medium level)...")
     analyse_services(serveur, niveau="moyen", reference_data=reference_data)
 
-    print("\n[Analyse] Mises à jour (niveau moyen)...")
+    print("\n[Analysis] Updates (medium level)...")
     analyse_mise_a_jour(serveur, niveau="moyen", reference_data=reference_data)
 
-    print("\n[Analyse] Politique de mot de passe (niveau moyen)...")
+    print("\n[Analysis] Password policy (medium level)...")
     analyse_politique_mdp(serveur, niveau="moyen", reference_data=reference_data)
 
-    print("\n[Analyse] Réseau (niveau moyen)...")
+    print("\n[Analysis] Network (medium level)...")
     analyse_reseau(serveur, niveau="moyen", reference_data=reference_data)
     
-    print("\n[Analyse] Maintenance (niveau moyen)...")
+    print("\n[Analysis] Maintenance (medium level)...")
     analyse_maintenance(serveur, niveau="moyen", reference_data=reference_data)
     
-    print("\n[Analyse] Journalisation et Audit (niveau moyen)...")
+    print("\n[Analysis] Logging and Audit (medium level)...")
     analyse_journalisation(serveur, niveau="moyen", reference_data=reference_data)

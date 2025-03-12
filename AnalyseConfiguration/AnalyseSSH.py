@@ -2,10 +2,11 @@ import paramiko
 import yaml
 import os
 import re
+from GenerationRapport.GenerationRapport import generate_ssh_html_report
 
-#-------------FONCTION PRINCIPALE-----------------#
+#-------------MAIN FUNCTION-----------------#
 
-# Orchestre la récupération, l'analyse et la conformité de la configuration SSH.
+# Orchestrates the retrieval, analysis, and compliance check of the SSH configuration.
 def check_ssh_configuration_compliance(server):
     config_data = retrieve_ssh_configuration(server)
     if config_data is None:
@@ -17,14 +18,14 @@ def check_ssh_configuration_compliance(server):
     if compliance_results:
         generate_yaml_report(compliance_results)
     else:
-        print("Aucune donnée de conformité n'a été générée.")
+        print("No compliance data has been generated.")
         
 def convert_time_to_seconds(time_value):
     """
-    Convertit une valeur de temps SSH (ex: '2m', '30s', '1h30m') en secondes.
+    Converts an SSH time value (e.g., '2m', '30s', '1h30m') into seconds.
     """
     if time_value.isdigit():
-        return int(time_value)  # Cas où c'est déjà un nombre en secondes
+        return int(time_value)  # Case where it is already a number in seconds
 
     time_pattern = re.findall(r'(\d+)([hms])', time_value.lower())
     
@@ -39,29 +40,29 @@ def convert_time_to_seconds(time_value):
             total_seconds += value
     return total_seconds
 
-#-------------FONCTIONS OUTILS-----------------#
+#-------------UTILITY FUNCTIONS-----------------#
 
-# Charge les critères de l'ANSSI depuis un fichier YAML.
+# Loads ANSSI compliance criteria from a YAML file.
 def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
     try:
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Le fichier {file_path} est introuvable.")
+            raise FileNotFoundError(f"The file {file_path} was not found.")
 
         with open(file_path, "r") as file:
             data = yaml.safe_load(file)
 
         if not isinstance(data, dict) or "ssh_criteria" not in data:
-            raise ValueError("Format invalide du fichier YAML : section 'ssh_criteria' manquante.")
+            raise ValueError("Invalid YAML file format: missing 'ssh_criteria' section.")
 
         return data.get("ssh_criteria", {})
     except (yaml.YAMLError, FileNotFoundError, ValueError) as e:
-        print(f"Erreur lors du chargement des critères : {e}")
+        print(f"Error loading criteria: {e}")
         return {}
 
-# Exécute une liste de commandes sur le serveur via SSH.
+# Executes a list of commands on the server via SSH.
 def execute_ssh_commands(server, commands):
     if not isinstance(server, paramiko.SSHClient):
-        print("Erreur : La connexion SSH est invalide.")
+        print("Error: Invalid SSH connection.")
         return
     
     try:
@@ -70,94 +71,104 @@ def execute_ssh_commands(server, commands):
             stdout.read().decode()
             stderr.read().decode()
     except paramiko.SSHException as e:
-        print(f"Erreur SSH lors de l'exécution des commandes : {e}")
+        print(f"SSH error when executing commands: {e}")
 
-# Génère un rapport YAML sur la conformité SSH.
-def generate_yaml_report(all_rules, filename="ssh_compliance_report.yaml"):
+# Generates a YAML report on SSH compliance.
+def generate_yaml_report(all_rules, filename="analyse_ssh.yaml"):
     try:
         output_dir = "GenerationRapport/RapportAnalyse"
+        html_output_dir = "GenerationRapport/RapportAnalyse/RapportHTML"
+
         os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, filename)
+        os.makedirs(html_output_dir, exist_ok=True)
+
+        yaml_path = os.path.join(output_dir, filename)
+        html_path = os.path.join(html_output_dir, filename.replace(".yaml", ".html"))
 
         total_rules = len(all_rules)
         compliant_rules = sum(1 for rule in all_rules.values() if rule.get("apply", False))
         compliance_percentage = (compliant_rules / total_rules) * 100 if total_rules > 0 else 0
 
-        print(f"conformité ssh: {compliance_percentage:.1f} %")
-        with open(output_path, "w") as file:
-            file.write("# Rapport de l'analyse: ---\n")
-            file.write("# Changer la valeur de 'apply' à 'true' si vous voulez apply cette recommandation. \n\n\n")
-            file.write("ssh_conformite:\n")
+        print(f"SSH compliance: {compliance_percentage:.1f}%")
+
+        with open(yaml_path, "w", encoding="utf-8") as file:
+            file.write("# SSH Analysis Report: ---\n")
+            file.write("# Change 'apply' to 'true' if you want to apply this recommendation. \n\n\n")
+            file.write("ssh_compliance:\n")
 
             for rule, details in all_rules.items():
-                status = details.get("status", "Inconnu")
+                status = details.get("status", "Unknown")
                 apply = details.get("apply", False)
                 expected = details.get("expected_elements", [])
-                detected = details.get("detected_elements", "Non défini")
+                detected = details.get("detected_elements", "Not defined")
 
-                if not isinstance(apply, bool):
-                    apply = False
                 file.write(f"  {rule}:\n")
                 file.write(f"    apply: {'true' if apply else 'false'}\n")
                 file.write(f"    expected_elements: {expected}\n")
                 file.write(f"    detected_elements: {detected}\n")
                 file.write(f"    status: \"{status}\"\n")
+
+        print(f"YAML report generated: {yaml_path}")
+
+        generate_ssh_html_report(yaml_path, html_path)
+
     except (OSError, IOError) as e:
-        print(f"Erreur lors de la génération du fichier YAML : {e}")
+        print(f"Error generating the YAML file: {e}")
+
 
 def check_anssi_compliance(config):
     anssi_criteria = load_anssi_criteria()
     all_rules = {}
 
     if not anssi_criteria:
-        print("Aucun critère de conformité chargé. Vérifiez votre fichier YAML.")
+        print("No compliance criteria loaded. Check your YAML file.")
         return {}
 
     for rule, criteria in anssi_criteria.items():
-        directive = criteria.get("directive", "Inconnu")
-        expected_value = criteria.get("expected_value", "Inconnu")
-        actual_value = config.get(directive, "non défini")
+        directive = criteria.get("directive", "Unknown")
+        expected_value = criteria.get("expected_value", "Unknown")
+        actual_value = config.get(directive, "not defined")
 
-        # Règle 1 est toujours valide
+        # Rule 1 is always valid
         if rule == "R1":
-            status = "Conforme"
+            status = "Compliant"
             apply = True
-            expected = ["Toujours valide"]
-            detected = "Automatiquement conforme car ubuntu 20.04 a SSH 2 de base."
+            expected = ["Always valid"]
+            detected = "Automatically compliant since Ubuntu 20.04 has SSH 2 by default."
 
-        # Vérification spéciale pour AllowUsers et AllowGroups (doit être rempli)
+        # Special check for AllowUsers and AllowGroups (must be filled)
         elif directive in ["AllowUsers", "AllowGroups"]:
-            if actual_value == "non défini" or actual_value.strip() == "":
-                status = f"Non conforme -> '{directive}' est vide ou non défini, il doit être renseigné."
+            if actual_value == "not defined" or actual_value.strip() == "":
+                status = f"Non-Compliant -> '{directive}' is empty or undefined, it must be specified."
                 apply = False
                 expected = criteria.get("expected_value", [])
-                detected = "Aucun"
+                detected = "None"
             else:
-                status = f"Conforme -> '{directive}: {actual_value}'"
+                status = f"Compliant -> '{directive}: {actual_value}'"
                 apply = True
                 expected = criteria.get("expected_value", [])
                 detected = actual_value
 
-        # Comparaison spéciale pour les valeurs de temps (ex: LoginGraceTime)
+        # Special comparison for time values (e.g., LoginGraceTime)
         elif directive in ["LoginGraceTime", "ClientAliveInterval"]:
             expected_seconds = convert_time_to_seconds(expected_value)
             actual_seconds = convert_time_to_seconds(actual_value)
 
             if actual_seconds <= expected_seconds:
-                status = f"Conforme -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
+                status = f"Compliant -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
                 apply = True
                 expected = expected_value
                 detected = actual_value
             else:
-                status = f"Non conforme -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
+                status = f"Non-Compliant -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
                 apply = False
                 expected = expected_value
                 detected = actual_value
 
-        # Comparaison classique pour les autres directives
+        # Standard comparison for other directives
         else:
             apply = actual_value == expected_value
-            status = f"{'Conforme' if apply else 'Non conforme'} -> '{directive}: {actual_value}' | attendu: '{directive}: {expected_value}'"
+            status = f"{'Compliant' if apply else 'Non-Compliant'} -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
             expected = expected_value
             detected = actual_value
 
@@ -173,7 +184,7 @@ def check_anssi_compliance(config):
 
 def retrieve_ssh_configuration(server):
     if not isinstance(server, paramiko.SSHClient):
-        print("Erreur : serveur SSH invalide.")
+        print("Error: Invalid SSH server.")
         return None
     try:
         stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config")
@@ -183,13 +194,13 @@ def retrieve_ssh_configuration(server):
         extra_config_data = stdout.read().decode()
         
         if not config_data:
-            raise ValueError("Fichier de configuration SSH vide ou inaccessible.")
+            raise ValueError("SSH configuration file is empty or inaccessible.")
         
         full_config = merge_ssh_configurations(config_data, extra_config_data)
         
         return full_config
     except (paramiko.SSHException, ValueError) as e:
-        print(f"Erreur lors de la récupération de la configuration SSH : {e}")
+        print(f"Error retrieving SSH configuration:  {e}")
         return None
 
 def merge_ssh_configurations(base_config, extra_config):
@@ -201,7 +212,7 @@ def merge_ssh_configurations(base_config, extra_config):
     merged_config = "\n".join([f"{k} {v}" for k, v in parsed_config.items()])
     return merged_config
 
-# Analyse le fichier de configuration SSH et retourne un dictionnaire.
+# Parses the SSH configuration file and returns a dictionary.
 def parse_ssh_configuration(config_data):
     parsed_config = {}
     for line in config_data.split("\n"):

@@ -9,48 +9,47 @@ from AnalyseConfiguration.Thematiques.JournalisationAudit import analyse_journal
 from AnalyseConfiguration.Thematiques.Utilisateurs import analyse_utilisateurs
 from AnalyseConfiguration.Thematiques.Systeme import analyse_systeme
 
-# Charger les références depuis Reference_min.yaml
+# Load references from Reference_min.yaml
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
-    """Charge le fichier Reference_min.yaml et retourne son contenu."""
+    """Loads the Reference_min.yaml file and returns its content."""
     try:
         with open(file_path, "r") as file:
             reference_data = yaml.safe_load(file)
         return reference_data
     except Exception as e:
-        # to
-        print(f"Erreur lors du chargement de Reference_min.yaml : {e}")
+        print(f"Error loading Reference_min.yaml: {e}")
         return {}
 
-# Analyse du niveau minimal avec conformité
+# Minimal level analysis with compliance
 def analyse_min(serveur):
-    """Exécute toutes les analyses du niveau minimal en utilisant Reference_min.yaml."""
+    """Executes all minimal level analyses using Reference_min.yaml."""
     
-    # Charger les données de référence pour la conformité
+    # Load reference data for compliance
     reference_data = load_reference_yaml()
     
-    print("\n[Analyse] Gestion des accès...")
+    print("\n[Analysis] Access management...")
     analyse_gestion_acces(serveur, niveau="min", reference_data=reference_data)
 
-    print("\n[Analyse] Services...")
+    print("\n[Analysis] Services...")
     analyse_services(serveur, niveau="min", reference_data=reference_data)
 
-    print("\n[Analyse] Mises à jour...")
+    print("\n[Analysis] Updates...")
     analyse_mise_a_jour(serveur, niveau="min", reference_data=reference_data)
 
-    print("\n[Analyse] Politique de mot de passe...")
+    print("\n[Analysis] Password policy...")
     analyse_politique_mdp(serveur, niveau="min", reference_data=reference_data)
 
-    print("\n[Analyse] Réseau...")
+    print("\n[Analysis] Network...")
     analyse_reseau(serveur, niveau="min", reference_data=reference_data)
     
-    print("\n[Analyse] Maintenance...")
+    print("\n[Analysis] Maintenance...")
     analyse_maintenance(serveur, niveau="min", reference_data=reference_data)
     
-    print("\n[Analyse] Journalisation et Audit...")
+    print("\n[Analysis] Logging and Audit...")
     analyse_journalisation(serveur, niveau="min", reference_data=reference_data)
     
-    print("\n[Analyse] Utilisateurs...")
+    print("\n[Analysis] Users...")
     analyse_utilisateurs(serveur, niveau="min", reference_data=reference_data)
 
-    print("\n[Analyse] Système...")
+    print("\n[Analysis] System...")
     analyse_systeme(serveur, niveau="min", reference_data=reference_data)
