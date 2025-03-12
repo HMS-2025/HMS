@@ -40,7 +40,7 @@ def check_compliance(rule_id, detected_values, reference_data):
         is_compliant = ((cron_updates and cron_scripts) or (cron_scripts and unattended_upgrades and systemd_timers))
         return {
             "apply": is_compliant,
-            "status": "Conforme" if is_compliant else "Non-conforme",
+            "status": "Compliant" if is_compliant else "Non-Compliant",
             "expected_elements": formatted_expected or "None",
             "detected_elements": formatted_detected or "None"
         }
@@ -126,7 +126,7 @@ def save_yaml_report(data, output_file, rules, niveau):
     output_path = os.path.join(output_dir, output_file)
 
     with open(output_path, "a", encoding="utf-8") as file:
-        file.write("mise_a_jour:\n")
+        file.write("updates:\n")
         
         for rule_id, content in data.items():
             comment = rules.get(niveau, {}).get(rule_id, (None, ""))[1]
