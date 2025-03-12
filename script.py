@@ -1,54 +1,56 @@
 import sys
 from Config import load_config, ssh_connect
-from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min
-from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen
+from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
 from gui import Gui
-# Fonction pour afficher le menu principal
-def afficher_menu():
-    print("\n===== Menu Principal =====")
-    print("1 - Exécuter une analyse")
-    print("2 - Appliquer les recommandations")
-    print("3 - Appliquer les recommandations SSH")
-    print("4 - Quitter")
-    return input("Sélectionnez une option (1-4) : ")
+import john  # Import the module containing all John The Ripper functions
 
-# Fonction pour afficher les niveaux d'analyse
-def selectionner_niveau_analyse():
-    print("\n===== Sélection du niveau d'analyse =====")
-    print("1 - Analyse globale")
-    print("2 - Analyse minimale")
-    print("3 - Analyse intermédiaire")
-    print("4 - Analyse renforcée")
-    print("5 - Analyse de la configuration SSH uniquement")
-    print("6 - Retour au menu principal")
-    return input("Sélectionnez une option (1-6) : ")
+# Function to display the main menu
+def display_main_menu():
+    print("\n===== Main Menu =====")
+    print("1 - Run analysis")
+    print("2 - Apply recommendations")
+    print("3 - Apply SSH recommendations")
+    print("4 - John The Ripper menu")
+    print("5 - Quit")
+    return input("Select an option (1-5): ")
 
-def selectionner_niveau_application():
+# Function to display the analysis level options
+def select_analysis_level():
+    print("\n===== Select Analysis Level =====")
+    print("1 - Global analysis")
+    print("2 - Minimal analysis")
+    print("3 - Intermediate analysis")
+    print("4 - Enhanced analysis")
+    print("5 - SSH configuration analysis only")
+    print("6 - Return to main menu")
+    return input("Select an option (1-6): ")
 
-    print("\n===== Sélection du niveau d'application =====")
-    print("1 - Application minimal")
-    print("2 - Application manuelle (GenerationRapport/RapportApplication/application.yml)")
-    print("3 - Retourner au menu principal")
-    return input("Sélectionnez une option (1-4) : ")
+# Function to display the application level options
+def select_application_level():
+    print("\n===== Select Application Level =====")
+    print("1 - Minimal application")
+    print("2 - Manual application (GenerationRapport/RapportApplication/application.yml)")
+    print("3 - Return to main menu")
+    return input("Select an option (1-3): ")
 
-# Fonction principale du script
+# Main function of the script
 def main():
     while True:
-        choix_menu = afficher_menu()
+        menu_choice = display_main_menu()
 
-        if choix_menu == "1":  # Exécuter une analyse
-            choix_analyse = selectionner_niveau_analyse()
+        if menu_choice == "1":  # Run analysis
+            analysis_choice = select_analysis_level()
 
-            if choix_analyse in ["1", "2", "3", "4", "5"]:
-                # Charger la configuration SSH
+            if analysis_choice in ["1", "2", "3", "4", "5"]:
+                # Load SSH configuration
                 config = load_config("ssh.yaml")
                 if not config:
-                    print("Configuration invalide")
+                    print("Invalid configuration")
                     continue
 
-                # Établir la connexion SSH
+                # Establish SSH connection
                 client = ssh_connect(
                     hostname=config.get("hostname"),
                     port=config.get("port"),
@@ -58,52 +60,51 @@ def main():
                 )
 
                 if not client:
-                    print("Échec de la connexion SSH")
+                    print("SSH connection failed")
                     continue
-                
-                print("\n--- Début de l'analyse ---\n")
 
-                # Lancer l'analyse en fonction du choix de l'utilisateur
-                if choix_analyse == "1":
-                    print("\n[Analyse] Exécution de l'analyse globale...")
-                    analyse_min(client)  # Ajout des analyses futures ici
+                print("\n--- Beginning analysis ---\n")
 
-                elif choix_analyse == "2":
-                    print("\n[Analyse] Exécution de l'analyse minimale...")
+                # Run the analysis based on the user's choice
+                if analysis_choice == "1":
+                    print("\n[Analysis] Running global analysis...")
+                    analyse_min(client)  # Example call (to be updated with the appropriate analysis functions)
+
+                elif analysis_choice == "2":
+                    print("\n[Analysis] Running minimal analysis...")
                     analyse_min(client)
 
-                elif choix_analyse == "3":
-                    print("\n[Analyse] Exécution de l'analyse intermédiaire...")
-                    analyse_moyen(client)  # Ajout de l'analyse intermédiaire
+                elif analysis_choice == "3":
+                    print("\n[Analysis] Running intermediate analysis...")
+                    analyse_moyen(client)
 
-                elif choix_analyse == "4":
-                    print("\n[Analyse] Exécution de l'analyse renforcée...")
-                    # Ajouter ici la fonction analyse_renforcee(client)
+                elif analysis_choice == "4":
+                    print("\n[Analysis] Running enhanced analysis...")
+                    # Add the enhanced analysis function here (e.g., analyse_enhanced(client))
 
-                elif choix_analyse == "5":
-                    print("\n[Analyse] Exécution de l'analyse SSH uniquement...")
+                elif analysis_choice == "5":
+                    print("\n[Analysis] Running SSH configuration analysis only...")
                     analyse_SSH(client)
 
-                # Fermer la connexion après l'analyse
+                # Close the connection after analysis
                 client.close()
-                print("\n--- Fin de l'analyse ---\n")
+                print("\n--- Analysis completed ---\n")
 
-            elif choix_analyse == "6":
+            elif analysis_choice == "6":
                 continue
 
-        elif choix_menu == "2":  # Appliquer les recommandations générales
-            print("\n--- Début de l'application des recommandations générales ---\n")
+        elif menu_choice == "2":  # Apply general recommendations
+            print("\n--- Beginning application of general recommendations ---\n")
             
-            choix_application = selectionner_niveau_application()
-            if choix_application in ["1"] : 
-
-                # Charger la configuration SSH
+            application_choice = select_application_level()
+            if application_choice == "1":
+                # Load SSH configuration
                 config = load_config("ssh.yaml")
                 if not config:
-                    print("Configuration invalide")
+                    print("Invalid configuration")
                     continue
 
-                # Établir la connexion SSH
+                # Establish SSH connection
                 client = ssh_connect(
                     hostname=config.get("hostname"),
                     port=config.get("port"),
@@ -113,23 +114,24 @@ def main():
                 )
 
                 if not client:
-                    print("Échec de la connexion SSH")
+                    print("SSH connection failed")
                     continue
-                Gui ("GenerationRapport/RapportAnalyse/analyse_min.yml" , "GenerationRapport/RapportApplication/application.yml")
+
+                Gui("GenerationRapport/RapportAnalyse/analyse_min.yml", "GenerationRapport/RapportApplication/application.yml")
                 application_recommandations_min(client)
 
-                # Fermer la connexion après application
-            
+                # Close the connection after applying recommendations
                 client.close()
-                print("\n--- Fin de l'application des recommandations générales ---\n")
-            elif choix_application =="2" : 
-                # Charger la configuration SSH
+                print("\n--- General recommendations applied ---\n")
+
+            elif application_choice == "2":
+                # Load SSH configuration
                 config = load_config("ssh.yaml")
                 if not config:
-                    print("Configuration invalide")
+                    print("Invalid configuration")
                     continue
 
-                # Établir la connexion SSH
+                # Establish SSH connection
                 client = ssh_connect(
                     hostname=config.get("hostname"),
                     port=config.get("port"),
@@ -139,27 +141,28 @@ def main():
                 )
 
                 if not client:
-                    print("Échec de la connexion SSH")
+                    print("SSH connection failed")
                     continue
+
                 application_recommandations_min(client)
 
-                # Fermer la connexion après application
-            
+                # Close the connection after applying recommendations
                 client.close()
-                print("\n--- Fin de l'application des recommandations générales ---\n")
+                print("\n--- General recommendations applied ---\n")
 
-            elif choix_application == "3":
+            elif application_choice == "3":
                 continue
-        elif choix_menu == "3":  #Appliquer les recommandations spécifiques SSH
-            print("\n--- Début de l'application des recommandations SSH ---\n")
 
-            # Charger la configuration SSH
+        elif menu_choice == "3":  # Apply SSH recommendations
+            print("\n--- Beginning application of SSH recommendations ---\n")
+
+            # Load SSH configuration
             config = load_config("ssh.yaml")
             if not config:
-                print("Configuration invalide")
+                print("Invalid configuration")
                 continue
 
-            # Établir la connexion SSH
+            # Establish SSH connection
             client = ssh_connect(
                 hostname=config.get("hostname"),
                 port=config.get("port"),
@@ -169,24 +172,27 @@ def main():
             )
 
             if not client:
-                print("Échec de la connexion SSH")
+                print("SSH connection failed")
                 continue
 
-            # Appliquer uniquement les recommandations SSH
+            # Apply only SSH recommendations
             apply_selected_recommendationsSSH("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml", client)
 
-
-            # Fermer la connexion après application
+            # Close the connection after applying recommendations
             client.close()
-            print("\n--- Fin de l'application des recommandations SSH ---\n")
+            print("\n--- SSH recommendations applied ---\n")
 
-        elif choix_menu == "4":  # Quitter
-            print("Fermeture du programme...")
+        elif menu_choice == "4":  # John The Ripper menu
+            print("\n--- Accessing John The Ripper menu ---\n")
+            john.menu_principal()  # Call the menu from the john module
+
+        elif menu_choice == "5":  # Quit
+            print("Exiting the program...")
             sys.exit()
 
         else:
-            print("Option invalide, veuillez choisir une option correcte.")
+            print("Invalid option, please choose a correct option.")
 
-# Point d'entrée du script
+# Entry point of the script
 if __name__ == "__main__":
     main()
