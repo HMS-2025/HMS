@@ -10,6 +10,7 @@ def generate_html_report(yaml_path, html_path, niveau):
     compliant_rules = 0
     total_rules = 0
     html_sections = ""
+    
 
     # Parcourir chaque catégorie (gestion_acces, services, etc.)
     for category, rules in data.items():

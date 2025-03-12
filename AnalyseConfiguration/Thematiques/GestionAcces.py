@@ -293,27 +293,6 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
-    
-# Save the analysis report in YAML format to the specified directory
-def save_yaml_report(data, output_file, rules, niveau):
-    if not data:
-        return
-    output_dir = "GenerationRapport/RapportAnalyse"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, output_file)
-    with open(output_path, "w", encoding="utf-8") as file:
-        print(output_path)
-        file.write("gestion_acces:\n")
-        for rule_id, content in data.items():
-            comment = rules[niveau].get(rule_id, ("", ""))[1]
-            file.write(f"  {rule_id}:  # {comment}\n")
-            yaml_content = yaml.safe_dump(
-                content, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False
-            )
-            indented_yaml = "\n".join(["    " + line for line in yaml_content.split("\n") if line.strip()])
-            file.write(indented_yaml + "\n")
-        file.write("\n")
-    print(f"Report generated: {output_path}")
 
 # Check PAM security for remote authentication (R67)
 def check_pam_security(serveur, reference_data):
