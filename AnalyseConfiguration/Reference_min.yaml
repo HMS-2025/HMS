@@ -1,24 +1,24 @@
 R30:
-  description: "Désactiver les comptes utilisateur inutilisés"
-  expected: []  # Liste vide = aucun compte inactif autorisé
+  description: "Disable unused user accounts"
+  expected: []  # Empty list = no inactive account is allowed
 
 R53:
-  description: "Éviter les fichiers ou répertoires sans utilisateur ou sans groupe connu"
-  expected: []  # Aucun fichier orphelin ne doit être trouvé
+  description: "Avoid files or directories without a known user or group"
+  expected: []  # No orphan files should be found
 
 R56:
-  description: "Éviter l’usage d’exécutables avec les droits spéciaux setuid et setgid"
-  expected: []  # Aucun fichier ne doit avoir les permissions setuid/setgid
+  description: "Avoid using executables with special setuid and setgid permissions"
+  expected: []  # No file should have setuid/setgid permissions
 
 
 R59:
-  description: "Utiliser des dépôts de paquets de confiance"
+  description: "Use trusted package repositories"
   expected:
     - "http://security.ubuntu.com/ubuntu"
-    - "http://archive.ubuntu.com/ubuntu"  # Seuls ces dépôts sont autorisés
+    - "http://archive.ubuntu.com/ubuntu"  # Only these repositories are allowed
 
 R61:
-  description: "Effectuer des mises à jour régulières"
+  description: "Perform regular updates"
   expected:
     Unattended Upgrades: "install ok installed | enabled | active | enabled"
     Cron Updates: "apt update && apt upgrade -y"
@@ -27,14 +27,14 @@ R61:
 
 
 R31:
-  description: "Utiliser des mots de passe robustes"
+  description: "Use strong passwords"
   expected:
     pam_policy: "password requisite pam_pwquality.so retry=3 minlen=12 difok=3"
     expiration_policy: 90
     faillock: 3
 
 R68:
-  description: "Protéger les mots de passe stockés"
+  description: "Protect stored passwords"
   expected:
     shadow_permissions: "-rw-r----- root shadow"
     hashed_passwords: "Oui"
@@ -51,7 +51,7 @@ R68:
 #For example, if 127.0.0.1 is not used by any services, it should be disabled.
 # 10.171.165.118: If the server provides a service on the network, it's fine; otherwise, services should be forced to listen on 127.0.0.1.
 R80:
-  description: "Réduire la surface d’attaque des services réseau (aucune recommandation est proposée pour cette règle, coupler R79)"
+  description: "Reduce the attack surface of network services (No specific recommendation is provided by ANSSI for this rule, combine with R79 - check iptables accordingly)"
   expected:
     lo:
       ipv4: "127.0.0.1"
@@ -61,7 +61,7 @@ R80:
       ipv6: "fe80::216:3eff:fea2:78g8"
 
 R62:
-  description: "Désactiver les services non nécessaires"
+  description: "Disable unnecessary services"
   expected:
     disallowed_services:
       - cups.service
@@ -70,10 +70,10 @@ R62:
       - rpcbind.service
       - dbus.service
       - smbd.service
-      - nfs-server.service  # Tous ces services doivent être désactivés
+      - nfs-server.service  # All these services must be disabled
 
 R58:
-  description: "N’installer que les paquets strictement nécessaires"
+  description: "Install only strictly necessary packages"
   expected:
     - base-files
     - base-passwd

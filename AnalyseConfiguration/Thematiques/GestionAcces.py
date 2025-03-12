@@ -14,7 +14,7 @@ def check_compliance(rule_id, detected_values, reference_data):
     if rule_id == 'R44':
         return {
             "apply": bool(detected_values),
-            "status": "Conforme" if detected_values else "Non-conforme",
+            "status": "Compliant" if detected_values else "Non-Compliant",
             "detected_elements": detected_values or "None"
         }
     elif rule_id == 'R52':
@@ -69,7 +69,7 @@ def check_compliance(rule_id, detected_values, reference_data):
         differences_list = []
         for path, diff in discrepancies.items():
             differences_list.append(f"{path} '{diff['detected']}' (expected '{diff['expected']}')")
-        status = "Conforme" if is_compliant else "Non-conforme"
+        status = "Compliant" if is_compliant else "Non-Compliant"
         return {
             "apply": is_compliant,
             "status": status,
@@ -82,7 +82,7 @@ def check_compliance(rule_id, detected_values, reference_data):
         # Compliant if PAM configuration contains references to pam_namespace or pam_mktemp.
         # These modules create per-user temporary directories.
         is_compliant = bool(detected_values)
-        status = "Conforme" if is_compliant else "Non-conforme"
+        status = "Compliant" if is_compliant else "Non-Compliant"
         return {
             "apply": is_compliant,
             "status": status,
@@ -103,7 +103,7 @@ def check_compliance(rule_id, detected_values, reference_data):
                 if key == "pam_wheel" and val == "Enabled":
                     discrepancies[key] = {"detected": val, "expected": "Disabled"}
                     is_compliant = False
-        status = "Conforme" if is_compliant else "Non-conforme"
+        status = "Compliant" if is_compliant else "Non-Compliant"
         return {
             "apply": is_compliant,
             "status": status,
@@ -123,12 +123,12 @@ def check_compliance(rule_id, detected_values, reference_data):
         ) if detected_values else False
         return {
             "apply": not non_compliant,
-            "status": "Conforme" if (not non_compliant or not detected_values) else "Non-conforme",
+            "status": "Compliant" if (not non_compliant or not detected_values) else "Non-Compliant",
             "detected_elements": detected_values or "None"
         }
     else:
         is_compliant = not detected_values
-        status = "Conforme" if is_compliant else "Non-conforme"
+        status = "Compliant" if is_compliant else "Non-Compliant"
         return {
             "apply": is_compliant,
             "status": status,
@@ -256,44 +256,6 @@ def get_protected_sockets(serveur):
             protected_sockets.append(f"{owner} {group} {path} {permissions}")
     return protected_sockets
 
-# Analyse access management on the server and generate a YAML report
-def analyse_gestion_acces(serveur, niveau, reference_data):
-    if reference_data is None:
-        reference_data = {}
-    report = {}
-    rules = {
-        "min": {
-            "R30": (get_inactive_users, "Disable unused user accounts"),
-            "R53": (find_orphan_files, "Avoid files or directories without a known user or group"),
-            "R56": (find_files_with_setuid_setgid, "Limit executables with setuid/setgid")
-        },
-        "moyen": {
-            "R34": (get_service_accounts, "Disable unused service accounts"),
-            "R39": (get_sudo_directives, "Ensure proper sudo configuration"),
-            "R40": (get_non_privileged_sudo_users, "Restrict sudo privileges to privileged users"),
-            "R42": (get_negation_in_sudoers, "Avoid negations in sudo configurations"),
-            "R43": (get_strict_sudo_arguments, "Ensure strict argument specification in sudoers"),
-            "R44": (get_sudoedit_usage, "Restrict sudo editing to sudoedit"),
-            "R50": (get_secure_permissions, "Ensure secure file permissions"),
-            "R52": (get_protected_sockets, "Protect named sockets and pipes"),
-            "R55": (get_user_private_tmp, "Separate user temporary directories"),
-            "R67": (check_pam_security, "Secure remote authentication via PAM")
-        }
-    }
-    if niveau in rules:
-        for rule_id, (function, comment) in rules[niveau].items():
-            print(f"-> Checking rule {rule_id} # {comment}")
-            if rule_id in ['R67', 'R50']:
-                report[rule_id] = check_compliance(rule_id, function(serveur, reference_data), reference_data)
-            else:
-                report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
-    save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
-    yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
-    html_path = f"GenerationRapport/RapportAnalyseHTML/analyse_{niveau}.html"
-    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
-    print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
-    generate_html_report(yaml_path, html_path, niveau)
-
 # Check PAM security for remote authentication (R67)
 def check_pam_security(serveur, reference_data):
     expected_values = reference_data.get("R67", {}).get("expected", {})
@@ -352,8 +314,8 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
 
-    print(f"Vérification des chemins :\nYAML: {yaml_path}\nHTML: {html_path}")
-    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Conforme") / len(report) * 100 if report else 0
+    print(f"Checking paths: \nYAML: {yaml_path}\nHTML: {html_path}")
+    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
     

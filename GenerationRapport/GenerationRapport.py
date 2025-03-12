@@ -3,34 +3,33 @@ from datetime import datetime
 import os
 
 def generate_html_report(yaml_path, html_path, niveau):
-    # Chargement du YAML
+    # Load YAML data
     with open(yaml_path, 'r', encoding='utf-8') as file:
         data = yaml.safe_load(file)
 
     compliant_rules = 0
     total_rules = 0
     html_sections = ""
-    
 
-    # Parcourir chaque catégorie (gestion_acces, services, etc.)
+    # Iterate over each category (access_management, services, etc.)
     for category, rules in data.items():
         section_html = f"<h2>{category.capitalize()}</h2>"
         section_html += """
         <table>
             <tr>
-                <th>Règle</th>
+                <th>Rule</th>
                 <th>Status</th>
-                <th>À appliquer</th>
-                <th>Éléments détectés</th>
-                <th>Éléments attendus</th>
+                <th>To Apply</th>
+                <th>Detected Elements</th>
+                <th>Expected Elements</th>
             </tr>
         """
         for rule_id, details in rules.items():
             total_rules += 1
-            status = details.get('status', 'N/A')
+            status = details.get('status', 'None')
             apply = details.get('apply', False)
-            detected = details.get("éléments_detectés", details.get("detected_elements", "N/A"))
-            expected = details.get("éléments_attendus", details.get("expected_elements", "N/A"))
+            detected = details.get("éléments_detectés", details.get("detected_elements", "None"))
+            expected = details.get("éléments_attendus", details.get("expected_elements", "None"))
 
 
             if status.lower().startswith('conforme'):
@@ -39,12 +38,12 @@ def generate_html_report(yaml_path, html_path, niveau):
             else:
                 css_class = "non-compliant"
 
-            # Ajouter une ligne par règle
+            # Add a row for each rule
             section_html += f"""
                 <tr class="{css_class}">
                     <td>{rule_id}</td>
                     <td>{status}</td>
-                    <td>{"Oui" if apply else "Non"}</td>
+                    <td>{"Yes" if apply else "No"}</td>
                     <td><pre>{yaml.dump(detected, allow_unicode=True)}</pre></td>
                     <td><pre>{yaml.dump(expected, allow_unicode=True)}</pre></td>
                 </tr>
@@ -57,10 +56,10 @@ def generate_html_report(yaml_path, html_path, niveau):
     # Contenu HTML complet
     html_content = f"""
     <!DOCTYPE html>
-    <html lang="fr">
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Rapport de Conformité ANSSI ({niveau.capitalize()})</title>
+        <title>ANSSI Compliance Report ({niveau.capitalize()})</title>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 40px; }}
             h1, h2 {{ color: #003366; }}
@@ -72,15 +71,15 @@ def generate_html_report(yaml_path, html_path, niveau):
         </style>
     </head>
     <body>
-        <h1>Rapport de Conformité ANSSI - Niveau {niveau.capitalize()}</h1>
-        <p>Date du rapport : {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <h1>ANSSI Compliance Report - Level {niveau.capitalize()}</h1>
+        <p>Report Date : {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
 
-        <h2>Résumé</h2>
+        <h2>Summary</h2>
         <ul>
-            <li><strong>Taux de conformité :</strong> {compliance_rate:.2f}%</li>
-            <li><strong>Règles totales :</strong> {total_rules}</li>
-            <li><strong>Règles conformes :</strong> {compliant_rules}</li>
-            <li><strong>Règles non conformes :</strong> {total_rules - compliant_rules}</li>
+            <li><strong>Compliance Rate :</strong> {compliance_rate:.2f}%</li>
+            <li><strong>Total Rules :</strong> {total_rules}</li>
+            <li><strong>Compliant Rules :</strong> {compliant_rules}</li>
+            <li><strong>Non-Compliant Rules :</strong> {total_rules - compliant_rules}</li>
         </ul>
 
         {html_sections}
@@ -95,4 +94,4 @@ def generate_html_report(yaml_path, html_path, niveau):
     with open(html_path, "w", encoding="utf-8") as html_file:
         html_file.write(html_content)
 
-    print(f"Rapport HTML généré : {html_path}")
+    print(f"HTML report generated : {html_path}")
