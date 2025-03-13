@@ -11,14 +11,18 @@ def execute_ssh_command(serveur, command):
 
 # Check compliance of rules by comparing detected values with reference data
 def check_compliance(rule_id, detected_values, reference_data):
+    # Definition of minimum level rules
+    MIN_RULES = {"R30", "R53", "R56"}
+    result = None
+
     if rule_id == 'R44':
         # For R44, compliance is achieved only if there are no violations
         # and there is at least one occurrence of proper sudoedit usage.
         is_compliant = (not detected_values.get("violations")) and bool(detected_values.get("sudoedit_usage"))
-        return {
+        result = {
             "apply": is_compliant,
             "status": "Compliant" if is_compliant else "Non-Compliant",
-            "detected_elements": detected_values  # This contains both "violations" and "sudoedit_usage"
+            "detected_elements": detected_values  # Contains both "violations" and "sudoedit_usage"
         }
     elif rule_id == 'R52':
         expected_list = reference_data.get(rule_id, {}).get("expected", [])
@@ -68,7 +72,7 @@ def check_compliance(rule_id, detected_values, reference_data):
         for path, diff in discrepancies.items():
             differences_list.append(f"{path} '{diff['detected']}' (expected '{diff['expected']}')")
         status = "Compliant" if is_compliant else "Non-Compliant"
-        return {
+        result = {
             "apply": is_compliant,
             "status": status,
             "expected_elements": expected_list if expected_list else "None",
@@ -78,7 +82,7 @@ def check_compliance(rule_id, detected_values, reference_data):
     elif rule_id == 'R55':
         is_compliant = bool(detected_values)
         status = "Compliant" if is_compliant else "Non-Compliant"
-        return {
+        result = {
             "apply": is_compliant,
             "status": status,
             "detected_elements": detected_values if detected_values else "None"
@@ -98,7 +102,7 @@ def check_compliance(rule_id, detected_values, reference_data):
                     discrepancies[key] = {"detected": val, "expected": "Disabled"}
                     is_compliant = False
         status = "Compliant" if is_compliant else "Non-Compliant"
-        return {
+        result = {
             "apply": is_compliant,
             "status": status,
             "detected_elements": detected_values if detected_values else "None",
@@ -115,7 +119,7 @@ def check_compliance(rule_id, detected_values, reference_data):
             item.split()[-2] != expected_values_dict.get(item.split()[-3], "")
             for item in detected_values
         ) if detected_values else False
-        return {
+        result = {
             "apply": not non_compliant,
             "status": "Compliant" if (not non_compliant or not detected_values) else "Non-Compliant",
             "detected_elements": detected_values or "None"
@@ -127,9 +131,8 @@ def check_compliance(rule_id, detected_values, reference_data):
             detected_values.get('permissions') == expected.get('permissions') and
             detected_values.get('owner') == expected.get('owner')
         )
-
         status = "Compliant" if is_compliant else "Non-Compliant"
-        return {
+        result = {
             "apply": is_compliant,
             "status": status,
             "expected_elements": expected,
@@ -138,11 +141,17 @@ def check_compliance(rule_id, detected_values, reference_data):
     else:
         is_compliant = not detected_values
         status = "Compliant" if is_compliant else "Non-Compliant"
-        return {
+        result = {
             "apply": is_compliant,
             "status": status,
             "detected_elements": detected_values or "None"
         }
+
+    # For minimum level rules, if the result is Non-Compliant, ensure that "apply" is False.
+    if rule_id in MIN_RULES and result["status"] == "Non-Compliant":
+        result["apply"] = False
+
+    return result
 
 # Retrieve standard users from /etc/passwd (users with UID >= 1000, excluding 'nobody')
 def get_standard_users(serveur):
@@ -250,6 +259,94 @@ def get_user_private_tmp(serveur):
             pass
     return results if results else None
 
+# Iterate over all world-writable directories on the remote server and return a list of directories 
+# that are accessible to everyone without the sticky bit set.
+# For each found directory, verify:
+#   - That it is indeed a directory (first character 'd').
+#   - That the directory is world-writable (others have write permission).
+#   - That its parent directory is accessible to everyone (others have execute permission).
+#   - That the sticky bit is enabled.
+#
+# Only directories that are world-writable and accessible to everyone but without the sticky bit are added.
+#
+# Args:
+#   serveur (paramiko.SSHClient): SSH connection to the remote server.
+#
+# Returns:
+#   list: List of error messages for each non-compliant directory.
+#         An empty list indicates that all world-writable directories accessible to everyone are compliant.
+def check_all_sticky_bit(serveur):
+    non_conformes = []
+    # List all world-writable directories on the system
+    find_cmd = "sudo find / -type d -perm -0002 -print 2>/dev/null"
+    directories = execute_ssh_command(serveur, find_cmd)
+    
+    for directory in directories:
+        directory = directory.strip()
+        if not directory:
+            continue
+
+        # Try to retrieve the directory's permissions
+        try:
+            stat_cmd = f"stat -c '%A' {directory}"
+            output = execute_ssh_command(serveur, stat_cmd)
+        except Exception as e:
+            output = []
+        
+        if not output:
+            # If unable to retrieve permissions, check the parent directory first
+            parent_dir = os.path.dirname(directory)
+            try:
+                parent_output = execute_ssh_command(serveur, f"stat -c '%A' {parent_dir}")
+                if parent_output:
+                    parent_permissions = parent_output[0].strip()
+                    parent_others = parent_permissions[-3:]
+                    # If the parent is not accessible (others lack execute permission), skip this directory
+                    if parent_others[2] not in ['x', 't', 'T']:
+                        continue
+                else:
+                    continue
+            except Exception as e:
+                continue
+            # If parent's accessible but still no permission info for the directory,
+            # add an error message.
+            non_conformes.append(f"{directory}: Impossible de récupérer les permissions.")
+            continue
+
+        permissions = output[0].strip()
+
+        # Check that it is indeed a directory
+        if not permissions.startswith('d'):
+            non_conformes.append(f"{directory}: Not a directory (permissions: {permissions}).")
+            continue
+
+        # Verify that the parent directory is accessible to everyone
+        parent_dir = os.path.dirname(directory)
+        parent_accessible = True
+        try:
+            parent_output = execute_ssh_command(serveur, f"stat -c '%A' {parent_dir}")
+            if not parent_output:
+                parent_accessible = False
+            else:
+                parent_permissions = parent_output[0].strip()
+                parent_others = parent_permissions[-3:]
+                if parent_others[2] not in ['x', 't', 'T']:
+                    parent_accessible = False
+            if not parent_accessible:
+                continue
+        except Exception as e:
+            continue
+
+        # Extract the permissions for "others" (last three characters)
+        others = permissions[-3:]
+        is_world_writable = others[1] == 'w'
+        has_sticky_bit = others[2] in ['t', 'T']
+
+        if is_world_writable and not has_sticky_bit:
+            non_conformes.append(f"{directory}: World-writable without sticky bit (permissions: {permissions}).")
+    
+    return non_conformes
+
 # Get secure file permissions (R50) by converting symbolic permissions to numeric
 def get_secure_permissions(serveur, reference_data):
     reference_data = reference_data.get("R50", {}).get("expected", {})
@@ -324,18 +421,21 @@ def check_pam_security(serveur, reference_data):
         detected_list.append(f"{module}: {detected_status}")
     return detected_list
 
+# Check access configuration for the /boot directory:
+# - Verify if /boot is automatically mounted (based on /etc/fstab)
+# - Retrieve the permissions, owner, and group of the /boot directory.
 def check_boot_directory_access(serveur):
     detected_elements = {}
 
-    # Vérifie si /boot est monté automatiquement
+    # Check if /boot is automatically mounted
     auto_mount = execute_ssh_command(serveur, "grep -E '\\s/boot\\s' /etc/fstab | grep -v noauto")
     detected_elements["auto_mount"] = "auto" if auto_mount else "noauto"
 
-    # Vérifie permissions et propriétaire de /boot
+    # Check permissions and owner of /boot
     boot_perm_info = execute_ssh_command(serveur, "stat -c '%a %U %G' /boot")
     if boot_perm_info:
         permissions, owner, group = boot_perm_info[0].split()
-        detected_elements["permissions"] = str(permissions)  # <-- force en chaîne ici
+        detected_elements["permissions"] = str(permissions)
         detected_elements["owner"] = owner
     else:
         detected_elements["permissions"] = "Not Found"
@@ -343,8 +443,7 @@ def check_boot_directory_access(serveur):
 
     return detected_elements
 
-
-# Analyse access management on the server and generate a YAML report
+# Analyze access management on the server and generate a YAML report
 def analyse_gestion_acces(serveur, niveau, reference_data):
     if reference_data is None:
         reference_data = {}
@@ -353,6 +452,7 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
         "min": {
             "R30": (get_inactive_users, "Disable unused user accounts"),
             "R53": (find_orphan_files, "Avoid files or directories without a known user or group"),
+            "R54": (check_all_sticky_bit, "Ensure sticky bit is set on world-writable directories"),
             "R56": (find_files_with_setuid_setgid, "Limit executables with setuid/setgid")
         },
         "moyen": {
@@ -368,7 +468,7 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
             "R67": (check_pam_security, "Secure remote authentication via PAM")
         },
         "renforce": {
-        "R29": (check_boot_directory_access, "Restrict access to /boot directory"),
+            "R29": (check_boot_directory_access, "Restrict access to /boot directory")
         }
     }
     if niveau in rules:
