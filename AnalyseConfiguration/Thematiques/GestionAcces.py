@@ -120,6 +120,21 @@ def check_compliance(rule_id, detected_values, reference_data):
             "status": "Compliant" if (not non_compliant or not detected_values) else "Non-Compliant",
             "detected_elements": detected_values or "None"
         }
+    elif rule_id == 'R29':
+        expected = reference_data.get('R29', {}).get('expected', {})
+        is_compliant = (
+            detected_values.get('auto_mount') == expected.get('auto_mount') and
+            detected_values.get('permissions') == expected.get('permissions') and
+            detected_values.get('owner') == expected.get('owner')
+        )
+
+        status = "Compliant" if is_compliant else "Non-Compliant"
+        return {
+            "apply": is_compliant,
+            "status": status,
+            "expected_elements": expected,
+            "detected_elements": detected_values
+        }
     else:
         is_compliant = not detected_values
         status = "Compliant" if is_compliant else "Non-Compliant"
@@ -309,6 +324,26 @@ def check_pam_security(serveur, reference_data):
         detected_list.append(f"{module}: {detected_status}")
     return detected_list
 
+def check_boot_directory_access(serveur):
+    detected_elements = {}
+
+    # Vérifie si /boot est monté automatiquement
+    auto_mount = execute_ssh_command(serveur, "grep -E '\\s/boot\\s' /etc/fstab | grep -v noauto")
+    detected_elements["auto_mount"] = "auto" if auto_mount else "noauto"
+
+    # Vérifie permissions et propriétaire de /boot
+    boot_perm_info = execute_ssh_command(serveur, "stat -c '%a %U %G' /boot")
+    if boot_perm_info:
+        permissions, owner, group = boot_perm_info[0].split()
+        detected_elements["permissions"] = str(permissions)  # <-- force en chaîne ici
+        detected_elements["owner"] = owner
+    else:
+        detected_elements["permissions"] = "Not Found"
+        detected_elements["owner"] = "Not Found"
+
+    return detected_elements
+
+
 # Analyse access management on the server and generate a YAML report
 def analyse_gestion_acces(serveur, niveau, reference_data):
     if reference_data is None:
@@ -331,6 +366,9 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
             "R52": (get_protected_sockets, "Protect named sockets and pipes"),
             "R55": (get_user_private_tmp, "Separate user temporary directories"),
             "R67": (check_pam_security, "Secure remote authentication via PAM")
+        },
+        "renforce": {
+        "R29": (check_boot_directory_access, "Restrict access to /boot directory"),
         }
     }
     if niveau in rules:

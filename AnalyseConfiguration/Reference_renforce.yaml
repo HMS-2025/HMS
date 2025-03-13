@@ -1,0 +1,7 @@
+R29:
+  description: "Restrict access to /boot directory. It is recommended not to automatically mount /boot at startup (noauto). Access to /boot directory must be restricted to root only."
+  expected:
+    auto_mount: "noauto"
+    permissions: "700"
+    owner: "root"
+
