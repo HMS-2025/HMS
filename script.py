@@ -1,7 +1,7 @@
 import argparse
 import sys
 from Config import load_config, ssh_connect
-from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen
+from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen, analyse_renforce
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
 from gui import Gui
@@ -102,6 +102,14 @@ def run_analysis(mode):
     elif mode == "intermediate":
         print("[Analysis] Running intermediate analysis...")
         analyse_moyen(client)
+    elif mode == "reinforced":
+        print("[Analysis] Running reinforced analysis...")
+        analyse_renforce(client)
+    elif mode == "all":
+        print("[Analysis] Running all scans...")
+        analyse_min(client)
+        analyse_moyen(client)
+        analyse_renforce(client)
     elif mode == "all":
         print("[Analysis] Running all scans...")
         analyse_min(client)
@@ -153,27 +161,29 @@ def interactive_menu():
         choice = input("Select an option (1-5): ")
 
         if choice == "1":
-            print("\n===== Select Analysis Level =====")
-            print("1 - Global Analysis")
-            print("2 - Minimal Analysis")
-            print("3 - Intermediate Analysis")
-            print("4 - Enhanced Analysis")
-            print("5 - SSH Config Analysis Only")
-            print("6 - Back")
-            sub_choice = input("Select an option (1-6): ")
-            if sub_choice == "2":
-                run_analysis("minimal")
-            elif sub_choice == "3":
-                run_analysis("intermediate")
-            elif sub_choice == "5":
-                run_analysis("ssh")
-            elif sub_choice == "1":
-                run_analysis("all")
-            elif sub_choice == "4":
-                # Enhanced analysis not implemented
-                pass
-            elif sub_choice == "6":
-                continue
+            while True:
+                print("\n===== Select Analysis Level =====")
+                print("1 - Global Analysis")
+                print("2 - Minimal Analysis")
+                print("3 - Intermediate Analysis")
+                print("4 - Enhanced Analysis")
+                print("5 - SSH Config Analysis Only")
+                print("6 - Back")
+                sub_choice = input("Select an option (1-6): ")
+                if sub_choice == "1":
+                    run_analysis("all")
+                elif sub_choice == "2":
+                    run_analysis("minimal")
+                elif sub_choice == "3":
+                    run_analysis("intermediate")
+                elif sub_choice == "4":
+                    run_analysis("reinforced")
+                elif sub_choice == "5":
+                    run_analysis("ssh")
+                elif sub_choice == "6":
+                    break
+                else:
+                    print("Invalid option, please try again.")
         elif choice == "2":
             run_recommendations("general")
         elif choice == "3":
@@ -182,10 +192,11 @@ def interactive_menu():
             print("\n--- John The Ripper Menu ---\n")
             john.menu_principal()
         elif choice == "5":
-            print("Exiting program...")
-            sys.exit()
+            print("Exiting.")
+            break
         else:
             print("Invalid option, please try again.")
+
 
 def main():
     # Print the remote OS version when the script is launched
@@ -194,49 +205,52 @@ def main():
     parser = argparse.ArgumentParser(description="Analysis and Recommendations Script")
     parser.add_argument("-m", "--minimal", action="store_true", help="Run minimal analysis")
     parser.add_argument("-i", "--intermediate", action="store_true", help="Run intermediate analysis")
-    parser.add_argument("-all", "--all", action="store_true", help="Run all scans")
+    parser.add_argument("-rf", "--reinforced", action="store_true", help="Run enhanced analysis")
     parser.add_argument("-ssh", "--ssh", action="store_true", help="Run SSH analysis only")
+    parser.add_argument("-all", "--all", action="store_true", help="Run all scans")
     parser.add_argument("-r", "--recommendations", choices=["general", "ssh"], help="Apply recommendations: 'general' or 'ssh'")
     args = parser.parse_args()
 
     analysis_flags = []
 
-    # If "-all" is specified, it overrides minimal and intermediate
     if args.all:
-        analysis_flags.append("all")
+        analysis_flags = ["minimal", "intermediate", "reinforced", "ssh"]
     else:
+        analysis_flags = []
         if args.minimal:
             analysis_flags.append("minimal")
         if args.intermediate:
             analysis_flags.append("intermediate")
-        # If both minimal and intermediate are set, combine them into "all"
-        if "minimal" in analysis_flags and "intermediate" in analysis_flags:
+        if args.reinforced:
+            analysis_flags.append("reinforced")
+        if args.ssh:
+            analysis_flags.append("ssh")
+        
+        # Combine minimal and intermediate into all if both specified
+        if {"minimal", "intermediate", "reinforced"}.issubset(set(analysis_flags)):
+            analysis_flags = ["all"]
+        elif {"minimal", "intermediate"}.issubset(set(analysis_flags)):
             analysis_flags = [flag for flag in analysis_flags if flag not in ["minimal", "intermediate"]]
             analysis_flags.append("all")
 
-    # Add SSH analysis if specified (runs in addition)
-    if args.ssh:
-        analysis_flags.append("ssh")
+    # If "--all" is specified, it runs all available analyses
+    if args.all:
+        analysis_flags = ["minimal", "intermediate", "reinforced", "ssh"]
+    else:
+        analysis_flags = analysis_flags
 
-    # Remove duplicates while preserving order
-    unique_flags = []
-    seen = set()
+    # Run requested analyses
     for flag in analysis_flags:
-        if flag not in seen:
-            unique_flags.append(flag)
-            seen.add(flag)
-
-    # Run the requested analyses
-    for flag in unique_flags:
         run_analysis(flag)
 
     # Run recommendations if requested
     if args.recommendations:
         run_recommendations(args.recommendations)
 
-    # If no flags were provided, launch the interactive menu
-    if not (unique_flags or args.recommendations):
+    # If no arguments provided, launch interactive menu
+    if not (analysis_flags or args.recommendations):
         interactive_menu()
 
 if __name__ == "__main__":
     main()
+
