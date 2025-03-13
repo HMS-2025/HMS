@@ -11,20 +11,15 @@ def execute_ssh_command(serveur, command):
 
 # Check compliance of rules by comparing detected values with reference data
 def check_compliance(rule_id, detected_values, reference_data):
-    # Definition of minimum level rules
-    MIN_RULES = {"R30", "R53", "R56"}
-    result = None
-
     if rule_id == 'R44':
-        # For R44, compliance is achieved only if there are no violations
-        # and there is at least one occurrence of proper sudoedit usage.
-        is_compliant = (not detected_values.get("violations")) and bool(detected_values.get("sudoedit_usage"))
-        result = {
-            "apply": is_compliant,
-            "status": "Compliant" if is_compliant else "Non-Compliant",
-            "detected_elements": detected_values  # Contains both "violations" and "sudoedit_usage"
+        return {
+            "apply": bool(detected_values),
+            "status": "Compliant" if detected_values else "Non-Compliant",
+            "detected_elements": detected_values or "None"
         }
     elif rule_id == 'R52':
+        # Protect named sockets and pipes
+        # Expected values are a list of entries like "/run/dbus 755"
         expected_list = reference_data.get(rule_id, {}).get("expected", [])
         expected_dict = {}
         for entry in expected_list:
@@ -32,6 +27,7 @@ def check_compliance(rule_id, detected_values, reference_data):
             if len(parts) == 2:
                 expected_dict[parts[0]] = parts[1]
 
+        # Function to convert symbolic permission (e.g., drwxr-xr-x) to numeric (e.g., 755)
         def symbolic_to_numeric(sym):
             mapping = {'r': 4, 'w': 2, 'x': 1, '-': 0}
             if len(sym) == 10:
@@ -44,6 +40,7 @@ def check_compliance(rule_id, detected_values, reference_data):
                 nums.append(str(total))
             return "".join(nums)
 
+        # Build a dictionary from detected elements: key = file path, value = numeric permission
         detected_dict = {}
         detected_numeric_list = []
         for line in detected_values:
@@ -68,11 +65,12 @@ def check_compliance(rule_id, detected_values, reference_data):
                 discrepancies[path] = {"detected": det_perm, "expected": exp_perm}
                 is_compliant = False
 
+        # Consolidate discrepancies into a single list of differences
         differences_list = []
         for path, diff in discrepancies.items():
             differences_list.append(f"{path} '{diff['detected']}' (expected '{diff['expected']}')")
         status = "Compliant" if is_compliant else "Non-Compliant"
-        result = {
+        return {
             "apply": is_compliant,
             "status": status,
             "expected_elements": expected_list if expected_list else "None",
@@ -80,14 +78,18 @@ def check_compliance(rule_id, detected_values, reference_data):
             "differences": differences_list if differences_list else None
         }
     elif rule_id == 'R55':
+        # Separate user temporary directories
+        # Compliant if PAM configuration contains references to pam_namespace or pam_mktemp.
+        # These modules create per-user temporary directories.
         is_compliant = bool(detected_values)
         status = "Compliant" if is_compliant else "Non-Compliant"
-        result = {
+        return {
             "apply": is_compliant,
             "status": status,
             "detected_elements": detected_values if detected_values else "None"
         }
     elif rule_id == 'R67':
+        # Secure remote authentication via PAM
         is_compliant = True
         discrepancies = {}
         for entry in detected_values:
@@ -102,7 +104,7 @@ def check_compliance(rule_id, detected_values, reference_data):
                     discrepancies[key] = {"detected": val, "expected": "Disabled"}
                     is_compliant = False
         status = "Compliant" if is_compliant else "Non-Compliant"
-        result = {
+        return {
             "apply": is_compliant,
             "status": status,
             "detected_elements": detected_values if detected_values else "None",
@@ -119,29 +121,15 @@ def check_compliance(rule_id, detected_values, reference_data):
             item.split()[-2] != expected_values_dict.get(item.split()[-3], "")
             for item in detected_values
         ) if detected_values else False
-        result = {
+        return {
             "apply": not non_compliant,
             "status": "Compliant" if (not non_compliant or not detected_values) else "Non-Compliant",
             "detected_elements": detected_values or "None"
         }
-    elif rule_id == 'R29':
-        expected = reference_data.get('R29', {}).get('expected', {})
-        is_compliant = (
-            detected_values.get('auto_mount') == expected.get('auto_mount') and
-            detected_values.get('permissions') == expected.get('permissions') and
-            detected_values.get('owner') == expected.get('owner')
-        )
-        status = "Compliant" if is_compliant else "Non-Compliant"
-        result = {
-            "apply": is_compliant,
-            "status": status,
-            "expected_elements": expected,
-            "detected_elements": detected_values
-        }
     else:
         is_compliant = not detected_values
         status = "Compliant" if is_compliant else "Non-Compliant"
-        result = {
+        return {
             "apply": is_compliant,
             "status": status,
             "detected_elements": detected_values or "None"
