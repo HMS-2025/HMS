@@ -5,3 +5,18 @@ R29:
     permissions: "700"
     owner: "root"
 
+R38:
+  description: "Restrict sudo usage by creating a dedicated group with exclusive execute permissions on the sudo binary."
+  expected:
+    permissions: "4750"
+    owner: "root"
+    group: "sudogrp"
+
+R41:
+  description: "Ensure sudo directives properly restrict process execution using the NOEXEC tag."
+  expected:
+    noexec_commands:
+      - "Defaults    NOEXEC"
+      - "Cmnd_Alias  NOEXEC_CMDS = /usr/bin/vi, /usr/bin/vim, /usr/bin/nano, /usr/bin/emacs"
+      - "%sudo       ALL=(ALL:ALL) NOEXEC_CMDS"
+

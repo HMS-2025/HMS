@@ -126,6 +126,38 @@ def check_compliance(rule_id, detected_values, reference_data):
             "status": "Compliant" if (not non_compliant or not detected_values) else "Non-Compliant",
             "detected_elements": detected_values or "None"
         }
+    elif rule_id == 'R41':
+        expected_values = reference_data.get('R41', {}).get('expected', {}).get('noexec_commands', [])
+        
+        if not detected_values:
+            return {
+                "apply": False,
+                "status": "Non-Compliant",
+                "expected_elements": expected_values,
+                "detected_elements": "None"
+            }
+        
+        detected_set = set(detected_values)
+        expected_set = set(expected_values)
+
+        if detected_values and set(detected_values) == set(expected_values):
+            return {
+                "apply": True,
+                "status": "Compliant",
+                "expected_elements": expected_values,
+                "detected_elements": detected_values
+            }
+        else:
+            unexpected_elements = list(set(detected_values) - set(expected_values))
+            missing_elements = list(set(expected_values) - set(detected_values))
+            return {
+                "apply": False,
+                "status": "Non-Compliant",
+                "expected_elements": expected_values,
+                "detected_elements": detected_values,
+                "unexpected_elements": unexpected_elements or None,
+                "missing_elements": missing_elements or None
+            }
     else:
         is_compliant = not detected_values
         status = "Compliant" if is_compliant else "Non-Compliant"
@@ -412,7 +444,8 @@ def check_pam_security(serveur, reference_data):
 # Check access configuration for the /boot directory:
 # - Verify if /boot is automatically mounted (based on /etc/fstab)
 # - Retrieve the permissions, owner, and group of the /boot directory.
-def check_boot_directory_access(serveur):
+# Check access configuration for the /boot directory (R29)
+def check_boot_directory_access(serveur, reference_data):
     detected_elements = {}
 
     # Check if /boot is automatically mounted
@@ -423,13 +456,68 @@ def check_boot_directory_access(serveur):
     boot_perm_info = execute_ssh_command(serveur, "stat -c '%a %U %G' /boot")
     if boot_perm_info:
         permissions, owner, group = boot_perm_info[0].split()
-        detected_elements["permissions"] = str(permissions)
+        detected_elements["permissions"] = permissions
         detected_elements["owner"] = owner
     else:
         detected_elements["permissions"] = "Not Found"
         detected_elements["owner"] = "Not Found"
 
-    return detected_elements
+    expected = reference_data.get('R29', {}).get('expected', {})
+    if detected_elements == expected:
+        return None
+    else:
+        return detected_elements
+
+# Check sudo permissions and ownership (R38)
+def check_sudo_group_restriction(serveur, reference_data):
+    detected_elements = {}
+
+    sudo_stat = execute_ssh_command(serveur, "stat -c '%a %U %G' /usr/bin/sudo")
+    if sudo_stat:
+        perms, owner, group = sudo_stat[0].split()
+        detected_elements["permissions"] = perms
+        detected_elements["owner"] = owner
+        detected_elements["group"] = group
+    else:
+        detected_elements["permissions"] = "Not Found"
+        detected_elements["owner"] = "Not Found"
+        detected_elements["group"] = "Not Found"
+
+    expected = reference_data.get('R38', {}).get('expected', {})
+    if detected_elements == expected:
+        return None
+    else:
+        return detected_elements
+    
+# R41: Check sudo directives using NOEXEC correctly
+def check_sudo_noexec_commands(serveur):
+    detected_elements = []
+
+    # Check global NOEXEC directive
+    defaults_noexec = execute_ssh_command(
+        serveur,
+        "grep -E '^[^#]*Defaults[[:space:]]+NOEXEC' /etc/sudoers"
+    )
+    if defaults_noexec:
+        detected_elements.extend(defaults_noexec)
+
+    # Check NOEXEC_CMDS alias
+    cmnd_alias_noexec = execute_ssh_command(
+        serveur,
+        "grep -E '^[^#]*Cmnd_Alias[[:space:]]+NOEXEC_CMDS' /etc/sudoers"
+    )
+    if cmnd_alias_noexec:
+        detected_elements.extend(cmnd_alias_noexec)
+
+    # Check if NOEXEC_CMDS alias is properly applied
+    noexec_alias_usage = execute_ssh_command(
+        serveur,
+        "grep -E '^[^#]*NOEXEC_CMDS' /etc/sudoers | grep -v 'Cmnd_Alias'"
+    )
+    if noexec_alias_usage:
+        detected_elements.extend(noexec_alias_usage)
+
+    return detected_elements or None
 
 # Analyze access management on the server and generate a YAML report
 def analyse_gestion_acces(serveur, niveau, reference_data):
@@ -456,20 +544,21 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
             "R67": (check_pam_security, "Secure remote authentication via PAM")
         },
         "renforce": {
-            "R29": (check_boot_directory_access, "Restrict access to /boot directory")
+            "R29": (check_boot_directory_access, "Restrict access to /boot directory"),
+            "R38": (check_sudo_group_restriction, "Restrict sudo to a dedicated group"),
+            "R41": (check_sudo_noexec_commands, "Check sudo directives using NOEXEC")
         }
     }
     if niveau in rules:
         for rule_id, (function, comment) in rules[niveau].items():
             print(f"-> Checking rule {rule_id} # {comment}")
-            if rule_id in ['R67', 'R50']:
+            if rule_id in ['R67', 'R50', 'R29', 'R38']:
                 report[rule_id] = check_compliance(rule_id, function(serveur, reference_data), reference_data)
             else:
                 report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
-    print(f"Checking paths: \nYAML: {yaml_path}\nHTML: {html_path}")
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
