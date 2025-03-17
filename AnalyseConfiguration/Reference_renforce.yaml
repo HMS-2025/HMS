@@ -43,3 +43,13 @@ R57:
     - /usr/lib/dbus-1.0/dbus-daemon-launch-helper
     - /usr/lib/policykit-1/polkit-agent-helper-1
 
+R64:
+  description: "All services or executables must be configured to use the minimal required privileges."
+  expected:
+    - "/usr/sbin/sshd"
+    - "/usr/sbin/cron"
+    - "/usr/sbin/rsyslogd"
+    - "/usr/bin/sudo"
+    - "/usr/bin/su"
+    - "/lib/systemd/systemd"
+

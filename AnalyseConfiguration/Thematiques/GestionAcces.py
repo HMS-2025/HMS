@@ -178,6 +178,26 @@ def check_compliance(rule_id, detected_values, reference_data):
                 "status": "Compliant",
                 "detected_elements": sorted(list(detected_execs)) or "None"
             }
+    elif rule_id == 'R64':
+        expected_services = set(reference_data.get('R64', {}).get('expected', []))
+        detected_services = set(detected_values or [])
+
+        unauthorized_services = detected_services - expected_services
+
+        if unauthorized_services:
+            return {
+                "apply": False,
+                "status": "Non-Compliant",
+                "expected_elements": list(expected_services),
+                "detected_elements": list(detected_services),
+                "unauthorized_elements": list(unauthorized_services)
+            }
+        else:
+            return {
+                "apply": True,
+                "status": "Compliant",
+                "detected_elements": list(detected_services) or "None"
+            }
     else:
         is_compliant = not detected_values
         status = "Compliant" if is_compliant else "Non-Compliant"
@@ -541,6 +561,12 @@ def check_setuid_setgid_root(serveur):
     
     return detected_elements or None
 
+# Check services running as root (R64)
+def check_service_privileges(serveur):
+    command = "ps -eo user:20,cmd --no-header | awk '$1==\"root\" {print $2}' | sort -u"
+    detected_services = execute_ssh_command(serveur, command)
+    return detected_services or None
+
 # Analyze access management on the server and generate a YAML report
 def analyse_gestion_acces(serveur, niveau, reference_data):
     if reference_data is None:
@@ -569,7 +595,8 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
             "R29": (check_boot_directory_access, "Restrict access to /boot directory"),
             "R38": (check_sudo_group_restriction, "Restrict sudo to a dedicated group"),
             "R41": (check_sudo_noexec_commands, "Check sudo directives using NOEXEC"),
-            "R57": (check_setuid_setgid_root, "Avoid executables with setuid root and setgid root")
+            "R57": (check_setuid_setgid_root, "Avoid executables with setuid root and setgid root"),
+            "R64": (check_service_privileges, "Configure services with minimal privileges")
         }
     }
     if niveau in rules:
