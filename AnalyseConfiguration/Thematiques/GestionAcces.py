@@ -158,6 +158,26 @@ def check_compliance(rule_id, detected_values, reference_data):
                 "unexpected_elements": unexpected_elements or None,
                 "missing_elements": missing_elements or None
             }
+    elif rule_id == 'R57':
+        expected_execs = set(reference_data.get('R57', {}).get('expected', []))
+        detected_execs = set(detected_values) if detected_values else set()
+
+        unauthorized_execs = detected_execs - expected_execs
+
+        if unauthorized_execs:
+            return {
+                "apply": False,
+                "status": "Non-Compliant",
+                "expected_elements": sorted(list(expected_execs)),
+                "detected_elements": sorted(list(detected_execs)),
+                "unauthorized_elements": sorted(list(unauthorized_execs))
+            }
+        else:
+            return {
+                "apply": True,
+                "status": "Compliant",
+                "detected_elements": sorted(list(detected_execs)) or "None"
+            }
     else:
         is_compliant = not detected_values
         status = "Compliant" if is_compliant else "Non-Compliant"
@@ -166,12 +186,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             "status": status,
             "detected_elements": detected_values or "None"
         }
-
-    # For minimum level rules, if the result is Non-Compliant, ensure that "apply" is False.
-    if rule_id in MIN_RULES and result["status"] == "Non-Compliant":
-        result["apply"] = False
-
-    return result
 
 # Retrieve standard users from /etc/passwd (users with UID >= 1000, excluding 'nobody')
 def get_standard_users(serveur):
@@ -519,6 +533,14 @@ def check_sudo_noexec_commands(serveur):
 
     return detected_elements or None
 
+# Check for executables with special setuid/setgid root permissions (R57)
+def check_setuid_setgid_root(serveur):
+    # Search only for the paths of executables with setuid/setgid root enabled
+    command = "find / -xdev \\( -perm -4000 -o -perm -2000 \\) -user root -type f 2>/dev/null"
+    detected_elements = execute_ssh_command(serveur, command)
+    
+    return detected_elements or None
+
 # Analyze access management on the server and generate a YAML report
 def analyse_gestion_acces(serveur, niveau, reference_data):
     if reference_data is None:
@@ -546,7 +568,8 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
         "renforce": {
             "R29": (check_boot_directory_access, "Restrict access to /boot directory"),
             "R38": (check_sudo_group_restriction, "Restrict sudo to a dedicated group"),
-            "R41": (check_sudo_noexec_commands, "Check sudo directives using NOEXEC")
+            "R41": (check_sudo_noexec_commands, "Check sudo directives using NOEXEC"),
+            "R57": (check_setuid_setgid_root, "Avoid executables with setuid root and setgid root")
         }
     }
     if niveau in rules:

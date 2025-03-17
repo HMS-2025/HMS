@@ -20,3 +20,26 @@ R41:
       - "Cmnd_Alias  NOEXEC_CMDS = /usr/bin/vi, /usr/bin/vim, /usr/bin/nano, /usr/bin/emacs"
       - "%sudo       ALL=(ALL:ALL) NOEXEC_CMDS"
 
+R57:
+  description: "Avoid executables with special permissions setuid root or setgid root. These executables must be limited to the strict minimum required. Any executable that can be executed exclusively by administrators should not have these special rights and should instead be executed via 'su' or 'sudo'."
+  expected:
+    - /usr/bin/passwd
+    - /usr/bin/chage
+    - /usr/bin/gpasswd
+    - /usr/bin/su
+    - /usr/bin/mount
+    - /usr/bin/umount
+    - /usr/bin/newgrp
+    - /usr/bin/chsh
+    - /usr/bin/chfn
+    - /usr/bin/sudo
+    - /usr/bin/pkexec
+    - /usr/lib/openssh/ssh-keysign
+    - /usr/bin/crontab
+    - /usr/bin/fusermount
+    - /usr/bin/expiry
+    - /usr/sbin/postqueue
+    - /usr/sbin/postdrop
+    - /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+    - /usr/lib/policykit-1/polkit-agent-helper-1
+
