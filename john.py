@@ -57,7 +57,6 @@ def install_john():
         src_dir = os.path.join(os.getcwd(), "john", "src")
         subprocess.run("./configure", shell=True, check=True, cwd=src_dir)
         subprocess.run("make -sj$(nproc)", shell=True, check=True, cwd=src_dir)
-        # No symbolic link is created since verification is done directly on the current directory.
         print("[John] Installation successful!")
     except subprocess.CalledProcessError as e:
         print(f"[John] Installation failed: {e}")
@@ -169,8 +168,6 @@ def run_john_generated(hash_file):
         print(f"[John] Error during attack with generated wordlist: {e}")
 
 # --- Generation of simple "genetic" variants ---
-# Defined structure: variants with or without an initial capital letter, then concatenation of the word, the year,
-# and optionally a special character as prefix or suffix.
 
 def generate_partial_variants(word):
     mapping = {'a': '@', 'i': '1', 's': '$', 'o': '0', 'e': '3'}
@@ -196,15 +193,12 @@ def generate_partial_variants(word):
     return list(set(helper(word)))
 
 def generate_full_variants(word, start_year=2000, end_year=2030):
-    # Base variants with mutations.
     base_variants = generate_partial_variants(word)
-    # Case variants: the word as-is and with the first letter capitalized.
     case_variants = set()
     for variant in base_variants:
         case_variants.add(variant.lower())
         case_variants.add(variant.capitalize())
     full_variants = set(case_variants)
-    # Restricted special characters.
     special_chars = ["@", "#", "_", "!"]
     for variant in case_variants:
         for year in range(start_year, end_year + 1):
@@ -253,29 +247,6 @@ def generate_wordlist():
         print(f"Wordlist generated with {len(all_variants)} entries in file '{output_file}'.")
     except Exception as e:
         print(f"Error writing the wordlist: {e}")
-
-# --- Option to crack using the generated wordlist ---
-# (Note: The function run_john_generated is defined earlier and redefined here to correspond to option 5.)
-
-def run_john_generated(hash_file):
-    remove_john_pot()
-    abs_hash_file = os.path.abspath(hash_file)
-    print(f"[John] Launching attack with generated wordlist on: {abs_hash_file}")
-    generated_wordlist = os.path.join(os.getcwd(), "liste générée")
-    if not os.path.exists(generated_wordlist):
-        print("[John] The generated wordlist does not exist. Please generate it first (option 4).")
-        return
-    john_run_dir = os.path.join(os.getcwd(), "john", "run")
-    john_binary = os.path.join(john_run_dir, "john")
-    command = [john_binary, "--wordlist=" + generated_wordlist, "--format=sha512crypt", abs_hash_file]
-    try:
-        subprocess.run(command, check=True, cwd=john_run_dir)
-        print("[John] Displaying results:")
-        subprocess.run([john_binary, "--show", abs_hash_file], check=True, cwd=john_run_dir)
-    except FileNotFoundError:
-        print("[John] The 'john' binary was not found. Please check your John The Ripper installation.")
-    except subprocess.CalledProcessError as e:
-        print(f"[John] Error during attack with generated wordlist: {e}")
 
 # --- Interactive menus ---
 
