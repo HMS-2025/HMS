@@ -1,18 +1,15 @@
-import argparse
-import sys
 from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen, analyse_renforce
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
 from gui import Gui
-import john  # Module for John The Ripper
+import argparse
+import sys
+import os
+import john 
+
 
 def print_remote_os_version():
-    """
-    Connects to the remote server via SSH and prints the OS version.
-    If the remote OS is Ubuntu 20.04, prints "You are using Ubuntu 20.04".
-    Otherwise, prints "Not supported".
-    """
     config = load_config("ssh.yaml")
     if not config:
         print("Invalid configuration for OS version check")
@@ -110,10 +107,6 @@ def run_analysis(mode):
         analyse_min(client)
         analyse_moyen(client)
         analyse_renforce(client)
-    elif mode == "all":
-        print("[Analysis] Running all scans...")
-        analyse_min(client)
-        analyse_moyen(client)
     elif mode == "ssh":
         print("[Analysis] Running SSH analysis only...")
         analyse_SSH(client)
@@ -197,26 +190,113 @@ def interactive_menu():
         else:
             print("Invalid option, please try again.")
 
+def generate_wordlist_with_input(input_str):
+    """
+    Generates a wordlist based on an input string (words separated by spaces).
+    For any word containing ":", both parts are added.
+    If the 'cassage' file exists, extracts usernames (before ":").
+    Then, for each word, generates complete variants using john.generate_full_variants().
+    The wordlist is saved in the file 'liste générée'.
+    """
+    words_raw = input_str.split()
+    words = []
+    for w in words_raw:
+        if ":" in w:
+            parts = w.split(":")
+            words.append(parts[0])
+            words.append(parts[1])
+        else:
+            words.append(w)
+    cassage_path = os.path.join(os.getcwd(), "cassage")
+    if os.path.exists(cassage_path):
+        with open(cassage_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if ":" in line:
+                    username = line.split(":")[0]
+                    words.append(username)
+    words = list(set(words))
+    all_variants = set()
+    for word in words:
+        variants = john.generate_full_variants(word)
+        all_variants.update(variants)
+    output_file = os.path.join(os.getcwd(), "liste générée")
+    try:
+        with open(output_file, "w") as f:
+            for variant in sorted(all_variants):
+                f.write(variant + "\n")
+        print(f"Wordlist generated with {len(all_variants)} entries in file '{output_file}'.")
+    except Exception as e:
+        print(f"Error writing the wordlist: {e}")
+
+def run_john(args):
+    """
+    Executes John The Ripper actions in the following order (if the corresponding options are provided):
+      1. Installation
+      2. Retrieve the shadow file via SSH
+      3. Generate a wordlist using the provided input (--john-wordlist)
+      4. Crack using the generated wordlist
+    """
+    if args.john_install:
+        print("\n[John] Installing John The Ripper...")
+        john.install_john()
+
+    if args.john_shadow:
+        print("\n[John] Retrieving shadow file via SSH...")
+        config = load_config("ssh.yaml")
+        if not config:
+            print("Invalid SSH configuration.")
+        else:
+            client = ssh_connect(
+                hostname=config.get("hostname"),
+                port=config.get("port"),
+                username=config.get("username"),
+                key_path=config.get("key_path"),
+                passphrase=config.get("passphrase")
+            )
+            if client:
+                local_shadow_path = os.path.join(os.getcwd(), "shadow")
+                john.retrieve_hash_files(client, "/etc/shadow", local_shadow_path)
+                cassage_path = os.path.join(os.getcwd(), "cassage")
+                john.save_hashes_from_shadow(local_shadow_path, cassage_path)
+                client.close()
+
+    if args.john_wordlist:
+        print("\n[John] Generating wordlist with input:", args.john_wordlist)
+        generate_wordlist_with_input(args.john_wordlist)
+
+    if args.john_crack:
+        print("\n[John] Running cracking process using generated wordlist...")
+        cassage_path = os.path.join(os.getcwd(), "cassage")
+        if os.path.exists(cassage_path):
+            john.run_john_generated(cassage_path)
+        else:
+            print("[John] The 'cassage' file does not exist. Please retrieve the shadow file first.")
 
 def main():
-    # Print the remote OS version when the script is launched
     print_remote_os_version()
 
-    parser = argparse.ArgumentParser(description="Analysis and Recommendations Script")
+    parser = argparse.ArgumentParser(description="Analysis and Recommendations Script with John The Ripper integration")
+    # Analysis options
     parser.add_argument("-m", "--minimal", action="store_true", help="Run minimal analysis")
     parser.add_argument("-i", "--intermediate", action="store_true", help="Run intermediate analysis")
     parser.add_argument("-rf", "--reinforced", action="store_true", help="Run enhanced analysis")
     parser.add_argument("-ssh", "--ssh", action="store_true", help="Run SSH analysis only")
     parser.add_argument("-all", "--all", action="store_true", help="Run all scans")
     parser.add_argument("-r", "--recommendations", choices=["general", "ssh"], help="Apply recommendations: 'general' or 'ssh'")
+    # John options
+    parser.add_argument("--john", action="store_true", help="Run John The Ripper functions")
+    parser.add_argument("--john-install", action="store_true", help="Install John The Ripper")
+    parser.add_argument("--john-shadow", action="store_true", help="Retrieve shadow file for John")
+    parser.add_argument("--john-wordlist", type=str, help="Generate wordlist with provided input (e.g. 'mot1 mot2')")
+    parser.add_argument("--john-crack", action="store_true", help="Crack passwords using John with the generated wordlist")
+    
     args = parser.parse_args()
 
     analysis_flags = []
-
     if args.all:
         analysis_flags = ["minimal", "intermediate", "reinforced", "ssh"]
     else:
-        analysis_flags = []
         if args.minimal:
             analysis_flags.append("minimal")
         if args.intermediate:
@@ -225,32 +305,26 @@ def main():
             analysis_flags.append("reinforced")
         if args.ssh:
             analysis_flags.append("ssh")
-        
-        # Combine minimal and intermediate into all if both specified
         if {"minimal", "intermediate", "reinforced"}.issubset(set(analysis_flags)):
             analysis_flags = ["all"]
         elif {"minimal", "intermediate"}.issubset(set(analysis_flags)):
             analysis_flags = [flag for flag in analysis_flags if flag not in ["minimal", "intermediate"]]
             analysis_flags.append("all")
-
-    # If "--all" is specified, it runs all available analyses
+    
     if args.all:
         analysis_flags = ["minimal", "intermediate", "reinforced", "ssh"]
-    else:
-        analysis_flags = analysis_flags
 
-    # Run requested analyses
     for flag in analysis_flags:
         run_analysis(flag)
 
-    # Run recommendations if requested
     if args.recommendations:
         run_recommendations(args.recommendations)
 
-    # If no arguments provided, launch interactive menu
-    if not (analysis_flags or args.recommendations):
+    if args.john:
+        run_john(args)
+
+    if not (analysis_flags or args.recommendations or args.john):
         interactive_menu()
 
 if __name__ == "__main__":
     main()
-
