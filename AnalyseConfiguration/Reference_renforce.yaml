@@ -71,5 +71,22 @@ R71:
       /var/log/secure: "640"
     log_forwarding_secure: "TLS Enabled"
 
+R72:
+  description: "Ensure service logs are protected so that no service can read, alter, or delete logs directly."
+  expected:
+    /var/log/syslog:
+      owner: "root"
+      group: "adm"
+      permissions: "640"
+    /var/log/auth.log:
+      owner: "root"
+      group: "adm"
+      permissions: "640"
+    /var/log/kern.log:
+      owner: "root"
+      group: "adm"
+      permissions: "640"
+
+
 
 

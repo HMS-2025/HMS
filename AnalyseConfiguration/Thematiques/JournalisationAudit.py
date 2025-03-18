@@ -58,6 +58,24 @@ def check_compliance(rule_id, detected_values, reference_data):
             "detected_elements": detected,
             "issues": issues or None
         }
+    elif rule_id == "R72":
+        issues = []
+        for logfile, expected in reference_data.get("R72", {}).get("expected", {}).items():
+            detected = detected_values.get(logfile, {})
+            if detected.get("owner") != expected["owner"]:
+                issues.append(f"{logfile} incorrect owner: detected '{detected.get('owner', 'None')}', expected '{expected['owner']}'")
+            if detected.get("group") != expected["group"]:
+                issues.append(f"{logfile}: detected group '{detected.get('group')}', expected '{expected['group']}'")
+            if detected.get("permissions") != expected["permissions"]:
+                issues.append(f"{logfile}: permissions '{detected.get('permissions')}' (expected '{expected['permissions']}')")
+
+        return {
+            "apply": not issues,
+            "status": "Compliant" if not issues else "Non-Compliant",
+            "expected_elements": reference_data["R72"]["expected"],
+            "detected_elements": detected_values,
+            "issues": issues or None
+        }
     
     if isinstance(expected_values, dict):
         for key, value in expected_values.items():
@@ -183,6 +201,40 @@ def check_syslog_configuration(serveur):
 
     return results
 
+# Check if service logs have secure permissions and isolation from services (R72)
+def check_service_log_protection(serveur):
+    results = {
+        "log_files_permissions": {},
+        "issues": []
+    }
+
+    log_files = {
+        "/var/log/syslog": {"owner": "root", "group": "adm", "permissions": "640"},
+        "/var/log/auth.log": {"owner": "root", "group": "adm", "permissions": "640"},
+        "/var/log/kern.log": {"owner": "root", "group": "adm", "permissions": "640"},
+        "/var/log/daemon.log": {"owner": "root", "group": "adm", "permissions": "640"}
+    }
+
+    for log_file, expected in log_files.items():
+        output = execute_ssh_command(
+            serveur, 
+            f"stat -c '%U %G %a' {log_file} 2>/dev/null"
+        )
+
+        if output:
+            owner, group, permissions = output[0].split()
+            detected_info = {
+                "owner": owner,
+                "group": group,
+                "permissions": permissions
+            }
+        else:
+            detected_info = {"owner": "Not Found", "group": "Not Found", "permissions": "Not Found"}
+
+        results[log_file] = detected_info
+
+    return results or None
+
 # Main function to analyze logging and auditing
 def analyse_journalisation(serveur, niveau="min", reference_data=None):
     if reference_data is None:
@@ -195,7 +247,8 @@ def analyse_journalisation(serveur, niveau="min", reference_data=None):
             "R33": (check_r33, "Ensure accountability of administrative actions")
         },
         "renforce": {
-            "R71": (check_syslog_configuration, "Ensure secure and complete logging configuration")
+            "R71": (check_syslog_configuration, "Ensure secure and complete logging configuration"),
+            "R72": (check_service_log_protection, "Ensure service log protection against unauthorized access or modification")
         }
     }
     
