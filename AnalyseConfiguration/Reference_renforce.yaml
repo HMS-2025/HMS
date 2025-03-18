@@ -53,3 +53,23 @@ R64:
     - "/usr/bin/su"
     - "/lib/systemd/systemd"
 
+R71:
+  description: "Ensure a complete and secure syslog configuration, including authentication and system event logging, strict log permissions, and secure log forwarding."
+  expected:
+    syslog_installed: "Installed"
+    syslog_running: "Running"
+    auth_logs_configured:
+      - "authpriv.* /var/log/auth.log"
+      - "auth.* /var/log/auth.log"
+    sys_events_configured:
+      - "*.info /var/log/syslog"
+      - "*.notice /var/log/messages"
+    log_files_permissions:
+      /var/log/syslog: "640"
+      /var/log/auth.log: "640"
+      /var/log/messages: "640"
+      /var/log/secure: "640"
+    log_forwarding_secure: "TLS Enabled"
+
+
+

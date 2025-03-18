@@ -20,6 +20,44 @@ def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
 def check_compliance(rule_id, detected_values, reference_data):
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
     expected_values_list = []
+
+    if rule_id == 'R71':
+        detected = detected_values or {}
+        issues = []
+
+        # syslog installed
+        if not detected.get("syslog_installed") == "Installed":
+            issues.append(f"Syslog: '{detected.get('syslog_installed')}' (expected 'Installed')")
+
+        # syslog running
+        if not detected.get("syslog_running") == "Running":
+            issues.append(f"Syslog service: '{detected.get('syslog_running')}' (expected 'Running')")
+
+        # Authentication logs configuration
+        if not detected["auth_logs_configured"]:
+            issues.append("Missing authentication logging configuration")
+
+        # system events logs configuration
+        if not detected["sys_events_configured"]:
+            issues.append("System event logging configuration missing")
+
+        # log files permissions
+        for logfile, expected_perm in expected_values["log_files_permissions"].items():
+            detected_perm = detected["log_files_permissions"].get(logfile, "Not Found")
+            if detected_perm != expected_perm:
+                issues.append(f"{logfile}: permissions '{detected_perm}' (expected '{expected_perm}')")
+
+        # log forwarding secure
+        if detected["log_forwarding_secure"] != expected_values["log_forwarding_secure"]:
+            issues.append(f"Log forwarding security: '{detected['log_forwarding_secure']}' (expected '{expected_values['log_forwarding_secure']}')")
+
+        return {
+            "apply": not bool(issues),
+            "status": "Compliant" if not issues else "Non-Compliant",
+            "expected_elements": expected_values,
+            "detected_elements": detected,
+            "issues": issues or None
+        }
     
     if isinstance(expected_values, dict):
         for key, value in expected_values.items():
@@ -42,6 +80,7 @@ def check_compliance(rule_id, detected_values, reference_data):
         "expected_elements": expected_values or "None",
         "detected_elements": detected_values or "None"
     }
+
 # Specific functions for logging rules
 def get_audit_log_status(serveur):
     result = execute_ssh_command(serveur, "systemctl is-active auditd")
@@ -75,6 +114,75 @@ def check_r33(serveur):
         "log_rotation": get_log_rotation(serveur) if audit_status != "Not Installed" else None
     }
 
+# Check secure and complete syslog configuration (R71)
+def check_syslog_configuration(serveur):
+    results = {
+        "syslog_installed": "Not Installed",
+        "syslog_running": "Stopped",
+        "auth_logs_configured": [],
+        "sys_events_configured": [],
+        "log_files_permissions": {},
+        "log_forwarding_secure": "No Forwarding Configured"
+    }
+
+    # Check if syslog (rsyslog or syslog-ng) is installed
+    syslog_installed = execute_ssh_command(
+        serveur,
+        "dpkg -l | grep -E 'rsyslog|syslog-ng'"
+    )
+    results["syslog_installed"] = "Installed" if syslog_installed else "Not Installed"
+
+    # Check if syslog service is running
+    syslog_status = execute_ssh_command(
+        serveur,
+        "systemctl is-active rsyslog || systemctl is-active syslog-ng"
+    )
+    results["syslog_running"] = "Running" if syslog_status and syslog_status[0] == "active" else "Stopped"
+
+    # Check configuration for authentication logs
+    auth_logs_configured = execute_ssh_command(
+        serveur,
+        r"grep -Er '^(auth|authpriv)\.' /etc/rsyslog.* /etc/syslog.*"
+    )
+    results["auth_logs_configured"] = auth_logs_configured or []
+
+    # Check configuration for system event logs
+    sys_events_configured = execute_ssh_command(
+        serveur,
+        r"grep -Er '^(\*\.\*|kern\.|daemon\.|^\*\.info)' /etc/rsyslog.* /etc/syslog.*"
+    )
+    results["sys_events_configured"] = sys_events_configured or []
+
+    # Check permissions of critical log files
+    log_files = ["/var/log/syslog", "/var/log/auth.log", "/var/log/messages", "/var/log/secure"]
+    for log_file in log_files:
+        permission_output = execute_ssh_command(
+            serveur,
+            f"stat -c '%a' {log_file} 2>/dev/null"
+        )
+        if permission_output:
+            permissions = permission_output[0].strip()
+            results["log_files_permissions"][log_file] = permissions
+        else:
+            results["log_files_permissions"][log_file] = "Not Found"
+
+    # Check if log forwarding is configured securely (TLS)
+    forwarding_conf = execute_ssh_command(
+        serveur,
+        "grep -Er '@@?' /etc/rsyslog.* /etc/syslog.*"
+    )
+
+    if forwarding_conf:
+        tls_config = execute_ssh_command(
+            serveur,
+            "grep -Ei '(StreamDriverMode|StreamDriverAuthMode|DefaultNetstreamDriver)' /etc/rsyslog.*"
+        )
+        results["log_forwarding_secure"] = "TLS Enabled" if tls_config else "TLS Not Enabled"
+    else:
+        results["log_forwarding_secure"] = "No Forwarding Configured"
+
+    return results
+
 # Main function to analyze logging and auditing
 def analyse_journalisation(serveur, niveau="min", reference_data=None):
     if reference_data is None:
@@ -86,7 +194,9 @@ def analyse_journalisation(serveur, niveau="min", reference_data=None):
         "moyen": {
             "R33": (check_r33, "Ensure accountability of administrative actions")
         },
-        "avancé": {}
+        "renforce": {
+            "R71": (check_syslog_configuration, "Ensure secure and complete logging configuration")
+        }
     }
     
     if niveau in rules and rules[niveau]:
