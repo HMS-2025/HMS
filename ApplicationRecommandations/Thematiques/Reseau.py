@@ -1,5 +1,3 @@
-############ Mise a jour à venir pour ce fichiers ###################
-
 import yaml
 import re
 import subprocess
@@ -19,7 +17,7 @@ def list_interfaces(client):
     """Liste les interfaces réseau disponibles sur le serveur distant."""
     print("Récupération des interfaces réseau disponibles...")
     try:
-        stdin, stdout, stderr = client.exec_command("sudo tcpdump -D")
+        stdin, stdout, stderr = client.exec_command("tcpdump -D")
         output = stdout.read().decode()
         error = stderr.read().decode()
         
@@ -50,7 +48,7 @@ def capture_traffic(client, interface, duration, output_file):
         stdin, stdout, stderr = client.exec_command(command)
 
         # Commande tcpdump distante pour capturer le trafic
-        command = f"sudo timeout {duration} tcpdump -i {interface} -w {output_file}"
+        command = f"timeout {duration} tcpdump -i {interface} -w {output_file}"
         stdin, stdout, stderr = client.exec_command(command)
         stdout.channel.recv_exit_status()  # Attendre la fin de l'exécution proprement
 
@@ -95,7 +93,7 @@ def get_open_ports(client):
     """
     Récupère la liste des ports ouverts sur la machine distante via SSH.
     """
-    stdin, stdout, stderr = client.exec_command("sudo ss -tuln")
+    stdin, stdout, stderr = client.exec_command("ss -tuln")
     output = stdout.read().decode()
     error = stderr.read().decode()
 
@@ -117,7 +115,7 @@ def get_open_ports(client):
     return open_ports
 
 
-def analyze_pcap_and_generate_script(client, file_path, output_script):
+def analyze_pcap_and_generate_script(client, file_path):
     """
     Analyse un fichier PCAP et génère un script IPTABLES uniquement
     pour les ports ouverts détectés sur la machine distante.
@@ -152,49 +150,79 @@ def analyze_pcap_and_generate_script(client, file_path, output_script):
     for key, count in traffic_summary.items():
         print(f"{key}: {count} paquets")
 
-    # Génération du script IPTABLES
-    print("\nÉcriture des règles IPTABLES dans le fichier .sh...")
-    write_iptables_script(source_ports_to_allow, output_script)
+    # Execution des regles iptable IPTABLES
+    execute_iptables_commands(client ,source_ports_to_allow)
 
-def write_iptables_script(source_ports_to_allow, output_script):
+def execute_iptables_commands(client, source_ports_to_allow):
     """
-    Génère un script .sh contenant les règles IPTABLES pour autoriser le trafic entrant
-    provenant des ports source spécifiés.
+    Exécute directement les commandes IPTABLES sur le serveur distant
+    pour autoriser le trafic entrant provenant des ports source spécifiés,
+    après avoir effectué une sauvegarde des règles existantes.
     """
     try:
-        with open(output_script, "w") as script_file:
-            # Écrire l'entête du script
-            script_file.write("#!/bin/bash\n\n")
-            script_file.write("# Script généré automatiquement pour configurer IPTABLES\n\n")
+        # Générer un chemin de sauvegarde unique basé sur l'heure actuelle
+        backup_file = f"/tmp/iptables-backup.rules"
 
-            # Réinitialiser les règles IPTABLES
-            script_file.write("echo 'Réinitialisation des règles IPTABLES...'\n")
-            script_file.write("iptables -F\n")
-            script_file.write("iptables -X\n")
-            script_file.write("iptables -P INPUT DROP\n")
-            script_file.write("iptables -P FORWARD DROP\n")
-            script_file.write("iptables -P OUTPUT ACCEPT\n\n")
+        print(f"Sauvegarde des règles IPTABLES actuelles dans {backup_file}...")
 
-            # Autoriser le trafic local (loopback)
-            script_file.write("echo 'Autorisation du trafic local...'\n")
-            script_file.write("iptables -A INPUT -i lo -j ACCEPT\n\n")
+        # Effectuer la sauvegarde des règles actuelles sur le serveur distant
+        stdin, stdout, stderr = client.exec_command(f"iptables-save > {backup_file}")
+        output = stdout.read().decode()
+        error = stderr.read().decode()
 
-            # Autoriser les connexions établies et liées
-            script_file.write("echo 'Autorisation des connexions établies et liées...'\n")
-            script_file.write("iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n\n")
+        if error:
+            print(f"Erreur lors de la sauvegarde des règles actuelles : {error.strip()}")
+        else:
+            print("Sauvegarde réussie.")
 
-            # Ajouter les règles pour les ports source détectés
-            script_file.write("echo 'Ajout des règles pour les ports source détectés...'\n")
-            for protocol, port in source_ports_to_allow:
-                script_file.write(f"iptables -A INPUT -p {protocol} --sport {port} -j ACCEPT\n")
-                script_file.write(f"echo 'Règle ajoutée : Autoriser {protocol.upper()} depuis le port source {port}'\n")
-            
-            print(f"Les règles ont été écrites dans le fichier {output_script}.")
+        # Réinitialiser les règles IPTABLES
+        commands = [
+            "iptables -F",
+            "iptables -X",
+            "iptables -P INPUT DROP",
+            "iptables -P FORWARD DROP",
+            "iptables -P OUTPUT ACCEPT",
+            "iptables -A INPUT -i lo -j ACCEPT",
+            "iptables -A INPUT -m conntrack --ctstate ESTABLISHED -j ACCEPT",
+        ]
+
+        # Ajouter les règles pour les ports source détectés
+        for protocol, port in source_ports_to_allow:
+            commands.append(f"iptables -A INPUT -p {protocol} --dport {port} -j ACCEPT")
+
+        # Créer et exécuter le script IPTABLES sur le serveur distant
+        iptable = "/iptables.sh"
+
+        print(f"Création du script {iptable}...")
+        stdin, stdout, stderr = client.exec_command(f"echo '#!/bin/bash' > {iptable}")
+        stdin, stdout, stderr = client.exec_command(f"chmod +x {iptable}")
+
+        for command in commands:
+            stdin, stdout, stderr = client.exec_command(f"echo {command} >> {iptable}")
+            output = stdout.read().decode()
+            error = stderr.read().decode()
+
+            if error:
+                print(f"Erreur lors de l'ajout de la commande : {error.strip()}")
+
+        print("Exécution des nouvelles règles IPTABLES...")
+        stdin, stdout, stderr = client.exec_command(f"bash {iptable}")
+        output = stdout.read().decode()
+        error = stderr.read().decode()
+
+        if error:
+            print(f"Erreur lors de l'exécution des nouvelles règles : {error.strip()}")
+        else:
+            print("Nouvelles règles appliquées avec succès.")
+
     except Exception as e:
-        print(f"Erreur lors de l'écriture du fichier .sh : {e}")
+        print(f"Erreur lors de l'exécution des commandes IPTABLES : {e}")
 
-
-def apply_80(client) : 
+def apply_80(client):
+    """
+    Fonction principale pour capturer le trafic réseau, télécharger le fichier PCAP
+    et générer un script IPTABLES en fonction des données analysées.
+    """
 
     # Lister les interfaces réseau sur la machine distante
     interfaces = list_interfaces(client)
@@ -215,21 +243,25 @@ def apply_80(client) :
         print("Entrée invalide. Veuillez entrer un numéro.")
         return
 
+    # Demander à l'utilisateur la durée d'écoute
+    try:
+        capture_duration = int(input("\nEntrez la durée d'écoute en secondes : "))
+        if capture_duration <= 0:
+            print("Veuillez entrer une durée valide (supérieure à 0).")
+            return
+    except ValueError:
+        print("Entrée invalide. Veuillez entrer un entier positif pour la durée.")
+        return
+
     # Configuration pour la capture distante
-    capture_duration = 30  # Durée en secondes
     output_file = "/tmp/captured_traffic.pcap"  # Chemin distant
     local_pcap_file = "/tmp/captured_traffic.pcap"  # Chemin local
+
     # Lancer la capture
     capture_traffic(client, selected_interface, capture_duration, output_file)
-    download_pcap(client, output_file,local_pcap_file )
-    # Nom du fichier shell pour les règles IPTABLES
-    output_script = "/tmp/iptables_rules.sh"
-
+    download_pcap(client, output_file, local_pcap_file)
     # Analyser le fichier PCAP et générer le fichier .sh
-    analyze_pcap_and_generate_script(client, local_pcap_file, output_script)
-
-
-
+    analyze_pcap_and_generate_script(client, local_pcap_file)
 
 def apply_rule(rule_name, yaml_file, client , level):
     if level =='min' : 
