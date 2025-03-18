@@ -37,8 +37,8 @@ R68:
   description: "Protect stored passwords"
   expected:
     shadow_permissions: "-rw-r----- root shadow"
-    hashed_passwords: "Oui"
-    cleartext_passwords: "Non"
+    hashed_passwords: "Yes"
+    cleartext_passwords: "No"
     empty_passwords: []
     hash_algorithms:
       - "6"  # SHA-512

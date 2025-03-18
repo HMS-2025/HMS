@@ -1,4 +1,5 @@
 import yaml
+import os
 import tkinter as tk
 from tkinter import ttk
 
@@ -93,8 +94,13 @@ class Gui:
         description += rule.get('description', 'No description available.')
         self.description_label.config(text=description)
 
+
     def save_changes(self):
-        
+        # Créer le fichier s'il n'existe pas (ainsi que le dossier parent si nécessaire)
+        if not os.path.exists(self.save_file):
+            os.makedirs(os.path.dirname(self.save_file), exist_ok=True)
+            open(self.save_file, 'w').close()  # crée le fichier vide
+
         # Supprimer les règles avec "apply" = False de modified_data
         for section, rules in list(self.modified_data.items()):
             self.modified_data[section] = {key: rule for key, rule in rules.items() if rule["apply"]}
@@ -105,10 +111,9 @@ class Gui:
 
         # Sauvegarder uniquement les données non vides
         with open(self.save_file, "w") as file:
-            if self.modified_data : # si ce n'est pas vide
+            if self.modified_data:  # si ce n'est pas vide
                 yaml.dump(self.modified_data, file, default_flow_style=False, allow_unicode=True)
         print("Modifications sauvegardées")
-
-
+        
 # Exemple d'utilisation :
 # Gui("fichier.yaml", "sauvegarde.yaml")
