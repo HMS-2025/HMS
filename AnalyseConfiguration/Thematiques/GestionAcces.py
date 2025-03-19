@@ -4,12 +4,10 @@ import paramiko
 import re
 from GenerationRapport.GenerationRapport import generate_html_report
 
-# Execute an SSH command on the remote server and return the result as a list of lines
 def execute_ssh_command(serveur, command):
     stdin, stdout, stderr = serveur.exec_command(command)
     return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-# Check compliance of rules by comparing detected values with reference data
 def check_compliance(rule_id, detected_values, reference_data):
     if rule_id == 'R44':
         return {
@@ -18,8 +16,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             "detected_elements": detected_values or "None"
         }
     elif rule_id == 'R52':
-        # Protect named sockets and pipes
-        # Expected values are a list of entries like "/run/dbus 755"
         expected_list = reference_data.get(rule_id, {}).get("expected", [])
         expected_dict = {}
         for entry in expected_list:
@@ -27,7 +23,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             if len(parts) == 2:
                 expected_dict[parts[0]] = parts[1]
 
-        # Function to convert symbolic permission (e.g., drwxr-xr-x) to numeric (e.g., 755)
         def symbolic_to_numeric(sym):
             mapping = {'r': 4, 'w': 2, 'x': 1, '-': 0}
             if len(sym) == 10:
@@ -40,7 +35,6 @@ def check_compliance(rule_id, detected_values, reference_data):
                 nums.append(str(total))
             return "".join(nums)
 
-        # Build a dictionary from detected elements: key = file path, value = numeric permission
         detected_dict = {}
         detected_numeric_list = []
         for line in detected_values:
@@ -65,7 +59,6 @@ def check_compliance(rule_id, detected_values, reference_data):
                 discrepancies[path] = {"detected": det_perm, "expected": exp_perm}
                 is_compliant = False
 
-        # Consolidate discrepancies into a single list of differences
         differences_list = []
         for path, diff in discrepancies.items():
             differences_list.append(f"{path} '{diff['detected']}' (expected '{diff['expected']}')")
@@ -78,9 +71,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             "differences": differences_list if differences_list else None
         }
     elif rule_id == 'R55':
-        # Separate user temporary directories
-        # Compliant if PAM configuration contains references to pam_namespace or pam_mktemp.
-        # These modules create per-user temporary directories.
         is_compliant = bool(detected_values)
         status = "Compliant" if is_compliant else "Non-Compliant"
         return {
@@ -89,7 +79,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             "detected_elements": detected_values if detected_values else "None"
         }
     elif rule_id == 'R67':
-        # Secure remote authentication via PAM
         is_compliant = True
         discrepancies = {}
         for entry in detected_values:
@@ -128,7 +117,6 @@ def check_compliance(rule_id, detected_values, reference_data):
         }
     elif rule_id == 'R41':
         expected_values = reference_data.get('R41', {}).get('expected', {}).get('noexec_commands', [])
-        
         if not detected_values:
             return {
                 "apply": False,
@@ -136,10 +124,8 @@ def check_compliance(rule_id, detected_values, reference_data):
                 "expected_elements": expected_values,
                 "detected_elements": "None"
             }
-        
         detected_set = set(detected_values)
         expected_set = set(expected_values)
-
         if detected_values and set(detected_values) == set(expected_values):
             return {
                 "apply": True,
@@ -161,9 +147,7 @@ def check_compliance(rule_id, detected_values, reference_data):
     elif rule_id == 'R57':
         expected_execs = set(reference_data.get('R57', {}).get('expected', []))
         detected_execs = set(detected_values) if detected_values else set()
-
         unauthorized_execs = detected_execs - expected_execs
-
         if unauthorized_execs:
             return {
                 "apply": False,
@@ -181,9 +165,7 @@ def check_compliance(rule_id, detected_values, reference_data):
     elif rule_id == 'R64':
         expected_services = set(reference_data.get('R64', {}).get('expected', []))
         detected_services = set(detected_values or [])
-
         unauthorized_services = detected_services - expected_services
-
         if unauthorized_services:
             return {
                 "apply": False,
@@ -207,264 +189,313 @@ def check_compliance(rule_id, detected_values, reference_data):
             "detected_elements": detected_values or "None"
         }
 
-# Retrieve standard users from /etc/passwd (users with UID >= 1000, excluding 'nobody')
-def get_standard_users(serveur):
-    return set(execute_ssh_command(serveur, "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1}' /etc/passwd"))
+def save_yaml_report(data, output_file, rules, niveau):
+    output_dir = "GenerationRapport/RapportAnalyse"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, output_file)
+    with open(output_path, "w", encoding="utf-8") as file:
+        file.write("gestion_acces:\n")
+        for rule_id, content in data.items():
+            comment = rules[niveau].get(rule_id, ("", ""))[1]
+            file.write(f"  {rule_id}:  # {comment}\n")
+            if rule_id == "R44" and isinstance(content.get("detected_elements"), dict):
+                file.write(f"    apply: {str(content.get('apply')).lower()}\n")
+                file.write(f"    status: {content.get('status')}\n")
+                file.write("    detected_elements:\n")
+                file.write("      violations:\n")
+                if content["detected_elements"]["violations"]:
+                    for violation in content["detected_elements"]["violations"]:
+                        file.write(f"        - {violation}\n")
+                else:
+                    file.write("        - None\n")
+                file.write("      sudoedit_usage:\n")
+                if content["detected_elements"]["sudoedit_usage"]:
+                    for usage in content["detected_elements"]["sudoedit_usage"]:
+                        file.write(f"        - {usage}\n")
+                else:
+                    file.write("        - None\n")
+            else:
+                yaml_content = yaml.safe_dump(content, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False)
+                indented_yaml = "\n".join(["    " + line for line in yaml_content.split("\n") if line.strip()])
+                file.write(indented_yaml + "\n")
+        file.write("\n")
+    print(f"Report generated: {output_path}")
 
-# Retrieve recent users from the 'last' command within the last 60 days
-def get_recent_users(serveur):
-    return set(execute_ssh_command(serveur, "last -s -60days -F | awk '{print $1}' | grep -v 'wtmp' | sort | uniq"))
+# --- Functions that execute commands are adapted to take os_info and branch accordingly ---
+def get_standard_users(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return set(execute_ssh_command(serveur, "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1}' /etc/passwd"))
+    else:
+        print("[get_standard_users] Non-Ubuntu OS detected; standard users not retrieved.")
+        return set()
 
-# Retrieve disabled users from /etc/shadow (accounts with a locked password)
-def get_disabled_users(serveur):
-    return set(execute_ssh_command(serveur, "awk -F: '($2 ~ /^!|^\\*/) {print $1}' /etc/shadow"))
+def get_recent_users(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return set(execute_ssh_command(serveur, "last -s -60days -F | awk '{print $1}' | grep -v 'wtmp' | sort | uniq"))
+    else:
+        print("[get_recent_users] Non-Ubuntu OS detected; recent users not retrieved.")
+        return set()
 
-# Get inactive users: standard users who haven't logged in recently and are not disabled
-def get_inactive_users(serveur):
-    return list((get_standard_users(serveur) - get_recent_users(serveur)) - get_disabled_users(serveur))
+def get_disabled_users(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return set(execute_ssh_command(serveur, "awk -F: '($2 ~ /^!|^\\*/) {print $1}' /etc/shadow"))
+    else:
+        print("[get_disabled_users] Non-Ubuntu OS detected; disabled users not retrieved.")
+        return set()
 
-# Find orphan files (files with no valid owner or group)
-def find_orphan_files(serveur):
-    return execute_ssh_command(serveur, "sudo find / -xdev \\( -nouser -o -nogroup \\) -print 2>/dev/null")
+def get_inactive_users(serveur, os_info):
+    return list((get_standard_users(serveur, os_info) - get_recent_users(serveur, os_info)) - get_disabled_users(serveur, os_info))
 
-# Find files with setuid or setgid permissions
-def find_files_with_setuid_setgid(serveur):
-    ro_mounts = execute_ssh_command(serveur, "findmnt -r -n -o TARGET")
-    ro_mounts_list = ro_mounts
-    exclusions = ' '.join([f"-path '{mount}/*' -prune -o" for mount in ro_mounts_list])
-    find_command = f"find / {exclusions} -type f -perm /6000 -print 2>/dev/null"
-    return execute_ssh_command(serveur, find_command)
+def find_orphan_files(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return execute_ssh_command(serveur, "sudo find / -xdev \\( -nouser -o -nogroup \\) -print 2>/dev/null")
+    else:
+        print("[find_orphan_files] Non-Ubuntu OS detected; orphan files search skipped.")
+        return []
 
-# Get service accounts (system accounts with UID < 1000 except root)
-def get_service_accounts(serveur):
-    command = "sudo awk -F: 'FNR==NR { shadow[$1]=$2; next } ($3 < 1000 && $3 != 0) && ($7 !~ /^(\\/usr\\/sbin\\/nologin|\\/bin\\/false)$/) && (shadow[$1] !~ /^[!*]/ && shadow[$1] != \"\") {print $1}' /etc/shadow /etc/passwd"
-    return execute_ssh_command(serveur, command)
+def find_files_with_setuid_setgid(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        ro_mounts = execute_ssh_command(serveur, "findmnt -r -n -o TARGET")
+        exclusions = ' '.join([f"-path '{mount}/*' -prune -o" for mount in ro_mounts])
+        find_command = f"find / {exclusions} -type f -perm /6000 -print 2>/dev/null"
+        return execute_ssh_command(serveur, find_command)
+    else:
+        print("[find_files_with_setuid_setgid] Non-Ubuntu OS detected; search skipped.")
+        return []
 
-# Get sudo directives from /etc/sudoers
-def get_sudo_directives(serveur):
-    return execute_ssh_command(serveur, "sudo grep -E '^Defaults' /etc/sudoers")
+def get_service_accounts(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        command = ("sudo awk -F: 'FNR==NR { shadow[$1]=$2; next } "
+                   "($3 < 1000 && $3 != 0) && ($7 !~ /^(\\/usr\\/sbin\\/nologin|\\/bin\\/false)$/) "
+                   "&& (shadow[$1] !~ /^[!*]/ && shadow[$1] != \"\") {print $1}' /etc/shadow /etc/passwd")
+        return execute_ssh_command(serveur, command)
+    else:
+        print("[get_service_accounts] Non-Ubuntu OS detected; service accounts not retrieved.")
+        return []
 
-# Get non-privileged sudo users from /etc/sudoers
-def get_non_privileged_sudo_users(serveur):
-    return execute_ssh_command(serveur, "sudo grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\\(ALL.*\\)' | grep -Ev '(NOPASSWD|%sudo|root)'")
+def get_sudo_directives(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return execute_ssh_command(serveur, "sudo grep -E '^Defaults' /etc/sudoers")
+    else:
+        print("[get_sudo_directives] Non-Ubuntu OS detected; sudo directives not retrieved.")
+        return []
 
-# Get negation operators in /etc/sudoers (e.g. the '!' symbol)
-def get_negation_in_sudoers(serveur):
-    return execute_ssh_command(serveur, "sudo grep -E '!' /etc/sudoers")
+def get_non_privileged_sudo_users(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return execute_ssh_command(serveur, "sudo grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\\(ALL.*\\)' | grep -Ev '(NOPASSWD|%sudo|root)'")
+    else:
+        print("[get_non_privileged_sudo_users] Non-Ubuntu OS detected; non-privileged sudo users not retrieved.")
+        return []
 
-# Get strict sudo argument specifications from /etc/sudoers
-def get_strict_sudo_arguments(serveur):
-    result = execute_ssh_command(serveur, "sudo grep -E 'ALL=' /etc/sudoers | grep -E '*'")
-    cleaned_elements = [element.replace("\t", " ") for element in result]
-    return cleaned_elements
+def get_negation_in_sudoers(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return execute_ssh_command(serveur, "sudo grep -E '!' /etc/sudoers")
+    else:
+        print("[get_negation_in_sudoers] Non-Ubuntu OS detected; negation operators not retrieved.")
+        return []
 
-# Get sudoedit usage from /etc/sudoers for rule R44
-def get_sudoedit_usage(serveur):
-    sudoers_lines = execute_ssh_command(serveur, "sudo cat /etc/sudoers")
-    violations = []
-    sudoedit_used = []
-    known_editors = ["vi", "vim", "nano", "emacs", "gedit", "kate"]
-    
-    for line in sudoers_lines:
-        stripped_line = line.strip()
-        if not stripped_line or stripped_line.startswith("#"):
-            continue
-        if "=" not in stripped_line:
-            continue
-        spec, cmd_part = stripped_line.split("=", 1)
-        cmd_part = cmd_part.strip()
-        if cmd_part.startswith("("):
-            end_paren = cmd_part.find(")")
-            if end_paren != -1:
-                cmd_list_str = cmd_part[end_paren+1:].strip()
+def get_strict_sudo_arguments(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        result = execute_ssh_command(serveur, "sudo grep -E 'ALL=' /etc/sudoers | grep -E '*'",)
+        cleaned_elements = [element.replace("\t", " ") for element in result]
+        return cleaned_elements
+    else:
+        print("[get_strict_sudo_arguments] Non-Ubuntu OS detected; strict sudo arguments not retrieved.")
+        return []
+
+def get_sudoedit_usage(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        sudoers_lines = execute_ssh_command(serveur, "sudo cat /etc/sudoers")
+        violations = []
+        sudoedit_used = []
+        known_editors = ["vi", "vim", "nano", "emacs", "gedit", "kate"]
+        for line in sudoers_lines:
+            stripped_line = line.strip()
+            if not stripped_line or stripped_line.startswith("#"):
+                continue
+            if "=" not in stripped_line:
+                continue
+            spec, cmd_part = stripped_line.split("=", 1)
+            cmd_part = cmd_part.strip()
+            if cmd_part.startswith("("):
+                end_paren = cmd_part.find(")")
+                if end_paren != -1:
+                    cmd_list_str = cmd_part[end_paren+1:].strip()
+                else:
+                    cmd_list_str = cmd_part
             else:
                 cmd_list_str = cmd_part
-        else:
-            cmd_list_str = cmd_part
-        commands = [cmd.strip() for cmd in cmd_list_str.split(",")]
-        line_violation = False
-        for cmd in commands:
-            if cmd.upper() == "ALL":
-                violations.append(f"\"{stripped_line}\" # The 'ALL' command allows execution of any command, which contradicts the requirement to use sudoedit for file editing.")
-                line_violation = True
-                break
-            for editor in known_editors:
-                if re.search(r'\b' + re.escape(editor) + r'\b', cmd) and "sudoedit" not in cmd:
-                    violations.append(f"\"{stripped_line}\" # The command uses the editor '{editor}' without using sudoedit, which contradicts the requirement to use sudoedit for file editing.")
+            commands = [cmd.strip() for cmd in cmd_list_str.split(",")]
+            line_violation = False
+            for cmd in commands:
+                if cmd.upper() == "ALL":
+                    violations.append(f"\"{stripped_line}\" # Uses ALL, which contradicts sudoedit use.")
                     line_violation = True
                     break
-            if line_violation:
-                break
-        # If no violation and the line uses 'sudoedit', record it.
-        if not line_violation and "sudoedit" in stripped_line:
-            sudoedit_used.append(stripped_line)
-    return {"violations": violations, "sudoedit_usage": sudoedit_used}
+                for editor in known_editors:
+                    if re.search(r'\b' + re.escape(editor) + r'\b', cmd) and "sudoedit" not in cmd:
+                        violations.append(f"\"{stripped_line}\" # Uses editor '{editor}' without sudoedit.")
+                        line_violation = True
+                        break
+                if line_violation:
+                    break
+            if not line_violation and "sudoedit" in stripped_line:
+                sudoedit_used.append(stripped_line)
+        return {"violations": violations, "sudoedit_usage": sudoedit_used}
+    else:
+        print("[get_sudoedit_usage] Non-Ubuntu OS detected; sudoedit usage not retrieved.")
+        return {"violations": [], "sudoedit_usage": []}
 
-# Get user private temporary directory configuration by checking PAM configuration
-def get_user_private_tmp(serveur):
-    files_to_check = ["/etc/pam.d/login", "/etc/pam.d/sshd"]
-    results = []
-    for f in files_to_check:
-        try:
-            output = execute_ssh_command(serveur, f"grep -Ei 'pam_namespace|pam_mktemp' {f}")
-            if output:
-                results.extend(output)
-        except Exception as e:
-            pass
-    return results if results else None
+def get_user_private_tmp(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        files_to_check = ["/etc/pam.d/login", "/etc/pam.d/sshd"]
+        results = []
+        for f in files_to_check:
+            try:
+                output = execute_ssh_command(serveur, f"grep -Ei 'pam_namespace|pam_mktemp' {f}")
+                if output:
+                    results.extend(output)
+            except Exception as e:
+                pass
+        return results if results else None
+    else:
+        print("[get_user_private_tmp] Non-Ubuntu OS detected; user private tmp not retrieved.")
+        return None
 
-# Iterate over all world-writable directories on the remote server and return a list of directories 
-# that are accessible to everyone without the sticky bit set.
-# For each found directory, verify:
-#   - That it is indeed a directory (first character 'd').
-#   - That the directory is world-writable (others have write permission).
-#   - That its parent directory is accessible to everyone (others have execute permission).
-#   - That the sticky bit is enabled.
-#
-# Only directories that are world-writable and accessible to everyone but without the sticky bit are added.
-#
-# Args:
-#   serveur (paramiko.SSHClient): SSH connection to the remote server.
-#
-# Returns:
-#   list: List of error messages for each non-compliant directory.
-#         An empty list indicates that all world-writable directories accessible to everyone are compliant.
-def check_all_sticky_bit(serveur):
-    non_conformes = []
-    # List all world-writable directories on the system
-    find_cmd = "sudo find / -type d -perm -0002 -print 2>/dev/null"
-    directories = execute_ssh_command(serveur, find_cmd)
-    
-    for directory in directories:
-        directory = directory.strip()
-        if not directory:
-            continue
-
-        # Try to retrieve the directory's permissions
-        try:
-            stat_cmd = f"stat -c '%A' {directory}"
-            output = execute_ssh_command(serveur, stat_cmd)
-        except Exception as e:
-            output = []
-        
-        if not output:
-            # If unable to retrieve permissions, check the parent directory first
+def check_all_sticky_bit(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        non_conformes = []
+        find_cmd = "sudo find / -type d -perm -0002 -print 2>/dev/null"
+        directories = execute_ssh_command(serveur, find_cmd)
+        for directory in directories:
+            directory = directory.strip()
+            if not directory:
+                continue
+            try:
+                stat_cmd = f"stat -c '%A' {directory}"
+                output = execute_ssh_command(serveur, stat_cmd)
+            except Exception as e:
+                output = []
+            if not output:
+                parent_dir = os.path.dirname(directory)
+                try:
+                    parent_output = execute_ssh_command(serveur, f"stat -c '%A' {parent_dir}")
+                    if parent_output:
+                        parent_permissions = parent_output[0].strip()
+                        parent_others = parent_permissions[-3:]
+                        if parent_others[2] not in ['x', 't', 'T']:
+                            continue
+                    else:
+                        continue
+                except Exception as e:
+                    continue
+                non_conformes.append(f"{directory}: Unable to retrieve permissions.")
+                continue
+            permissions = output[0].strip()
+            if not permissions.startswith('d'):
+                non_conformes.append(f"{directory}: Not a directory (permissions: {permissions}).")
+                continue
             parent_dir = os.path.dirname(directory)
+            parent_accessible = True
             try:
                 parent_output = execute_ssh_command(serveur, f"stat -c '%A' {parent_dir}")
-                if parent_output:
+                if not parent_output:
+                    parent_accessible = False
+                else:
                     parent_permissions = parent_output[0].strip()
                     parent_others = parent_permissions[-3:]
-                    # If the parent is not accessible (others lack execute permission), skip this directory
                     if parent_others[2] not in ['x', 't', 'T']:
-                        continue
-                else:
+                        parent_accessible = False
+                if not parent_accessible:
                     continue
             except Exception as e:
                 continue
-            # If parent's accessible but still no permission info for the directory,
-            # add an error message.
-            non_conformes.append(f"{directory}: Impossible de récupérer les permissions.")
-            continue
+            others = permissions[-3:]
+            is_world_writable = others[1] == 'w'
+            has_sticky_bit = others[2] in ['t', 'T']
+            if is_world_writable and not has_sticky_bit:
+                non_conformes.append(f"{directory}: World-writable without sticky bit (permissions: {permissions}).")
+        return non_conformes
+    else:
+        print("[check_all_sticky_bit] Non-Ubuntu OS detected; sticky bit check skipped.")
+        return []
 
-        permissions = output[0].strip()
+def get_secure_permissions(serveur, reference_data, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        ref_data = reference_data.get("R50", {}).get("expected", {})
+        expected_files = {}
+        for entry in ref_data:
+            parts = entry.split()
+            if len(parts) == 2:
+                expected_files[parts[0]] = parts[1]
+        output = execute_ssh_command(serveur, "sudo find / -type f -perm -0002 -ls 2>/dev/null")
+        if isinstance(output, list):
+            output = "\n".join(output)
+        formatted_permissions = []
+        for line in output.split("\n"):
+            match = re.search(r"([bcdlsp-]?)([rwx-]{9})\s+\d+\s+(\w+)\s+(\w+)\s+\d+[, \d]*\s+\w+\s+\d+\s+[\d:]+\s+(.+)", line)
+            if match:
+                file_type, raw_permissions, owner, group, path = match.groups()
+                if path in expected_files:
+                    def convert_to_numeric(perm):
+                        mapping = {'r': 4, 'w': 2, 'x': 1, '-': 0}
+                        u = sum(mapping[perm[i]] for i in range(0, 3))
+                        g = sum(mapping[perm[i]] for i in range(3, 6))
+                        o = sum(mapping[perm[i]] for i in range(6, 9))
+                        return f"{u}{g}{o}"
+                    numeric_perm = convert_to_numeric(raw_permissions)
+                    expected_perm = expected_files[path]
+                    formatted_permissions.append(f"{owner} {group} {path} {numeric_perm} (expected: {expected_perm})")
+        return formatted_permissions
+    else:
+        print("[get_secure_permissions] Non-Ubuntu OS detected; secure permissions check skipped.")
+        return []
 
-        # Check that it is indeed a directory
-        if not permissions.startswith('d'):
-            non_conformes.append(f"{directory}: Not a directory (permissions: {permissions}).")
-            continue
+def get_protected_sockets(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        output = execute_ssh_command(serveur, r"sudo ss -xp | awk '{print $5}' | cut -d':' -f1 | sort -u | grep -vE '^\*$|^Local$' | xargs stat -c '%A %U %G %n'")
+        if isinstance(output, list):
+            output = "\n".join(output)
+        protected_sockets = []
+        directories = {}
+        for line in output.split("\n"):
+            parts = line.split()
+            if len(parts) == 4:
+                permissions, owner, group, path = parts
+                directory = os.path.dirname(path)
+                if directory not in directories:
+                    dir_output = execute_ssh_command(serveur, f"stat -c '%A %U %G %n' {directory}")
+                    if isinstance(dir_output, list) and dir_output:
+                        dir_permissions, dir_owner, dir_group, dir_path = "\n".join(dir_output).strip().split()
+                    else:
+                        continue
+                    directories[directory] = f"{dir_owner} {dir_group} {dir_path} {dir_permissions}"
+                    protected_sockets.append(f"{dir_owner} {dir_group} {dir_path} {dir_permissions}")
+                protected_sockets.append(f"{owner} {group} {path} {permissions}")
+        return protected_sockets
+    else:
+        print("[get_protected_sockets] Non-Ubuntu OS detected; protected sockets not retrieved.")
+        return []
 
-        # Verify that the parent directory is accessible to everyone
-        parent_dir = os.path.dirname(directory)
-        parent_accessible = True
-        try:
-            parent_output = execute_ssh_command(serveur, f"stat -c '%A' {parent_dir}")
-            if not parent_output:
-                parent_accessible = False
-            else:
-                parent_permissions = parent_output[0].strip()
-                parent_others = parent_permissions[-3:]
-                if parent_others[2] not in ['x', 't', 'T']:
-                    parent_accessible = False
-            if not parent_accessible:
-                continue
-        except Exception as e:
-            continue
-
-        # Extract the permissions for "others" (last three characters)
-        others = permissions[-3:]
-        is_world_writable = others[1] == 'w'
-        has_sticky_bit = others[2] in ['t', 'T']
-
-        if is_world_writable and not has_sticky_bit:
-            non_conformes.append(f"{directory}: World-writable without sticky bit (permissions: {permissions}).")
-    
-    return non_conformes
-
-# Get secure file permissions (R50) by converting symbolic permissions to numeric
-def get_secure_permissions(serveur, reference_data):
-    reference_data = reference_data.get("R50", {}).get("expected", {})
-    expected_files = {}
-    for entry in reference_data:
-        parts = entry.split()
-        if len(parts) == 2:
-            expected_files[parts[0]] = parts[1]
-    output = execute_ssh_command(serveur, "sudo find / -type f -perm -0002 -ls 2>/dev/null")
-    if isinstance(output, list):
-        output = "\n".join(output)
-    formatted_permissions = []
-    for line in output.split("\n"):
-        match = re.search(r"([bcdlsp-]?)([rwx-]{9})\s+\d+\s+(\w+)\s+(\w+)\s+\d+[, \d]*\s+\w+\s+\d+\s+[\d:]+\s+(.+)", line)
-        if match:
-            file_type, raw_permissions, owner, group, path = match.groups()
-            if path in expected_files:
-                def convert_to_numeric(perm):
-                    mapping = {'r': 4, 'w': 2, 'x': 1, '-': 0}
-                    u = sum(mapping[perm[i]] for i in range(0, 3))
-                    g = sum(mapping[perm[i]] for i in range(3, 6))
-                    o = sum(mapping[perm[i]] for i in range(6, 9))
-                    return f"{u}{g}{o}"
-                numeric_perm = convert_to_numeric(raw_permissions)
-                expected_perm = expected_files[path]
-                formatted_permissions.append(f"{owner} {group} {path} {numeric_perm} (expected: {expected_perm})")
-    return formatted_permissions
-
-# Get protected sockets and pipes
-def get_protected_sockets(serveur):
-    output = execute_ssh_command(serveur, r"sudo ss -xp | awk '{print $5}' | cut -d':' -f1 | sort -u | grep -vE '^\*$|^Local$' | xargs stat -c '%A %U %G %n'")
-    if isinstance(output, list):
-        output = "\n".join(output)
-    protected_sockets = []
-    directories = {}
-    for line in output.split("\n"):
-        parts = line.split()
-        if len(parts) == 4:
-            permissions, owner, group, path = parts
-            directory = os.path.dirname(path)
-            if directory not in directories:
-                dir_output = execute_ssh_command(serveur, f"stat -c '%A %U %G %n' {directory}")
-                if isinstance(dir_output, list):
-                    dir_permissions, dir_owner, dir_group, dir_path = "\n".join(dir_output).strip().split()
-                else:
-                    dir_permissions, dir_owner, dir_group, dir_path = dir_output.strip().split()
-                directories[directory] = f"{dir_owner} {dir_group} {dir_path} {dir_permissions}"
-                protected_sockets.append(f"{dir_owner} {dir_group} {dir_path} {dir_permissions}")
-            protected_sockets.append(f"{owner} {group} {path} {permissions}")
-    return protected_sockets
-
-# Check PAM security for remote authentication (R67)
-def check_pam_security(serveur, reference_data):
-    expected_values = reference_data.get("R67", {}).get("expected", {})
-    command_pam_auth = "grep -Ei 'pam_ldap' /etc/pam.d/* 2>/dev/null"
-    stdin, stdout, stderr = serveur.exec_command(command_pam_auth)
-    detected_pam_entries = stdout.read().decode().strip().split("\n")
+def check_pam_security(serveur, reference_data, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        expected_values = reference_data.get("R67", {}).get("expected", {})
+        command_pam_auth = "grep -Ei 'pam_ldap' /etc/pam.d/* 2>/dev/null"
+        stdin, stdout, stderr = serveur.exec_command(command_pam_auth)
+        detected_pam_entries = stdout.read().decode().strip().split("\n")
+    else:
+        print("[check_pam_security] Non-Ubuntu OS detected; skipping PAM check.")
+        detected_pam_entries = []
     detected_pam_module = "pam_ldap" if detected_pam_entries and any("pam_ldap" in line for line in detected_pam_entries) else "Non trouvé"
-    security_modules = expected_values.get("security_modules", {})
+    security_modules = expected_values.get("security_modules", {}) if os_info and os_info.get("distro", "").lower() == "ubuntu" else {}
     detected_security_modules = {}
     for module in security_modules.keys():
         command = f"grep -E '{module}' /etc/pam.d/* 2>/dev/null"
-        stdin, stdout, stderr = serveur.exec_command(command)
-        detected_status = "Enabled" if stdout.read().decode().strip() else "Non trouvé"
+        if os_info and os_info.get("distro", "").lower() == "ubuntu":
+            stdin, stdout, stderr = serveur.exec_command(command)
+            detected_status = "Enabled" if stdout.read().decode().strip() else "Non trouvé"
+        else:
+            detected_status = "Non vérifié"
         detected_security_modules[module] = detected_status
     detected_elements = {
         "detected_pam_modules": detected_pam_module,
@@ -475,100 +506,79 @@ def check_pam_security(serveur, reference_data):
         detected_list.append(f"{module}: {detected_status}")
     return detected_list
 
-# Check access configuration for the /boot directory:
-# - Verify if /boot is automatically mounted (based on /etc/fstab)
-# - Retrieve the permissions, owner, and group of the /boot directory.
-# Check access configuration for the /boot directory (R29)
-def check_boot_directory_access(serveur, reference_data):
-    detected_elements = {}
-
-    # Check if /boot is automatically mounted
-    auto_mount = execute_ssh_command(serveur, "grep -E '\\s/boot\\s' /etc/fstab | grep -v noauto")
-    detected_elements["auto_mount"] = "auto" if auto_mount else "noauto"
-
-    # Check permissions and owner of /boot
-    boot_perm_info = execute_ssh_command(serveur, "stat -c '%a %U %G' /boot")
-    if boot_perm_info:
-        permissions, owner, group = boot_perm_info[0].split()
-        detected_elements["permissions"] = permissions
-        detected_elements["owner"] = owner
+def check_boot_directory_access(serveur, reference_data, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        detected_elements = {}
+        auto_mount = execute_ssh_command(serveur, "grep -E '\\s/boot\\s' /etc/fstab | grep -v noauto")
+        detected_elements["auto_mount"] = "auto" if auto_mount else "noauto"
+        boot_perm_info = execute_ssh_command(serveur, "stat -c '%a %U %G' /boot")
+        if boot_perm_info:
+            permissions, owner, group = boot_perm_info[0].split()
+            detected_elements["permissions"] = permissions
+            detected_elements["owner"] = owner
+        else:
+            detected_elements["permissions"] = "Not Found"
+            detected_elements["owner"] = "Not Found"
+        expected = reference_data.get('R29', {}).get('expected', {})
+        return None if detected_elements == expected else detected_elements
     else:
-        detected_elements["permissions"] = "Not Found"
-        detected_elements["owner"] = "Not Found"
-
-    expected = reference_data.get('R29', {}).get('expected', {})
-    if detected_elements == expected:
+        print("[check_boot_directory_access] Non-Ubuntu OS detected; boot directory access check skipped.")
         return None
+
+def check_sudo_group_restriction(serveur, reference_data, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        detected_elements = {}
+        sudo_stat = execute_ssh_command(serveur, "stat -c '%a %U %G' /usr/bin/sudo")
+        if sudo_stat:
+            perms, owner, group = sudo_stat[0].split()
+            detected_elements["permissions"] = perms
+            detected_elements["owner"] = owner
+            detected_elements["group"] = group
+        else:
+            detected_elements["permissions"] = "Not Found"
+            detected_elements["owner"] = "Not Found"
+            detected_elements["group"] = "Not Found"
+        expected = reference_data.get('R38', {}).get('expected', {})
+        return None if detected_elements == expected else detected_elements
     else:
-        return detected_elements
-
-# Check sudo permissions and ownership (R38)
-def check_sudo_group_restriction(serveur, reference_data):
-    detected_elements = {}
-
-    sudo_stat = execute_ssh_command(serveur, "stat -c '%a %U %G' /usr/bin/sudo")
-    if sudo_stat:
-        perms, owner, group = sudo_stat[0].split()
-        detected_elements["permissions"] = perms
-        detected_elements["owner"] = owner
-        detected_elements["group"] = group
-    else:
-        detected_elements["permissions"] = "Not Found"
-        detected_elements["owner"] = "Not Found"
-        detected_elements["group"] = "Not Found"
-
-    expected = reference_data.get('R38', {}).get('expected', {})
-    if detected_elements == expected:
+        print("[check_sudo_group_restriction] Non-Ubuntu OS detected; sudo group restriction check skipped.")
         return None
+
+def check_sudo_noexec_commands(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        detected_elements = []
+        defaults_noexec = execute_ssh_command(serveur, "grep -E '^[^#]*Defaults[[:space:]]+NOEXEC' /etc/sudoers")
+        if defaults_noexec:
+            detected_elements.extend(defaults_noexec)
+        cmnd_alias_noexec = execute_ssh_command(serveur, "grep -E '^[^#]*Cmnd_Alias[[:space:]]+NOEXEC_CMDS' /etc/sudoers")
+        if cmnd_alias_noexec:
+            detected_elements.extend(cmnd_alias_noexec)
+        noexec_alias_usage = execute_ssh_command(serveur, "grep -E '^[^#]*NOEXEC_CMDS' /etc/sudoers | grep -v 'Cmnd_Alias'")
+        if noexec_alias_usage:
+            detected_elements.extend(noexec_alias_usage)
+        return detected_elements or None
     else:
-        return detected_elements
-    
-# R41: Check sudo directives using NOEXEC correctly
-def check_sudo_noexec_commands(serveur):
-    detected_elements = []
+        print("[check_sudo_noexec_commands] Non-Ubuntu OS detected; sudo noexec check skipped.")
+        return None
 
-    # Check global NOEXEC directive
-    defaults_noexec = execute_ssh_command(
-        serveur,
-        "grep -E '^[^#]*Defaults[[:space:]]+NOEXEC' /etc/sudoers"
-    )
-    if defaults_noexec:
-        detected_elements.extend(defaults_noexec)
+def check_setuid_setgid_root(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        command = "find / -xdev \\( -perm -4000 -o -perm -2000 \\) -user root -type f 2>/dev/null"
+        return execute_ssh_command(serveur, command)
+    else:
+        print("[check_setuid_setgid_root] Non-Ubuntu OS detected; setuid/setgid check skipped.")
+        return None
 
-    # Check NOEXEC_CMDS alias
-    cmnd_alias_noexec = execute_ssh_command(
-        serveur,
-        "grep -E '^[^#]*Cmnd_Alias[[:space:]]+NOEXEC_CMDS' /etc/sudoers"
-    )
-    if cmnd_alias_noexec:
-        detected_elements.extend(cmnd_alias_noexec)
+def check_service_privileges(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        command = "ps -eo user:20,cmd --no-header | awk '$1==\"root\" {print $2}' | sort -u"
+        return execute_ssh_command(serveur, command)
+    else:
+        print("[check_service_privileges] Non-Ubuntu OS detected; service privileges check skipped.")
+        return None
 
-    # Check if NOEXEC_CMDS alias is properly applied
-    noexec_alias_usage = execute_ssh_command(
-        serveur,
-        "grep -E '^[^#]*NOEXEC_CMDS' /etc/sudoers | grep -v 'Cmnd_Alias'"
-    )
-    if noexec_alias_usage:
-        detected_elements.extend(noexec_alias_usage)
-
-    return detected_elements or None
-
-# Check for executables with special setuid/setgid root permissions (R57)
-def check_setuid_setgid_root(serveur):
-    # Search only for the paths of executables with setuid/setgid root enabled
-    command = "find / -xdev \\( -perm -4000 -o -perm -2000 \\) -user root -type f 2>/dev/null"
-    detected_elements = execute_ssh_command(serveur, command)
-    
-    return detected_elements or None
-
-# Check services running as root (R64)
-def check_service_privileges(serveur):
-    command = "ps -eo user:20,cmd --no-header | awk '$1==\"root\" {print $2}' | sort -u"
-    detected_services = execute_ssh_command(serveur, command)
-    return detected_services or None
-
-# Analyze access management on the server and generate a YAML report
-def analyse_gestion_acces(serveur, niveau, reference_data):
+# --- analyse_gestion_acces calls the above functions ---
+def analyse_gestion_acces(serveur, niveau, reference_data, os_info):
     if reference_data is None:
         reference_data = {}
     report = {}
@@ -602,51 +612,14 @@ def analyse_gestion_acces(serveur, niveau, reference_data):
     if niveau in rules:
         for rule_id, (function, comment) in rules[niveau].items():
             print(f"-> Checking rule {rule_id} # {comment}")
+            # For some rules, the function expects (serveur, reference_data, os_info)
             if rule_id in ['R67', 'R50', 'R29', 'R38']:
-                report[rule_id] = check_compliance(rule_id, function(serveur, reference_data), reference_data)
+                report[rule_id] = check_compliance(rule_id, function(serveur, reference_data, os_info), reference_data)
             else:
-                report[rule_id] = check_compliance(rule_id, function(serveur), reference_data)
+                report[rule_id] = check_compliance(rule_id, function(serveur, os_info), reference_data)
     save_yaml_report(report, f"analyse_{niveau}.yml", rules, niveau)
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
-    compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 0
+    compliance_percentage = (sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100) if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
-    
-# Save the analysis report in YAML format to the specified directory
-def save_yaml_report(data, output_file, rules, niveau):
-    if not data:
-        return
-    output_dir = "GenerationRapport/RapportAnalyse"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, output_file)
-    with open(output_path, "w", encoding="utf-8") as file:
-        file.write("gestion_acces:\n")
-        for rule_id, content in data.items():
-            comment = rules[niveau].get(rule_id, ("", ""))[1]
-            file.write(f"  {rule_id}:  # {comment}\n")
-            # For R44, format detected_elements manually
-            if rule_id == "R44" and isinstance(content.get("detected_elements"), dict):
-                file.write(f"    apply: {str(content.get('apply')).lower()}\n")
-                file.write(f"    status: {content.get('status')}\n")
-                file.write("    detected_elements:\n")
-                # Write violations
-                file.write("      violations:\n")
-                if content["detected_elements"]["violations"]:
-                    for violation in content["detected_elements"]["violations"]:
-                        file.write(f"        - {violation}\n")
-                else:
-                    file.write("        - None\n")
-                # Write sudoedit usage info
-                file.write("      sudoedit_usage:\n")
-                if content["detected_elements"]["sudoedit_usage"]:
-                    for usage in content["detected_elements"]["sudoedit_usage"]:
-                        file.write(f"        - {usage}\n")
-                else:
-                    file.write("        - None\n")
-            else:
-                yaml_content = yaml.safe_dump(content, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False)
-                indented_yaml = "\n".join(["    " + line for line in yaml_content.split("\n") if line.strip()])
-                file.write(indented_yaml + "\n")
-        file.write("\n")
-    print(f"Report generated: {output_path}")
