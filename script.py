@@ -8,69 +8,37 @@ import sys
 import os
 import john 
 
-
-def print_remote_os_version():
-    config = load_config("ssh.yaml")
-    if not config:
-        print("Invalid configuration for OS version check")
-        return
-
-    client = ssh_connect(
-        hostname=config.get("hostname"),
-        port=config.get("port"),
-        username=config.get("username"),
-        key_path=config.get("key_path"),
-        passphrase=config.get("passphrase")
-    )
-    if not client:
-        print("SSH connection failed for OS version check")
-        return
-
+# Connects to the remote server via SSH, reads /etc/os-release,
+# and returns a dictionary containing the OS distribution and version.
+def get_remote_os_info(client):
     try:
         stdin, stdout, stderr = client.exec_command("cat /etc/os-release")
         output = stdout.read().decode("utf-8")
-        distro = None
-        version = None
+        os_info = {}
         for line in output.splitlines():
             if line.startswith("ID="):
-                distro = line.split("=")[1].strip().strip('"')
+                os_info["distro"] = line.split("=")[1].strip().strip('"')
             elif line.startswith("VERSION_ID="):
-                version = line.split("=")[1].strip().strip('"')
-        if distro and distro.lower() == "ubuntu" and version == "20.04":
-            print(f"You are using Ubuntu {version}")
-        else:
-            print("Not supported")
+                os_info["version"] = line.split("=")[1].strip().strip('"')
+        return os_info
     except Exception as e:
-        print("Error reading remote OS version:", e)
-    finally:
-        client.close()
+        print("Error reading remote OS info:", e)
+        return None
 
+# Function: check_remote_os_support
+# Checks whether the remote OS (provided via the SSH client) is Ubuntu 20.04.
+# Returns True if supported, otherwise False.
 def check_remote_os_support(client):
-    """
-    Checks the remote server's OS via SSH.
-    If the remote server is running Ubuntu 20.04, prints that it is supported.
-    Otherwise, prints that the remote OS is not supported.
-    """
-    try:
-        stdin, stdout, stderr = client.exec_command("cat /etc/os-release")
-        output = stdout.read().decode("utf-8")
-        distro = None
-        version = None
-        for line in output.splitlines():
-            if line.startswith("ID="):
-                distro = line.split("=")[1].strip().strip('"')
-            elif line.startswith("VERSION_ID="):
-                version = line.split("=")[1].strip().strip('"')
-        if distro and distro.lower() == "ubuntu" and version == "20.04":
-            print(f"Remote server is using Ubuntu {version} - Supported")
-            return True
-        else:
-            print("Remote server OS not supported")
-            return False
-    except Exception as e:
-        print("Error checking remote OS:", e)
+    os_info = get_remote_os_info(client)
+    if os_info and os_info.get("distro", "").lower() == "ubuntu" and os_info.get("version") == "20.04":
+        print(f"Remote server is using Ubuntu {os_info.get('version')} - Supported")
+        return True
+    else:
+        print("Remote server OS not supported")
         return False
 
+# Loads the SSH configuration and connects to the remote host.
+# Retrieves the remote OS information and passes it as a parameter to the analysis functions.
 def run_analysis(mode):
     # Load SSH configuration
     config = load_config("ssh.yaml")
@@ -89,31 +57,40 @@ def run_analysis(mode):
         print("SSH connection failed")
         return
 
-    # Check remote OS support before running the analysis
-    check_remote_os_support(client)
+    # Retrieve OS info and optionally check support
+    os_info = get_remote_os_info(client)
+    if os_info:
+        if os_info.get("distro", "").lower() == "ubuntu" and os_info.get("version") == "20.04":
+            print("Remote OS is supported")
+        else:
+            print("Remote OS is not supported")
+    else:
+        print("Could not retrieve remote OS information")
 
     print("\n--- Starting Analysis ---\n")
     if mode == "minimal":
         print("[Analysis] Running minimal analysis...")
-        analyse_min(client)
+        analyse_min(client, os_info)
     elif mode == "intermediate":
         print("[Analysis] Running intermediate analysis...")
-        analyse_moyen(client)
+        analyse_moyen(client, os_info)
     elif mode == "reinforced":
         print("[Analysis] Running reinforced analysis...")
-        analyse_renforce(client)
+        analyse_renforce(client, os_info)
     elif mode == "all":
         print("[Analysis] Running all scans...")
-        analyse_min(client)
-        analyse_moyen(client)
-        analyse_renforce(client)
+        analyse_min(client, os_info)
+        analyse_moyen(client, os_info)
+        analyse_renforce(client, os_info)
     elif mode == "ssh":
         print("[Analysis] Running SSH analysis only...")
-        analyse_SSH(client)
+        analyse_SSH(client, os_info)
 
     client.close()
     print("\n--- Analysis Completed ---\n")
 
+# Loads the SSH configuration and connects to the remote host to apply recommendations.
+# The OS info is not directement utilisée ici, mais peut être transmise si nécessaire.
 def run_recommendations(app_type):
     config = load_config("ssh.yaml")
     if not config:
@@ -142,8 +119,9 @@ def run_recommendations(app_type):
     client.close()
     print("\n--- Recommendations Applied ---\n")
 
+# Provides a basic interactive command line menu to run analysis, recommendations,
+# or access the John The Ripper functions.
 def interactive_menu():
-    # Basic interactive menu
     while True:
         print("\n===== Main Menu =====")
         print("1 - Run Analysis")
@@ -190,14 +168,10 @@ def interactive_menu():
         else:
             print("Invalid option, please try again.")
 
+# Generates a wordlist based on an input string (words separated by spaces).
+# Splits words containing ":" to include both parts, adds usernames from a 'cassage' file if present,
+# and writes all generated variants (using john.generate_full_variants) to the file 'liste générée'.
 def generate_wordlist_with_input(input_str):
-    """
-    Generates a wordlist based on an input string (words separated by spaces).
-    For any word containing ":", both parts are added.
-    If the 'cassage' file exists, extracts usernames (before ":").
-    Then, for each word, generates complete variants using john.generate_full_variants().
-    The wordlist is saved in the file 'liste générée'.
-    """
     words_raw = input_str.split()
     words = []
     for w in words_raw:
@@ -229,14 +203,9 @@ def generate_wordlist_with_input(input_str):
     except Exception as e:
         print(f"Error writing the wordlist: {e}")
 
+# Executes John The Ripper related actions including installation, retrieving the shadow file via SSH,
+# generating a wordlist using provided input, and running the cracking process with the generated wordlist.
 def run_john(args):
-    """
-    Executes John The Ripper actions in the following order (if the corresponding options are provided):
-      1. Installation
-      2. Retrieve the shadow file via SSH
-      3. Generate a wordlist using the provided input (--john-wordlist)
-      4. Crack using the generated wordlist
-    """
     if args.john_install:
         print("\n[John] Installing John The Ripper...")
         john.install_john()
@@ -273,9 +242,9 @@ def run_john(args):
         else:
             print("[John] The 'cassage' file does not exist. Please retrieve the shadow file first.")
 
+# Entry point of the script. Parses command-line arguments and triggers analysis, recommendations,
+# or John The Ripper functions. If no arguments are provided, the interactive menu is launched.
 def main():
-    print_remote_os_version()
-
     parser = argparse.ArgumentParser(description="Analysis and Recommendations Script with John The Ripper integration")
     # Analysis options
     parser.add_argument("-m", "--minimal", action="store_true", help="Run minimal analysis")
