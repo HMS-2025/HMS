@@ -777,8 +777,8 @@ def apply_gestion_acces(serveur, niveau, report_data):
             "R43": (apply_R43, "Specify arguments in sudo specifications"),
             "R44": (apply_R44, "Edit files securely with sudo"),
             "R50": (apply_R50, "Restrict access permissions to sensitive files and directories"),
-            "R52": (apply_R52, "Ensure named pipes and sockets have restricted permissions")
-            "R55": (apply_R55, "Isolate user temporary directories")
+            "R52": (apply_R52, "Ensure named pipes and sockets have restricted permissions"),
+            "R55": (apply_R55, "Isolate user temporary directories"),
             "R67": (apply_R67, "Ensure remote authentication via PAM")
         },
         "avancé": {
