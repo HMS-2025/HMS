@@ -194,7 +194,7 @@ def save_yaml_report(data, output_file, rules, niveau):
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
     with open(output_path, "w", encoding="utf-8") as file:
-        file.write("gestion_acces:\n")
+        file.write("access_management:\n")
         for rule_id, content in data.items():
             comment = rules[niveau].get(rule_id, ("", ""))[1]
             file.write(f"  {rule_id}:  # {comment}\n")
