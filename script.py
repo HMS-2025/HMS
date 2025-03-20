@@ -25,7 +25,6 @@ def get_remote_os_info(client):
         print("Error reading remote OS info:", e)
         return None
 
-# Function: check_remote_os_support
 # Checks whether the remote OS (provided via the SSH client) is Ubuntu 20.04.
 # Returns True if supported, otherwise False.
 def check_remote_os_support(client):
