@@ -3,27 +3,19 @@ import os
 import paramiko
 from GenerationRapport.GenerationRapport import generate_html_report
 
-# ---------------------------------------------------------------------
-# Utility Functions
-# ---------------------------------------------------------------------
-
-# Function: load_reference_yaml
-# Loads the reference file corresponding to the selected level.
+# Load the reference file corresponding to the selected level (min, moyen, or renforce).
 def load_reference_yaml(niveau):
-    """Loads the reference file corresponding to the selected level (min, moyen ou renforce)."""
     file_path = f"AnalyseConfiguration/Reference_{niveau}.yaml"
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
         return reference_data or {}
     except Exception as e:
-        print(f"Error loading {file_path} : {e}")
+        print(f"Error loading {file_path}: {e}")
         return {}
 
-# Function: check_compliance
-# Checks rule compliance by comparing detected values with reference data.
+# Check rule compliance by comparing detected values with reference data.
 def check_compliance(rule_id, detected_values, reference_data):
-    """Checks rule compliance by comparing detected values with reference data."""
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
 
     # Specific exception for R62: detected prohibited services
@@ -85,22 +77,14 @@ def check_compliance(rule_id, detected_values, reference_data):
             "detected_elements": detected_values or "None"
         }
 
-# ---------------------------------------------------------------------
-# Remote Command Function
-# ---------------------------------------------------------------------
-
+# Execute an SSH command on the remote server and return the output as a list of lines.
 def execute_ssh_command(serveur, command):
-    """Executes an SSH command on the remote server and returns the output as a list of lines."""
     stdin, stdout, stderr = serveur.exec_command(command)
     output = stdout.read().decode().strip().split("\n")
     return list(filter(None, output))
 
-# ---------------------------------------------------------------------
-# Remote Command Functions with OS Checks
-# ---------------------------------------------------------------------
-
+# Check active services and determine compliance based on the prohibited services list.
 def disable_unnecessary_services(serveur, reference_data, os_info):
-    """Checks active services and determines compliance based on the prohibited services list."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         disallowed_services = reference_data.get("R62", {}).get("expected", {}).get("disallowed_services", [])
         if not disallowed_services:
@@ -119,13 +103,19 @@ def disable_unnecessary_services(serveur, reference_data, os_info):
         print("[disable_unnecessary_services] Non-Ubuntu OS; action skipped.")
         return {}
 
+# Retrieve the list of active services on the remote server.
 def get_active_services(serveur, os_info):
-    """Retrieves the list of active services on the remote server."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         try:
             command_services = "systemctl list-units --type=service --state=running | awk '{print $1}'"
             services = execute_ssh_command(serveur, command_services)
-            return [service.strip() for service in services if service and not service.startswith("LOAD")]
+            cleaned_services = []
+            for service in services:
+                if service.lower() == "load":
+                    break  # Stop processing after "ACTIVE"
+                if service and not service.startswith("●") and service.lower() not in ["unit"]:
+                    cleaned_services.append(service.strip())
+            return cleaned_services
         except Exception as e:
             print(f"Error retrieving active services: {e}")
             return []
@@ -133,8 +123,8 @@ def get_active_services(serveur, os_info):
         print("[get_active_services] Non-Ubuntu OS; active services not retrieved.")
         return []
 
+# Check if each service has a unique system account.
 def check_unique_service_accounts(serveur, os_info):
-    """Checks if each service has a unique system account."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command = "ps -eo user,comm | awk '{print $1}' | sort | uniq -c"
         output = execute_ssh_command(serveur, command)
@@ -144,8 +134,8 @@ def check_unique_service_accounts(serveur, os_info):
         print("[check_unique_service_accounts] Non-Ubuntu OS; check skipped.")
         return []
 
+# Check services for enabled Linux capabilities.
 def check_disabled_service_features(serveur, os_info):
-    """Checks services with enabled Linux capabilities."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command = "find / -type f -perm /111 -exec getcap {} \; 2>/dev/null"
         return execute_ssh_command(serveur, command)
@@ -153,8 +143,8 @@ def check_disabled_service_features(serveur, os_info):
         print("[check_disabled_service_features] Non-Ubuntu OS; check skipped.")
         return []
 
+# Check if the mail service only accepts local connections and allows only local delivery.
 def check_hardened_mail_service(serveur, os_info):
-    """Checks if the mail service only accepts local connections and allows only local delivery."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command_listen = "ss -tuln | grep ':25' | awk '{print $5}'"
         detected_interfaces = [line.strip() for line in execute_ssh_command(serveur, command_listen) if line.strip()]
@@ -169,8 +159,8 @@ def check_hardened_mail_service(serveur, os_info):
         print("[check_hardened_mail_service] Non-Ubuntu OS; check skipped.")
         return {}
 
+# Check for the presence of mail aliases for service accounts.
 def check_mail_aliases(serveur, os_info):
-    """Checks for the presence of mail aliases for service accounts."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command = "grep -E '^[a-zA-Z0-9._-]+:' /etc/aliases | awk -F':' '{print $1}' 2>/dev/null"
         aliases_output = execute_ssh_command(serveur, command)
@@ -185,34 +175,34 @@ def check_mail_aliases(serveur, os_info):
         print("[check_mail_aliases] Non-Ubuntu OS; check skipped.")
         return {}
 
+# Verify that /proc/sys/kernel/modules_disabled contains the value 1.
 def check_kernel_modules_disabled(serveur, os_info):
-    """Verifies that /proc/sys/kernel/modules_disabled contains the value 1."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         try:
             commande = "cat /proc/sys/kernel/modules_disabled"
             stdin, stdout, stderr = serveur.exec_command(commande)
             value = stdout.read().decode().strip()
         except Exception as e:
-            print("Erreur lors de la lecture de /proc/sys/kernel/modules_disabled :", e)
+            print("Error reading /proc/sys/kernel/modules_disabled:", e)
             return {
                 "status": "Non-Compliant",
                 "apply": False,
-                "detected_elements": f"Erreur : {e}",
+                "detected_elements": f"Error: {e}",
                 "expected_elements": "1"
             }
         is_compliant = (value == "1")
         return {
             "status": "Compliant" if is_compliant else "Non-Compliant",
             "apply": is_compliant,
-            "detected_elements": value if value else "Aucune valeur détectée",
+            "detected_elements": value if value else "No value detected",
             "expected_elements": "1"
         }
     else:
         print("[check_kernel_modules_disabled] Non-Ubuntu OS; check skipped.")
         return {}
 
+# Retrieve user information from the server.
 def get_user_info(serveur, os_info):
-    """Retrieves user information from the server."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         return {
             "local_users": execute_ssh_command(serveur, "awk -F: '$3 >= 1000 {print $1}' /etc/passwd"),
@@ -224,8 +214,8 @@ def get_user_info(serveur, os_info):
         print("[get_user_info] Non-Ubuntu OS; user info not retrieved.")
         return {"local_users": [], "system_users": [], "admin_users": [], "ldap_users": []}
 
+# Check security of remote user database access.
 def check_remote_user_database_security(serveur, reference_data, os_info):
-    """Checks security of remote user database access."""
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         expected_values = reference_data.get("R69", {}).get("expected", {})
         command_nsswitch = ("grep -E '^(passwd|group|shadow):' /etc/nsswitch.conf | "
@@ -276,12 +266,8 @@ def check_remote_user_database_security(serveur, reference_data, os_info):
             "limited_rights": "Not checked"
         }
 
-# ---------------------------------------------------------------------
-# YAML Report Saving Function
-# ---------------------------------------------------------------------
-
+# Save the analysis results in a YAML file without aliases.
 def save_yaml_report(data, output_file, rules, niveau):
-    """Saves the analysis results in a YAML file without aliases."""
     if not data:
         return
     output_dir = "GenerationRapport/RapportAnalyse"
@@ -302,11 +288,49 @@ def save_yaml_report(data, output_file, rules, niveau):
             file.write(indented_yaml + "\n")
         file.write("\n")
     print(f"Report generated: {output_path}")
+   
+# Retrieve the list of all services on the system in a clean format.
+def get_all_services(serveur):
+    command = "systemctl list-units --type=service --all | awk '{print $1}'"
+    services = execute_ssh_command(serveur, command)
+    cleaned_services = []
+    for service in services:
+        if service.lower() == "load":
+            break  # Stop processing after "LOAD"
+        if service and not service.startswith("●") and service.lower() not in ["unit"]:
+            cleaned_services.append(service.strip())
+    return cleaned_services
 
-# ---------------------------------------------------------------------
-# Main Function for Service Analysis
-# ---------------------------------------------------------------------
+# Check if services are confined and return those that are not.
+def check_cloisonnement(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        services = get_all_services(serveur)
+        non_cloisonnes = []
+        
+        for service in services:
+            check_commands = {
+                "Namespaces": f"systemctl show {service} | grep Namespaces",
+                "NoNewPrivileges": f"systemctl show {service} | grep NoNewPrivileges",
+                "SystemCallFilter": f"systemctl show {service} | grep SystemCallFilter",
+                "Delegate": f"systemctl show {service} | grep Delegate"
+            }
+            
+            cloisonne = False
+            for key, command in check_commands.items():
+                output = execute_ssh_command(serveur, command)
+                if output and any("yes" in line.lower() or "true" in line.lower() for line in output):
+                    cloisonne = True
+                    break  # If at least one protection is active, the service is confined
+            
+            if not cloisonne:
+                non_cloisonnes.append(service)
+        
+        return non_cloisonnes
+    else:
+        print("[check_cloisonnement] Non-Ubuntu OS; check skipped.")
+        return []
 
+# Main function to perform service analysis.
 def analyse_services(serveur, niveau, reference_data=None, os_info=None):
     report = {}  # Initialize report as an empty dict
     reference_data = reference_data or load_reference_yaml(niveau)
@@ -321,7 +345,8 @@ def analyse_services(serveur, niveau, reference_data=None, os_info=None):
             "R75": (check_mail_aliases, "Verify mail aliases for service accounts"),
         },
         "renforce": {
-            "R10": (check_kernel_modules_disabled, "Disable kernel modules loading")
+            "R10": (check_kernel_modules_disabled, "Disable kernel modules loading"),
+            "R65": (check_cloisonnement, "Check service confinement")
         }
     }
     
@@ -342,8 +367,3 @@ def analyse_services(serveur, niveau, reference_data=None, os_info=None):
     compliance_percentage = (sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100) if report else 0
     print(f"\nCompliance rate for level {niveau.upper()} : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
-
-    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
-
-    if os.path.exists(html_yaml_path):
-        os.remove(html_yaml_path)
