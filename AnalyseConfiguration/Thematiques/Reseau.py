@@ -125,6 +125,11 @@ def analyse_reseau(server, niveau, reference_data=None, os_info=None):
     print(f"\nCompliance rate for level {niveau.upper()} (Network) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
 
+    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
+
+    if os.path.exists(html_yaml_path):
+        os.remove(html_yaml_path)
+
 # Save the analysis report in a YAML file.
 def save_yaml_report(data, output_file, rules, niveau):
     if not data:

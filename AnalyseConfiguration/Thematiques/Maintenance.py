@@ -119,6 +119,11 @@ def analyse_maintenance(server, niveau, reference_data, os_info):
     print(f"\nCompliance rate for level {niveau.upper()} (Maintenance): {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
 
+    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
+
+    if os.path.exists(html_yaml_path):
+        os.remove(html_yaml_path)
+
 # Saves the analysis report in YAML format to the specified directory.
 def save_yaml_report(data, output_file, rules, niveau):
     if not data:

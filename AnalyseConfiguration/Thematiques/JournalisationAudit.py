@@ -242,3 +242,8 @@ def analyse_journalisation(serveur, niveau="min", reference_data=None, os_info=N
     compliance_percentage = (sum(1 for result in report.values() if result["status"] == "Compliant") / len(report) * 100) if report else 100
     print(f"\nCompliance rate for level {niveau.upper()} (Logging / Audit) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
+
+    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
+
+    if os.path.exists(html_yaml_path):
+        os.remove(html_yaml_path)

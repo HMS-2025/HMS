@@ -99,6 +99,11 @@ def analyse_politique_mdp(serveur, niveau, reference_data=None, os_info=None):
     print(f"\nCompliance rate for level {niveau} (Password policy) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
     
+    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
+
+    if os.path.exists(html_yaml_path):
+        os.remove(html_yaml_path)
+    
 # R31 - Check password policy
 def get_password_policy(serveur, os_info):
     """Analyze the system's password policy."""

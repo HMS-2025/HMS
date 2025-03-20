@@ -52,28 +52,90 @@ def generate_html_report(yaml_path, html_path, niveau):
 
     compliance_rate = (compliant_rules / total_rules) * 100 if total_rules else 100
 
-    # Complete HTML content
+ # Complete HTML content with professional design
     html_content = f"""
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>ANSSI Compliance Report ({niveau.capitalize()})</title>
+        <title>Hardening Magic Script - ANSSI Compliance Report (Level {niveau.capitalize()})</title>
         <style>
-            body {{ font-family: Arial, sans-serif; margin: 40px; }}
-            h1, h2 {{ color: #003366; }}
-            table {{ border-collapse: collapse; width: 100%; margin-bottom: 40px; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; }}
-            th {{ background-color: #003366; color: white; }}
-            .compliant {{ background-color: #c8e6c9; }}  /* Green for compliant */
-            .non-compliant {{ background-color: #ffcdd2; }}  /* Red for non-compliant */
+            /* Main Styling */
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 40px;
+                background-color: #f4f4f4;
+            }}
+            h1, h2 {{
+                color: #003366;
+            }}
+            table {{
+                border-collapse: collapse;
+                width: 100%;
+                margin-bottom: 40px;
+                background: white;
+            }}
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }}
+            th {{
+                background-color: #003366;
+                color: white;
+            }}
+            .compliant {{
+                background-color: #c8e6c9;
+            }}
+            .non-compliant {{
+                background-color: #ffcdd2;
+            }}
+            .footer-links {{
+                margin-top: 40px;
+                font-size: 0.9em;
+            }}
+            .footer-links a {{
+                color: #003366;
+                text-decoration: none;
+                margin-right: 20px;
+            }}
+            .footer-links a:hover {{
+                text-decoration: underline;
+            }}
+            
+            /* Top Banner with Small Squares */
+            .top-banner {{
+                background: repeating-linear-gradient(
+                    45deg,
+                    #f8f9fa,
+                    #f8f9fa 10px,
+                    #d6d6d6 10px,
+                    #d6d6d6 20px
+                );
+                height: 50px;
+                width: 100%;
+            }}
+
+            .report-header {{
+                text-align: center;
+                padding: 10px;
+                background-color: white;
+                border-bottom: 2px solid #003366;
+            }}
         </style>
     </head>
     <body>
-        <h1>ANSSI Compliance Report - Level {niveau.capitalize()}</h1>
-        <p>Report Date : {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <div class="top-banner"></div>
 
-        <h2>Summary</h2>
+        <div class="report-header">
+            <h1>Hardening Magic Script - Official ANSSI Compliance Report</h1>
+            <p style="font-style: italic;">Confidential - For authorized personnel only</p>
+        </div>
+
+        <h2>Analysis Level: {niveau.capitalize()}</h2>
+        <p><strong>Report Date:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+
+        <h3>Summary</h3>
         <ul>
             <li><strong>Compliance Rate :</strong> {compliance_rate:.2f}%</li>
             <li><strong>Total Rules :</strong> {total_rules}</li>
@@ -82,6 +144,15 @@ def generate_html_report(yaml_path, html_path, niveau):
         </ul>
 
         {html_sections}
+
+        <div class="footer-links">
+            <p><strong>References & Links:</strong></p>
+            <p>
+                <a href="https://github.com/HMS-2025/HMS" target="_blank">HMS GitHub Project</a>
+                <a href="https://cyber.gouv.fr/sites/default/files/document/fr_np_linux_configuration-v2.0.pdf" target="_blank">ANSSI Linux Guide</a>
+                <a href="https://cyber.gouv.fr/sites/default/files/2014/01/NT_OpenSSH.pdf" target="_blank">ANSSI OpenSSH Guide</a>
+            </p>
+        </div>
     </body>
     </html>
     """

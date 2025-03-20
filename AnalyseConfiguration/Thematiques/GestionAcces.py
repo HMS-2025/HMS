@@ -622,4 +622,10 @@ def analyse_gestion_acces(serveur, niveau, reference_data, os_info):
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
     compliance_percentage = (sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100) if report else 0
     print(f"\nCompliance rate for niveau {niveau.upper()}: {compliance_percentage:.2f}%")
+
     generate_html_report(yaml_path, html_path, niveau)
+
+    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
+
+    if os.path.exists(html_yaml_path):
+        os.remove(html_yaml_path)

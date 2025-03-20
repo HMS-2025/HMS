@@ -388,6 +388,11 @@ def analyse_utilisateurs(serveur, niveau, reference_data=None, os_info=None):
     print(f"\nCompliance rate for level {niveau.upper()} (Users): {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
 
+    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
+
+    if os.path.exists(html_yaml_path):
+        os.remove(html_yaml_path)
+
 # -------------------------
 # Functions for user analysis that use SSH commands, with os_info checks.
 # -------------------------
