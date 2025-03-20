@@ -5,39 +5,12 @@ import shutil
 import paramiko
 import yaml
 
-# --- Management of the rockyou wordlist ---
-
-def get_rockyou_wordlist_path():
-    wordlist = "/usr/share/wordlists/rockyou.txt"
-    gz_wordlist = wordlist + ".gz"
-    if os.path.exists(wordlist):
-        return wordlist
-    elif os.path.exists(gz_wordlist):
-        print("[John] Decompressing rockyou.txt.gz to rockyou.txt")
-        try:
-            subprocess.run(["gunzip", "-k", gz_wordlist], check=True)
-            if os.path.exists(wordlist):
-                return wordlist
-            else:
-                print("[John] Decompression failed, rockyou.txt was not created.")
-                return None
-        except subprocess.CalledProcessError as e:
-            print(f"[John] Error during decompression of rockyou.txt.gz: {e}")
-            return None
-    else:
-        print("[John] rockyou.txt does not exist and rockyou.txt.gz was not found.")
-        return None
-
-# --- Installation and usage of John The Ripper ---
-
+# Checks if the 'john' directory exists in the current folder and that the expected binary is present in john/run.
 def is_john_installed():
-    """
-    Checks only if the 'john' directory exists in the current folder
-    and that the expected binary is present in john/run.
-    """
     john_binary = os.path.join(os.getcwd(), "john", "run", "john")
     return os.path.exists(john_binary)
 
+# Installs John The Ripper by cloning the repository and compiling the source.
 def install_john():
     if os.path.exists("john"):
         john_binary = os.path.join(os.getcwd(), "john", "run", "john")
@@ -61,6 +34,7 @@ def install_john():
     except subprocess.CalledProcessError as e:
         print(f"[John] Installation failed: {e}")
 
+# Retrieves the hash file from a remote system via SSH.
 def retrieve_hash_files(ssh_client, remote_path, local_path):
     try:
         stdin, stdout, stderr = ssh_client.exec_command(f"sudo cat {remote_path}")
@@ -72,6 +46,7 @@ def retrieve_hash_files(ssh_client, remote_path, local_path):
     except Exception as e:
         print(f"Error retrieving file {remote_path}: {e}")
 
+# Extracts and saves valid hash entries from the shadow file.
 def save_hashes_from_shadow(input_file, output_file):
     try:
         with open(input_file, "r") as f:
@@ -96,8 +71,8 @@ def save_hashes_from_shadow(input_file, output_file):
     except Exception as e:
         print(f"Error writing to file {output_file}: {e}")
 
+# Deletes the john.pot file in the john/run folder, if it exists.
 def remove_john_pot():
-    """Deletes the john.pot file in the john/run folder, if it exists."""
     john_run_dir = os.path.join(os.getcwd(), "john", "run")
     pot_path = os.path.join(john_run_dir, "john.pot")
     if os.path.exists(pot_path):
@@ -107,46 +82,7 @@ def remove_john_pot():
         except Exception as e:
             print(f"[John] Error deleting john.pot: {e}")
 
-def run_john_dictionary(hash_file):
-    remove_john_pot()
-    abs_hash_file = os.path.abspath(hash_file)
-    print(f"[John] Launching dictionary attack on: {abs_hash_file}")
-    wordlist_path = get_rockyou_wordlist_path()
-    if not wordlist_path:
-        print("[John] Aborting attack because wordlist was not found.")
-        return
-    john_run_dir = os.path.join(os.getcwd(), "john", "run")
-    john_binary = os.path.join(john_run_dir, "john")
-    command = [john_binary, "--wordlist=" + wordlist_path, "--format=sha512crypt", abs_hash_file]
-    try:
-        subprocess.run(command, check=True, cwd=john_run_dir)
-        print("[John] Displaying results:")
-        subprocess.run([john_binary, "--show", abs_hash_file], check=True, cwd=john_run_dir)
-    except FileNotFoundError:
-        print("[John] The 'john' binary was not found. Please check your John The Ripper installation.")
-    except subprocess.CalledProcessError as e:
-        print(f"[John] Error during dictionary attack: {e}")
-
-def run_john_rules(hash_file):
-    remove_john_pot()
-    abs_hash_file = os.path.abspath(hash_file)
-    print(f"[John] Launching attack with advanced rules on: {abs_hash_file}")
-    wordlist_path = get_rockyou_wordlist_path()
-    if not wordlist_path:
-        print("[John] Aborting attack because wordlist was not found.")
-        return
-    john_run_dir = os.path.join(os.getcwd(), "john", "run")
-    john_binary = os.path.join(john_run_dir, "john")
-    command = [john_binary, "--wordlist=" + wordlist_path, "--rules=Jumbo", "--format=sha512crypt", abs_hash_file]
-    try:
-        subprocess.run(command, check=True, cwd=john_run_dir)
-        print("[John] Displaying results:")
-        subprocess.run([john_binary, "--show", abs_hash_file], check=True, cwd=john_run_dir)
-    except FileNotFoundError:
-        print("[John] The 'john' binary was not found. Please check your John The Ripper installation.")
-    except subprocess.CalledProcessError as e:
-        print(f"[John] Error during advanced rules attack: {e}")
-
+# Runs John The Ripper using the generated wordlist.
 def run_john_generated(hash_file):
     remove_john_pot()
     abs_hash_file = os.path.abspath(hash_file)
@@ -167,8 +103,7 @@ def run_john_generated(hash_file):
     except subprocess.CalledProcessError as e:
         print(f"[John] Error during attack with generated wordlist: {e}")
 
-# --- Generation of simple "genetic" variants ---
-
+# Generates simple partial variants for a given word.
 def generate_partial_variants(word):
     mapping = {'a': '@', 'i': '1', 's': '$', 'o': '0', 'e': '3'}
     def helper(s):
@@ -192,6 +127,7 @@ def generate_partial_variants(word):
         return result
     return list(set(helper(word)))
 
+# Generates full variants for a word, including appending years and special characters.
 def generate_full_variants(word, start_year=2000, end_year=2030):
     base_variants = generate_partial_variants(word)
     case_variants = set()
@@ -208,14 +144,8 @@ def generate_full_variants(word, start_year=2000, end_year=2030):
                 full_variants.add(y + special + variant)
     return list(full_variants)
 
+# Generates a complete wordlist from user-provided words and the "cassage" file.
 def generate_wordlist():
-    """
-    Asks the user for a list of words or accounts (separated by spaces).
-    If an element contains ":", both parts are added.
-    Moreover, if the "cassage" file exists, it extracts the usernames (the part before ":").
-    Then, for each word, it generates the complete simple variants.
-    The result is saved in the "liste générée" file in the current directory.
-    """
     words_input = input("Enter a list of words or accounts (separated by spaces): ")
     words_raw = words_input.split()
     words = []
@@ -248,8 +178,7 @@ def generate_wordlist():
     except Exception as e:
         print(f"Error writing the wordlist: {e}")
 
-# --- Interactive menus ---
-
+# Displays the cracking menu with only the generated wordlist option.
 def menu_crack():
     cassage_path = os.path.join(os.getcwd(), "cassage")
     if not os.path.exists("john"):
@@ -261,30 +190,25 @@ def menu_crack():
 
     while True:
         print("\n=== John The Ripper Cracking Menu ===")
-        print("1 - Dictionary attack (rockyou wordlist)")
-        print("2 - Attack with advanced rules (rockyou wordlist)")
-        print("3 - Attack with generated wordlist")
-        print("4 - Return to main menu")
-        choice = input("Your choice (1-4): ")
+        print("1 - Attack with generated wordlist")
+        print("2 - Return to main menu")
+        choice = input("Your choice (1-2): ")
 
         if choice == "1":
-            run_john_dictionary(cassage_path)
-        elif choice == "2":
-            run_john_rules(cassage_path)
-        elif choice == "3":
             run_john_generated(cassage_path)
-        elif choice == "4":
+        elif choice == "2":
             break
         else:
             print("Invalid option. Please try again.")
 
+# Displays the main menu and handles user input.
 def menu_principal():
     cassage_path = os.path.join(os.getcwd(), "cassage")
     while True:
         print("\n=== Main Menu ===")
         print("1 - Install John The Ripper")
         print("2 - Retrieve the shadow file (via SSH)")
-        print("3 - Crack the hashes (attacks with John, rockyou wordlist)")
+        print("3 - Crack the hashes (attack with generated wordlist)")
         print("4 - Generate a complete wordlist from a list of words")
         print("5 - Crack the hashes with the generated wordlist")
         print("6 - Quit")
