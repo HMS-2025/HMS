@@ -280,43 +280,49 @@ def get_sudo_directives(serveur, os_info):
         print("[get_sudo_directives] Non-Ubuntu OS detected; sudo directives not retrieved.")
         return []
 
-# Get negation operators in /etc/sudoers (e.g. the '!' symbol)
-def get_negation_in_sudoers(serveur):
-    return execute_ssh_command(serveur, "sudo grep -E '^[^#].*!' /etc/sudoers")
+def get_non_privileged_sudo_users(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return execute_ssh_command(serveur, "sudo grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\\(ALL.*\\)' | grep -Ev '(NOPASSWD|%sudo|root)'")
+    else:
+        print("[get_non_privileged_sudo_users] Non-Ubuntu OS detected; non-privileged sudo users not retrieved.")
+        return []
 
-# Get strict sudo argument specifications from /etc/sudoers
-def get_strict_sudo_arguments(serveur):
-    cmd = (
-        "sudo grep -E '^[^#].*ALL=' /etc/sudoers | "
-        "grep -E '\\*' | "
-        "grep -Ev '^(root|%sudo)[[:space:]]'"
-    )
-    result = execute_ssh_command(serveur, cmd)
-    cleaned_elements = [element.replace("\t", " ") for element in result]
-    return cleaned_elements
+def get_negation_in_sudoers(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return execute_ssh_command(serveur, "sudo grep -E '!' /etc/sudoers")
+    else:
+        print("[get_negation_in_sudoers] Non-Ubuntu OS detected; negation operators not retrieved.")
+        return []
 
-# Get sudoedit usage from /etc/sudoers for rule R44
-def get_sudoedit_usage(serveur):
-    sudoers_lines = execute_ssh_command(serveur, "sudo cat /etc/sudoers")
-    violations = []
-    sudoedit_used = []
-    known_editors = ["vi", "vim", "nano", "emacs", "gedit", "kate"]
-    
-    for line in sudoers_lines:
-        stripped_line = line.strip()
-        if not stripped_line or stripped_line.startswith("#"):
-            continue
-        if "=" not in stripped_line:
-            continue
-        # Exception pour root
-        if stripped_line.lower().startswith("root"):
-            continue
-        spec, cmd_part = stripped_line.split("=", 1)
-        cmd_part = cmd_part.strip()
-        if cmd_part.startswith("("):
-            end_paren = cmd_part.find(")")
-            if end_paren != -1:
-                cmd_list_str = cmd_part[end_paren+1:].strip()
+def get_strict_sudo_arguments(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        result = execute_ssh_command(serveur, "sudo grep -E 'ALL=' /etc/sudoers | grep -E '*'",)
+        cleaned_elements = [element.replace("\t", " ") for element in result]
+        return cleaned_elements
+    else:
+        print("[get_strict_sudo_arguments] Non-Ubuntu OS detected; strict sudo arguments not retrieved.")
+        return []
+
+def get_sudoedit_usage(serveur, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        sudoers_lines = execute_ssh_command(serveur, "sudo cat /etc/sudoers")
+        violations = []
+        sudoedit_used = []
+        known_editors = ["vi", "vim", "nano", "emacs", "gedit", "kate"]
+        for line in sudoers_lines:
+            stripped_line = line.strip()
+            if not stripped_line or stripped_line.startswith("#"):
+                continue
+            if "=" not in stripped_line:
+                continue
+            spec, cmd_part = stripped_line.split("=", 1)
+            cmd_part = cmd_part.strip()
+            if cmd_part.startswith("("):
+                end_paren = cmd_part.find(")")
+                if end_paren != -1:
+                    cmd_list_str = cmd_part[end_paren+1:].strip()
+                else:
+                    cmd_list_str = cmd_part
             else:
                 cmd_list_str = cmd_part
             commands = [cmd.strip() for cmd in cmd_list_str.split(",")]
