@@ -3,7 +3,7 @@ import os
 import paramiko
 from GenerationRapport.GenerationRapport import generate_html_report
 
-# Load the YAML reference file
+# Loads the YAML reference file and returns its content.
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
@@ -12,7 +12,7 @@ def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
         print(f"Error loading {file_path}: {e}")
         return {}
 
-# Execute an SSH command and return the output
+# Executes an SSH command and returns the output as a list of lines.
 def execute_ssh_command(server, command):
     try:
         stdin, stdout, stderr = server.exec_command(command)
@@ -21,7 +21,7 @@ def execute_ssh_command(server, command):
         print(f"Error executing SSH command: {command} - {e}")
         return []
 
-# Check rule compliance
+# Compares analysis results with reference data for a given rule.
 def check_compliance(rule_id, detected_values, reference_data):
     expected_values = reference_data.get(rule_id, {}).get("expected", [])
     expected_values = expected_values if isinstance(expected_values, list) else []
@@ -33,38 +33,51 @@ def check_compliance(rule_id, detected_values, reference_data):
         "detected_elements": detected_values or "None"
     }
 
-# Check if a GRUB 2 password is set
-def check_grub_password(server):
-    command_check_superusers = "grep -E 'set\\s+superusers' /etc/grub.d/* /boot/grub/grub.cfg"
-    command_check_password = "grep -E 'password_pbkdf2' /etc/grub.d/* /boot/grub/grub.cfg"
-    
-    superusers_output = execute_ssh_command(server, command_check_superusers)
-    password_output = execute_ssh_command(server, command_check_password)
-    
-    return {
-        "apply": bool(superusers_output or password_output),
-        "status": "Compliant" if superusers_output or password_output else "Non-Compliant",
-        "detected_elements": superusers_output + password_output or "None"
-    }
+# Checks if a GRUB 2 password is set.
+def check_grub_password(server, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        command_check_superusers = "grep -E 'set\\s+superusers' /etc/grub.d/* /boot/grub/grub.cfg"
+        command_check_password = "grep -E 'password_pbkdf2' /etc/grub.d/* /boot/grub/grub.cfg"
+        superusers_output = execute_ssh_command(server, command_check_superusers)
+        password_output = execute_ssh_command(server, command_check_password)
+        return {
+            "apply": bool(superusers_output or password_output),
+            "status": "Compliant" if (superusers_output or password_output) else "Non-Compliant",
+            "detected_elements": (superusers_output + password_output) or "None"
+        }
+    else:
+        print(f"[check_grub_password] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); GRUB password check skipped.")
+        return {
+            "apply": False,
+            "status": "Not Applicable",
+            "detected_elements": []
+        }
 
-# Get the list of installed packages
-def get_installed_packages(server):
-    return execute_ssh_command(server, "dpkg --get-selections | grep -v deinstall")
+# Returns the list of installed packages.
+def get_installed_packages(server, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return execute_ssh_command(server, "dpkg --get-selections | grep -v deinstall")
+    else:
+        print(f"[get_installed_packages] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); installed packages not retrieved.")
+        return []
 
-# Check installed packages
-def check_installed_packages(server, reference_data):
+# Checks the installed packages against reference data.
+def check_installed_packages(server, reference_data, os_info):
     expected_packages = reference_data.get("R58", {}).get("expected", [])
-    installed_packages = get_installed_packages(server)
+    installed_packages = get_installed_packages(server, os_info)
     unnecessary_packages = [pkg.split()[0] for pkg in installed_packages if pkg.split()[0] not in expected_packages]
-    
     return check_compliance("R58", unnecessary_packages, reference_data)
 
-# Get configured package repositories
-def get_trusted_repositories(server):
-    return execute_ssh_command(server, "grep -E '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null")
+# Retrieves configured package repositories.
+def get_trusted_repositories(server, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        return execute_ssh_command(server, "grep -E '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null")
+    else:
+        print(f"[get_trusted_repositories] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); trusted repositories not retrieved.")
+        return []
 
-# Analyze maintenance and generate a report
-def analyse_maintenance(server, niveau, reference_data):
+# Analyzes maintenance-related configuration and generates a report.
+def analyse_maintenance(server, niveau, reference_data, os_info):
     if reference_data is None:
         reference_data = {}
     
@@ -82,8 +95,13 @@ def analyse_maintenance(server, niveau, reference_data):
     if niveau in rules:
         for rule_id, (function, comment) in rules[niveau].items():
             print(f"-> Checking rule {rule_id} # {comment}")
-            detected_values = function(server, reference_data) if "reference_data" in function.__code__.co_varnames else function(server)
+            # Determine if the function requires reference_data
+            if "reference_data" in function.__code__.co_varnames:
+                detected_values = function(server, reference_data, os_info)
+            else:
+                detected_values = function(server, os_info)
             
+            # If the returned value is a list or not a dict, create a simple report
             if isinstance(detected_values, list) or not isinstance(detected_values, dict):  
                 report[rule_id] = {
                     "apply": bool(detected_values),
@@ -97,11 +115,16 @@ def analyse_maintenance(server, niveau, reference_data):
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
 
-    compliance_percentage = sum(1 for r in report.values() if isinstance(r, dict) and r.get("status") == "Compliant") / len(report) * 100 if report else 0
+    compliance_percentage = (sum(1 for r in report.values() if isinstance(r, dict) and r.get("status") == "Compliant") / len(report) * 100) if report else 0
     print(f"\nCompliance rate for level {niveau.upper()} (Maintenance): {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
-# Sauvegarder le rapport d'analyse au format YAML
 
+    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
+
+    if os.path.exists(html_yaml_path):
+        os.remove(html_yaml_path)
+
+# Saves the analysis report in YAML format to the specified directory.
 def save_yaml_report(data, output_file, rules, niveau):
     if not data:
         return

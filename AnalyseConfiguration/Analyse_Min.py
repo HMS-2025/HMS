@@ -9,9 +9,8 @@ from AnalyseConfiguration.Thematiques.JournalisationAudit import analyse_journal
 from AnalyseConfiguration.Thematiques.Utilisateurs import analyse_utilisateurs
 from AnalyseConfiguration.Thematiques.Systeme import analyse_systeme
 
-# Load references from Reference_min.yaml
+# Loads the Reference_min.yaml file and returns its content as a dictionary.
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
-    """Loads the Reference_min.yaml file and returns its content."""
     try:
         with open(file_path, "r") as file:
             reference_data = yaml.safe_load(file)
@@ -20,36 +19,35 @@ def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
         print(f"Error loading Reference_min.yaml: {e}")
         return {}
 
-# Minimal level analysis with compliance
-def analyse_min(serveur):
-    """Executes all minimal level analyses using Reference_min.yaml."""
-    
-    # Load reference data for compliance
+# Executes all minimal-level analyses using Reference_min.yaml.
+# Receives the target server (SSH connection) and OS information (os_info) as parameters,
+# and passes os_info to each analysis function.
+def analyse_min(serveur, os_info):
     reference_data = load_reference_yaml()
     
     print("\n[Analysis] Access management...")
-    analyse_gestion_acces(serveur, niveau="min", reference_data=reference_data)
+    analyse_gestion_acces(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
 
     print("\n[Analysis] Services...")
-    analyse_services(serveur, niveau="min", reference_data=reference_data)
+    analyse_services(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
 
     print("\n[Analysis] Updates...")
-    analyse_mise_a_jour(serveur, niveau="min", reference_data=reference_data)
+    analyse_mise_a_jour(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
 
     print("\n[Analysis] Password policy...")
-    analyse_politique_mdp(serveur, niveau="min", reference_data=reference_data)
+    analyse_politique_mdp(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
 
     print("\n[Analysis] Network...")
-    analyse_reseau(serveur, niveau="min", reference_data=reference_data)
+    analyse_reseau(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
     
     print("\n[Analysis] Maintenance...")
-    analyse_maintenance(serveur, niveau="min", reference_data=reference_data)
+    analyse_maintenance(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
     
     print("\n[Analysis] Logging and Audit...")
-    analyse_journalisation(serveur, niveau="min", reference_data=reference_data)
+    analyse_journalisation(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
     
     print("\n[Analysis] Users...")
-    analyse_utilisateurs(serveur, niveau="min", reference_data=reference_data)
+    analyse_utilisateurs(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
 
     print("\n[Analysis] System...")
-    analyse_systeme(serveur, niveau="min", reference_data=reference_data)
+    analyse_systeme(serveur, niveau="min", reference_data=reference_data, os_info=os_info)
