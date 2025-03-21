@@ -366,6 +366,10 @@ fi
         print(script_content)
 
         # Step 8: Confirm execution of the script
+        print("\n Downloading iptables script  \n")
+        download_pcap(client , iptable_script , './iptables.sh')
+        download_pcap(client , '/root/blacklist.txt' , './blacklist.txt' )
+        
         execute_script = input("Do you want to execute this script to apply the new rules? (yes/no): ").strip().lower()
         if execute_script == "yes":
             print("Applying the new IPTABLES rules...")
