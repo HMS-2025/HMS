@@ -60,7 +60,30 @@ def check_compliance(rule_id, detected_values, reference_data):
             "detected_elements": detected_values,
             "issues": issues or None
         }
-    
+    elif rule_id == "R73":
+        expected_rules = reference_data.get("R73", {}).get("expected", {}).get("required_rules", [])
+        detected_rules = detected_values.get("detected_rules") or []
+        missing_rules = [rule for rule in expected_rules if rule not in detected_rules]
+
+        issues = []
+        if detected_values.get("issues"):
+            issues.extend(detected_values["issues"])
+
+        if detected_values.get("auditd_active") and missing_rules:
+            issues.append(f"Missing audit rules: {missing_rules}")
+
+        return {
+            "apply": not issues,
+            "status": "Compliant" if not issues else "Non-Compliant",
+            "expected_elements": expected_rules,
+            "detected_elements": {
+                "auditd_active": detected_values.get("auditd_active"),
+                "rules": detected_rules or None
+            },
+            "issues": issues or None
+        }
+
+
     if isinstance(expected_values, dict):
         for key, value in expected_values.items():
             if isinstance(value, list):
@@ -214,8 +237,37 @@ def check_service_log_protection(serveur, os_info):
     else:
         print(f"[check_service_log_protection] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); service log protection check skipped.")
         return {}
+    
+def check_auditd_log(serveur, os_info):
+    audit_config_output = execute_ssh_command(serveur, "auditctl -l")
 
-def analyse_journalisation(serveur, niveau="min", reference_data=None, os_info=None):
+    auditd_active = True
+    issues = []
+    detected_rules = []
+
+    if audit_config_output:
+        output_str = ' '.join(audit_config_output).lower()
+        if ("audit system is disabled" in output_str or
+            "you must be root to run this program" in output_str or
+            "permission denied" in output_str or
+            "cannot open netlink audit socket" in output_str or
+            "error - audit support not in kernel" in output_str):
+            auditd_active = False
+            issues.append("auditd service is inactive, not enabled, or insufficient permissions.")
+        else:
+            detected_rules = audit_config_output
+    else:
+        auditd_active = False
+        issues.append("auditctl returned no output. auditd might be inactive or insufficient permissions.")
+
+    return {
+        "auditd_active": auditd_active,
+        "detected_rules": detected_rules if detected_rules else None,
+        "issues": issues if issues else None
+    }
+
+
+def analyse_journalisation(serveur, niveau, reference_data=None, os_info=None):
     if reference_data is None:
         reference_data = load_reference_yaml()
     report = {}
@@ -226,7 +278,8 @@ def analyse_journalisation(serveur, niveau="min", reference_data=None, os_info=N
         },
         "renforce": {
             "R71": (check_syslog_configuration, "Ensure secure and complete logging configuration"),
-            "R72": (check_service_log_protection, "Ensure service log protection against unauthorized access or modification")
+            "R72": (check_service_log_protection, "Ensure service log protection against unauthorized access or modification"),
+            "R73": (check_auditd_log, "Ensure auditd is configured properly for system activity logging")
         }
     }
     if niveau in rules and rules[niveau]:

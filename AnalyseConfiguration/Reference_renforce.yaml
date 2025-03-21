@@ -87,6 +87,27 @@ R72:
       group: "adm"
       permissions: "640"
 
+R73:
+  description: "System activity logging must be implemented using auditd, ensuring key events and sensitive actions are logged."
+  expected:
+    required_rules:
+      - "-w /sbin/insmod -p x"
+      - "-w /sbin/modprobe -p x"
+      - "-w /sbin/rmmod -p x"
+      - "-w /bin/kmod -p x"
+      - "-w /etc/ -p wa"
+      - "-a exit,always -S mount -S umount2"
+      - "-a exit,always -S ioperm -S modify_ldt"
+      - "-a exit,always -S get_kernel_syms -S ptrace"
+      - "-a exit,always -S prctl"
+      - "-a exit,always -F arch=b64 -S unlink -S rmdir -S rename"
+      - "-a exit,always -F arch=b64 -S creat -S open -S openat -F exit=-EACCES"
+      - "-a exit,always -F arch=b64 -S truncate -S ftruncate -F exit=-EACCES"
+      - "-a exit,always -F arch=b64 -S init_module -S delete_module"
+      - "-a exit,always -F arch=b64 -S finit_module"
+      - "-e 2"
+
+
 
 
 
