@@ -192,9 +192,7 @@ def check_apparmor_profiles(serveur, expected_value, os_info=None):
     output_str = stdout.read().decode().strip()
     # Si vous préférez une liste de lignes :
     lines = output_str.splitlines()
-    
-    print("DEBUG aa-status output:\n", output_str)
-    
+        
     total_profiles = 0
     enforce_profiles = 0
     complain_profiles = 0
@@ -303,8 +301,3 @@ def analyse_systeme(serveur, niveau, reference_data=None, os_info=None):
     compliance_percentage = sum(1 for r in report.values() if r["status"] == "Compliant") / len(report) * 100 if report else 100
     print(f"\nCompliance rate for level {niveau.upper()} (System) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
-
-    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
-
-    if os.path.exists(html_yaml_path):
-        os.remove(html_yaml_path)
