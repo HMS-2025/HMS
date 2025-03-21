@@ -40,9 +40,6 @@ def analyse_renforce(serveur, os_info):
     print("\n[Analysis] Updates (reinforced level)...")
     analyse_mise_a_jour(serveur, niveau="renforce", reference_data=reference_data, os_info=os_info)
 
-    print("\n[Analysis] Password policy (reinforced level)...")
-    analyse_politique_mdp(serveur, niveau="renforce", reference_data=reference_data, os_info=os_info)
-
     print("\n[Analysis] Network (reinforced level)...")
     analyse_reseau(serveur, niveau="renforce", reference_data=reference_data, os_info=os_info)
     
