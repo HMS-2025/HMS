@@ -34,7 +34,87 @@ ssh_comments = {
     "R26": "Port should be 22"
 }
 
-# Function to generate YAML report for SSH compliance based on provided rules and comments.
+def get_server_users(server):
+    """
+    Récupère la liste des utilisateurs présents sur le serveur
+    avec UID ≥ 1000 (comptes non systèmes).
+    """
+    try:
+        # Utilisation d'awk pour filtrer sur UID ≥ 1000
+        stdin, stdout, stderr = server.exec_command("awk -F: '$3>=1000 {print $1}' /etc/passwd")
+        return stdout.read().decode().splitlines()
+    except Exception as e:
+        print(f"Erreur lors de la récupération des utilisateurs : {e}")
+        return []
+
+def get_server_groups(server):
+    """
+    Récupère la liste des groupes présents sur le serveur
+    avec GID ≥ 1000 (groupes non systèmes).
+    """
+    try:
+        # Utilisation d'awk pour filtrer sur GID ≥ 1000
+        stdin, stdout, stderr = server.exec_command("awk -F: '$3>=1000 {print $1}' /etc/group")
+        return stdout.read().decode().splitlines()
+    except Exception as e:
+        print(f"Erreur lors de la récupération des groupes : {e}")
+        return []
+
+def get_server_ip(server):
+    """
+    Récupère l'adresse IP du serveur via 'hostname -I' et retourne la première adresse.
+    """
+    try:
+        stdin, stdout, stderr = server.exec_command("hostname -I")
+        ip_output = stdout.read().decode().strip()
+        if ip_output:
+            return ip_output.split()[0]
+        else:
+            return None
+    except Exception as e:
+        print(f"Erreur lors de la récupération de l'IP du serveur : {e}")
+        return None
+
+def update_ssh_criteria_with_system_info(server, file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
+    """
+    Lit le fichier YAML de critères SSH et met à jour directement
+    les expected_value pour :
+      - R12 (AllowUsers) avec les utilisateurs présents (UID ≥ 1000)
+      - R13 (AllowGroups) avec les groupes présents (GID ≥ 1000)
+      - R25 (ListenAddress) avec l'IP du serveur récupérée via hostname
+    """
+    users = get_server_users(server)
+    groups = get_server_groups(server)
+    server_ip = get_server_ip(server)
+    
+    # Transformation en chaînes séparées par des virgules
+    users_str = ",".join(users)
+    groups_str = ",".join(groups)
+    
+    if not os.path.exists(file_path):
+        print(f"Le fichier {file_path} n'existe pas.")
+        return
+    
+    # Lecture du fichier YAML existant
+    with open(file_path, 'r') as f:
+        data = yaml.safe_load(f)
+    
+    if "ssh_criteria" in data:
+        if "R12" in data["ssh_criteria"]:
+            data["ssh_criteria"]["R12"]["expected_value"] = users_str
+        if "R13" in data["ssh_criteria"]:
+            data["ssh_criteria"]["R13"]["expected_value"] = groups_str
+        if server_ip and "R25" in data["ssh_criteria"]:
+            data["ssh_criteria"]["R25"]["expected_value"] = server_ip
+    
+    # Réécriture du fichier YAML en conservant le style compact (inline)
+    with open(file_path, 'w') as f:
+        yaml.dump(data, f, default_flow_style=True)
+    
+    print(f"Les valeurs attendues pour R12, R13 et R25 ont été mises à jour dans {file_path}")
+
+# --- Les fonctions suivantes restent inchangées ---
+
 def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
     try:
         output_dir = "GenerationRapport/RapportAnalyse"
@@ -58,7 +138,6 @@ def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
             file.write("ssh_compliance:\n")
 
             for rule, details in all_rules.items():
-                # Retrieve the comment from the dictionary, if provided
                 comment = comments.get(rule, "") if comments else ""
                 file.write(f"  {rule}:  # {comment}\n")
                 file.write(f"    apply: {'true' if details.get('apply') else 'false'}\n")
@@ -73,8 +152,10 @@ def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
     except (OSError, IOError) as e:
         print(f"Error generating the YAML file: {e}")
 
-# Function to check SSH configuration compliance by retrieving, parsing, and analyzing the configuration.
 def check_ssh_configuration_compliance(server, os_info):
+    # Mise à jour du fichier de critères avec les infos du serveur (AllowUsers, AllowGroups et ListenAddress)
+    update_ssh_criteria_with_system_info(server)
+    
     config_data = retrieve_ssh_configuration(server, os_info)
     if config_data is None:
         return
@@ -83,12 +164,10 @@ def check_ssh_configuration_compliance(server, os_info):
     compliance_results = check_anssi_compliance(parsed_config)
     
     if compliance_results:
-        # Passing the comments dictionary for SSH rules
         generate_yaml_report(compliance_results, filename="analyse_ssh.yaml", comments=ssh_comments)
     else:
         print("No compliance data has been generated.")
 
-# Function to convert a time value string (e.g., "30s", "5m", "2h") into seconds.
 def convert_time_to_seconds(time_value):
     if time_value.isdigit():
         return int(time_value)
@@ -104,7 +183,6 @@ def convert_time_to_seconds(time_value):
             total_seconds += value
     return total_seconds
 
-# Function to load ANSSI SSH compliance criteria from a YAML file.
 def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
     try:
         if not os.path.exists(file_path):
@@ -118,7 +196,6 @@ def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH
         print(f"Error loading criteria: {e}")
         return {}
 
-# Function to check SSH configuration compliance against ANSSI criteria.
 def check_anssi_compliance(config):
     anssi_criteria = load_anssi_criteria()
     all_rules = {}
@@ -139,12 +216,12 @@ def check_anssi_compliance(config):
             if actual_value == "not defined" or actual_value.strip() == "":
                 status = f"Non-Compliant -> '{directive}' is empty or undefined, it must be specified."
                 apply_val = False
-                expected = criteria.get("expected_value", [])
+                expected = expected_value.split(",") if isinstance(expected_value, str) else []
                 detected = "None"
             else:
                 status = f"Compliant -> '{directive}: {actual_value}'"
                 apply_val = True
-                expected = criteria.get("expected_value", [])
+                expected = expected_value.split(",") if isinstance(expected_value, str) else []
                 detected = actual_value
         elif directive in ["LoginGraceTime", "ClientAliveInterval"]:
             expected_seconds = convert_time_to_seconds(expected_value)
@@ -173,7 +250,6 @@ def check_anssi_compliance(config):
         }
     return all_rules
 
-# Function to retrieve SSH configuration from a server using SSH.
 def retrieve_ssh_configuration(server, os_info):
     if not isinstance(server, paramiko.SSHClient):
         print("Error: Invalid SSH server.")
@@ -200,7 +276,6 @@ def retrieve_ssh_configuration(server, os_info):
         print(f"Error retrieving SSH configuration: {e}")
         return None
 
-# Function to merge base SSH configuration with additional configuration.
 def merge_ssh_configurations(base_config, extra_config):
     parsed_config = parse_ssh_configuration(base_config)
     extra_parsed_config = parse_ssh_configuration(extra_config)
@@ -208,7 +283,6 @@ def merge_ssh_configurations(base_config, extra_config):
     merged_config = "\n".join([f"{k} {v}" for k, v in parsed_config.items()])
     return merged_config
 
-# Function to parse SSH configuration file content into a dictionary.
 def parse_ssh_configuration(config_data):
     parsed_config = {}
     for line in config_data.split("\n"):
