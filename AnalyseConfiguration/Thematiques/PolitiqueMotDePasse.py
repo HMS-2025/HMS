@@ -5,7 +5,6 @@ from GenerationRapport.GenerationRapport import generate_html_report
 
 # Load the Reference_min.yaml file and return its content.
 def load_reference_yaml(file_path="AnalyseConfiguration/Reference_min.yaml"):
-    """Load the Reference_min.yaml file and return its content."""
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             reference_data = yaml.safe_load(file)
@@ -64,8 +63,9 @@ def check_expiration_policy_compliance(detected, expected):
         return {}
     return {"detected": detected, "expected": expected}
 
-# Analyze the password policy and generate a YAML compliance report.
+# === Fonction d'analyse de la politique de mot de passe adaptée ===
 def analyse_politique_mdp(serveur, niveau, reference_data=None, os_info=None):
+    # Le rapport reste organisé sous la section "password"
     report = {
         "password": {}
     }
@@ -73,22 +73,29 @@ def analyse_politique_mdp(serveur, niveau, reference_data=None, os_info=None):
     if reference_data is None:
         reference_data = load_reference_yaml()
 
-    if niveau == "min":
-        print("-> Checking password policy (R31)")
-        password_policy = get_password_policy(serveur, os_info)
-        report["password"]["R31"] = check_compliance("R31", password_policy, reference_data)
+    # Définition du dictionnaire de règles pour la politique de mot de passe
+    rules = {
+        "min": {
+            "R31": (get_password_policy, "Check password policy (PAM, chage, faillock)"),
+            "R68": (get_stored_passwords_protection, "Check stored password protection (/etc/shadow)")
+        },
+        "moyen": {},
+        "renforce": {}
+    }
 
-        print("-> Checking stored password protection (R68)")
-        password_protection = get_stored_passwords_protection(serveur, os_info)
-        report["password"]["R68"] = check_compliance("R68", password_protection, reference_data)
-
+    if niveau in rules and rules[niveau]:
+        for rule_id, (function, description) in rules[niveau].items():
+            print(f"-> Checking rule {rule_id} # {description}")
+            detected_values = function(serveur, os_info)
+            report["password"][rule_id] = check_compliance(rule_id, detected_values, reference_data)
     elif niveau == "moyen":
         print("-> No rules defined for medium level.")
         compliance_percentage = 100.00
         print(f"\nCompliance rate for level {niveau} (Password policy) : {compliance_percentage:.2f}%")
         return
 
-    save_yaml_report(report, f"analyse_{niveau}.yml")
+    # On transmet uniquement le sous-dictionnaire pour la section "password"
+    save_yaml_report(report["password"], f"analyse_{niveau}.yml", rules[niveau], niveau)
     yaml_path = f"GenerationRapport/RapportAnalyse/analyse_{niveau}.yml"
     html_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.html"
 
@@ -98,15 +105,9 @@ def analyse_politique_mdp(serveur, niveau, reference_data=None, os_info=None):
 
     print(f"\nCompliance rate for level {niveau} (Password policy) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
-    
-    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
 
-    if os.path.exists(html_yaml_path):
-        os.remove(html_yaml_path)
-    
 # R31 - Check password policy
 def get_password_policy(serveur, os_info):
-    """Analyze the system's password policy."""
     policy_data = {}
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         # 1. Check password policy in PAM
@@ -152,7 +153,6 @@ def get_password_policy(serveur, os_info):
 
 # R68 - Check stored password protection
 def get_stored_passwords_protection(serveur, os_info):
-    """Analyze the security of stored passwords in /etc/shadow."""
     password_protection_status = {}
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         password_protection_status["shadow_permissions"] = execute_remote_command(
@@ -190,7 +190,6 @@ def get_stored_passwords_protection(serveur, os_info):
 
 # Execute a remote command and return a standardized output.
 def execute_remote_command(serveur, command, expected_output, default_output):
-    """Execute a remote command and normalize the output."""
     try:
         stdin, stdout, stderr = serveur.exec_command(command)
         output = stdout.read().decode().strip()
@@ -200,10 +199,21 @@ def execute_remote_command(serveur, command, expected_output, default_output):
         return default_output
 
 # Save analysis data to a YAML file in the dedicated folder.
-def save_yaml_report(data, output_file):
+def save_yaml_report(data, output_file, rules, niveau):
     output_dir = "GenerationRapport/RapportAnalyse"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
     with open(output_path, "a", encoding="utf-8") as file:
-        yaml.dump(data, file, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False)
-    print(f"Report generated : {output_path}")
+        file.write("password:\n")
+        # data correspond ici à report["password"]
+        for rule_id, content in data.items():
+            comment = rules.get(rule_id, (None, ""))[1]
+            file.write(f"  {rule_id}:  # {comment}\n")
+            yaml_content = yaml.safe_dump(
+                content, default_flow_style=False, allow_unicode=True, indent=4, sort_keys=False
+            )
+            indented_yaml = "\n".join(["    " + line for line in yaml_content.split("\n") if line.strip()])
+            file.write(indented_yaml + "\n")
+        file.write("\n")
+    
+    print(f"Report generated: {output_path}")
