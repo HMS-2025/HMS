@@ -345,7 +345,7 @@ def save_yaml_report(data, output_file, rules, niveau):
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, output_file)
     # Open file in write mode to avoid duplicate top-level keys.
-    with open(output_path, "w", encoding="utf-8") as file:
+    with open(output_path, "a", encoding="utf-8") as file:
         file.write("users:\n")
         for rule_id, content in data.items():
             comment = rules[niveau].get(rule_id, (None, ""))[1]
