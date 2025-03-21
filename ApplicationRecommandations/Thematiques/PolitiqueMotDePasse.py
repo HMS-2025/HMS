@@ -89,7 +89,7 @@ def apply_recommandation_politique_mot_de_passe(yaml_file,client , level):
         if not data or 'password' not in data:
             return
         for rule, rule_data in data['password'].items():
-            if rule_data.get('appliquer', False):
+            if not rule_data.get('apply', False):
                 print(f"Règle {rule} déjà appliquée.")
             else:
                 apply_rule(rule, yaml_file, client , level)

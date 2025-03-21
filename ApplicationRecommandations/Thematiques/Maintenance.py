@@ -124,7 +124,7 @@ def apply_recommandation_maintenance(yaml_file, client , level):
         if not data or 'maintenance' not in data:
             return
         for rule, rule_data in data['maintenance'].items():
-            if rule_data.get('appliquer', False):
+            if not rule_data.get('apply', False):
                 print(f"Règle {rule} déjà appliquée.")
             else:
                 apply_rule(rule, yaml_file, client , level)

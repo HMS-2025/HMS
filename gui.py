@@ -36,7 +36,7 @@ class Gui:
         label.bind("<Button-1>", lambda e: self.display_description(section, rule_key, rule))
 
         var = tk.BooleanVar(value=rule.get("apply", False))
-        checkbox = ttk.Checkbutton(apply_frame, text="Appliquer", variable=var,
+        checkbox = ttk.Checkbutton(apply_frame, text="apply", variable=var,
                                    command=lambda: self.toggle_apply({"path": section, "key": rule_key}, var, apply_frame))
         checkbox.pack(anchor="e")
         checkbox.config(state="disabled" if var.get() else "normal")

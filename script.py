@@ -2,6 +2,8 @@ from Config import load_config, ssh_connect
 from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen, analyse_renforce
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
+from ApplicationRecommandations.AppRecommandationsMoyen import application_recommandations_moyen
+from ApplicationRecommandations.Thematiques.Reseau import iptables
 from gui import Gui
 import argparse
 import sys
@@ -9,12 +11,9 @@ import os
 import john 
 
 
+
 def print_remote_os_version():
     config = load_config("ssh.yaml")
-    if not config:
-        print("Invalid configuration for OS version check")
-        return
-
     client = ssh_connect(
         hostname=config.get("hostname"),
         port=config.get("port"),
@@ -22,6 +21,10 @@ def print_remote_os_version():
         key_path=config.get("key_path"),
         passphrase=config.get("passphrase")
     )
+
+    if not config:
+        print("Invalid configuration for OS version check")
+        return
     if not client:
         print("SSH connection failed for OS version check")
         return
@@ -72,19 +75,18 @@ def check_remote_os_support(client):
         return False
 
 def run_analysis(mode):
-    # Load SSH configuration
     config = load_config("ssh.yaml")
-    if not config:
-        print("Invalid configuration")
-        return
-
     client = ssh_connect(
         hostname=config.get("hostname"),
         port=config.get("port"),
         username=config.get("username"),
         key_path=config.get("key_path"),
         passphrase=config.get("passphrase")
-    )
+        )
+    # Load SSH configuration
+    if not config:
+        print("Invalid configuration")
+        return
     if not client:
         print("SSH connection failed")
         return
@@ -116,10 +118,6 @@ def run_analysis(mode):
 
 def run_recommendations(app_type):
     config = load_config("ssh.yaml")
-    if not config:
-        print("Invalid configuration")
-        return
-
     client = ssh_connect(
         hostname=config.get("hostname"),
         port=config.get("port"),
@@ -127,14 +125,25 @@ def run_recommendations(app_type):
         key_path=config.get("key_path"),
         passphrase=config.get("passphrase")
     )
+    if not config:
+        print("Invalid configuration")
+        return
     if not client:
         print("SSH connection failed")
         return
 
-    if app_type == "general":
-        print("\n--- Applying General Recommendations ---\n")
-        Gui("GenerationRapport/RapportAnalyse/analyse_min.yml", "GenerationRapport/RapportApplication/application.yml")
+    if app_type == "min":
+        print("\n--- Applying minimal Recommendations ---\n")
+        Gui("GenerationRapport/RapportAnalyse/analyse_min.yml", "GenerationRapport/RapportApplication/application_min.yml")
         application_recommandations_min(client)
+    
+    elif app_type=="inter" : 
+        print("\n--- Applying intermediate Recommendations ---\n")
+        Gui("GenerationRapport/RapportAnalyse/analyse_moyen.yml", "GenerationRapport/RapportApplication/application_moyen.yml")
+        application_recommandations_moyen(client)
+    elif app_type=="Iptables" : 
+        print("\n--- Applying iptables ---\n")
+        iptables(client , 'test')
     elif app_type == "ssh":
         print("\n--- Applying SSH Recommendations ---\n")
         apply_selected_recommendationsSSH("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml", client)
@@ -178,7 +187,24 @@ def interactive_menu():
                 else:
                     print("Invalid option, please try again.")
         elif choice == "2":
-            run_recommendations("general")
+            while True:
+                print("\n===== Select Application Level =====")
+                print("1 - Minimal application")
+                print("2 - Intermediate application")
+                print("3 - Iptables")
+                print("4 - Back")
+                sub_choice = input("Select an option (1-3): ")
+                if sub_choice == "1":
+                    run_recommendations("min")
+                if sub_choice == "2":
+                    run_recommendations("inter")
+                if sub_choice == "3":
+                    run_recommendations("Iptables")
+                elif sub_choice == "4":
+                    break
+                else : 
+                    print("Invalid option, please try again.")
+ 
         elif choice == "3":
             run_recommendations("ssh")
         elif choice == "4":

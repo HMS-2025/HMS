@@ -250,11 +250,16 @@ def get_non_privileged_sudo_users(serveur):
 
 # Get negation operators in /etc/sudoers (e.g. the '!' symbol)
 def get_negation_in_sudoers(serveur):
-    return execute_ssh_command(serveur, "sudo grep -E '!' /etc/sudoers")
+    return execute_ssh_command(serveur, "sudo grep -E '^[^#].*!' /etc/sudoers")
 
 # Get strict sudo argument specifications from /etc/sudoers
 def get_strict_sudo_arguments(serveur):
-    result = execute_ssh_command(serveur, "sudo grep -E 'ALL=' /etc/sudoers | grep -E '*'")
+    cmd = (
+        "sudo grep -E '^[^#].*ALL=' /etc/sudoers | "
+        "grep -E '\\*' | "
+        "grep -Ev '^(root|%sudo)[[:space:]]'"
+    )
+    result = execute_ssh_command(serveur, cmd)
     cleaned_elements = [element.replace("\t", " ") for element in result]
     return cleaned_elements
 
@@ -270,6 +275,9 @@ def get_sudoedit_usage(serveur):
         if not stripped_line or stripped_line.startswith("#"):
             continue
         if "=" not in stripped_line:
+            continue
+        # Exception pour root
+        if stripped_line.lower().startswith("root"):
             continue
         spec, cmd_part = stripped_line.split("=", 1)
         cmd_part = cmd_part.strip()
@@ -427,6 +435,7 @@ def get_secure_permissions(serveur, reference_data):
                 numeric_perm = convert_to_numeric(raw_permissions)
                 expected_perm = expected_files[path]
                 formatted_permissions.append(f"{owner} {group} {path} {numeric_perm} (expected: {expected_perm})")
+        
     return formatted_permissions
 
 # Get protected sockets and pipes

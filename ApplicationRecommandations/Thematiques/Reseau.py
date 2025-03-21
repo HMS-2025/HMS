@@ -3,102 +3,97 @@ import re
 import subprocess
 import os
 import pyshark
+import ipaddress
+from collections import defaultdict
+
+def update_yaml(yaml_file, thematique ,  rule, clear_keys=[]):
+    with open(yaml_file, 'r', encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    
+    data[thematique][rule]['apply'] = False
+    data[thematique][rule]['status'] = 'Conforme'
+    with open(yaml_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
 def extract_interface_name(entry):
-    """Extrait uniquement le nom de l'interface à partir d'une entrée IP+interface"""
-    match = re.search(r'%([^:]+)', entry)  # Capture l'interface après '%'
+    """Extracts only the interface name from an IP+interface entry."""
+    match = re.search(r'%([^:]+)', entry)  # Captures the interface after '%'
     return match.group(1) if match else None
 
-def ask_for_approval(rule):
-    response = input(f"Voulez-vous appliquer la règle {rule} ? (o/n): ").strip().lower()
-    return response == 'o'
-
 def list_interfaces(client):
-    """Liste les interfaces réseau disponibles sur le serveur distant."""
-    print("Récupération des interfaces réseau disponibles...")
+    """Lists the network interfaces available on the remote server."""
+    print("Retrieving available network interfaces...")
     try:
         stdin, stdout, stderr = client.exec_command("tcpdump -D")
         output = stdout.read().decode()
         error = stderr.read().decode()
         
         if error:
-            print(f"Erreur : {error.strip()}")
+            print(f"Error: {error.strip()}")
             return []
 
         interfaces = output.strip().split("\n")
         cleaned_interfaces = [line.split('.')[1].strip().split(' ')[0] for line in interfaces]
         
-        print("\nInterfaces disponibles :")
+        print("\nAvailable interfaces:")
         for i, interface in enumerate(cleaned_interfaces):
             print(f"{i + 1}. {interface}")
         return cleaned_interfaces
 
     except Exception as e:
-        print(f"Erreur lors de la récupération des interfaces : {e}")
+        print(f"Error retrieving interfaces: {e}")
         return []
     
 def capture_traffic(client, interface, duration, output_file):
     """
-    Capture tout le trafic réseau entrant sur une interface spécifique pendant une durée donnée sur une machine distante via SSH.
+    Captures all incoming network traffic on a specific interface for a given duration on a remote machine via SSH.
     """
-    print(f"Capture du trafic sur l'interface {interface} pendant {duration} secondes (distant)...")
+    print(f"Capturing traffic on interface {interface} for {duration} seconds (remote)...")
     try:
-
         command = f"rm {output_file}"
         stdin, stdout, stderr = client.exec_command(command)
 
-        # Commande tcpdump distante pour capturer le trafic
+        # Remote tcpdump command to capture traffic
         command = f"timeout {duration} tcpdump -i {interface} -w {output_file}"
         stdin, stdout, stderr = client.exec_command(command)
-        stdout.channel.recv_exit_status()  # Attendre la fin de l'exécution proprement
+        stdout.channel.recv_exit_status()  # Wait for proper execution to finish
 
-
-        # Attendre la fin de l'exécution
-        stdout.channel.recv_exit_status()
-
-        # Vérifier les erreurs éventuelles
+        # Check for potential errors
         error = stderr.read().decode()
         if error:
-            print(f"Erreur durant la capture : {error.strip()}")
-        else:
-            print(f"Capture terminée. Fichier enregistré sous {output_file} sur la machine distante.")
+            print(f"Error during capture: {error.strip()}")
     except Exception as e:
-        print(f"Erreur lors de la capture du trafic : {e}")
-
+        print(f"Error capturing traffic: {e}")
 
 def download_pcap(client, remote_pcap_file, local_pcap_file):
-    """Télécharge le fichier PCAP capturé depuis le serveur distant."""
-    print(f"Téléchargement du fichier PCAP depuis {remote_pcap_file} vers {local_pcap_file}...")
+    """Downloads the captured PCAP file from the remote server."""
 
-    # Vérifier si le fichier local existe déjà
+    # Check if the local file already exists
     if os.path.exists(local_pcap_file):
-        print(f"Le fichier {local_pcap_file} existe déjà. Suppression...")
         try:
-            os.remove(local_pcap_file)  # Supprime le fichier s'il existe
-            print(f"Fichier {local_pcap_file} supprimé avec succès.")
+            os.remove(local_pcap_file)  # Delete the file if it exists
         except Exception as e:
-            print(f"Erreur lors de la suppression du fichier {local_pcap_file} : {e}")
+            print(f"Error deleting file {local_pcap_file}: {e}")
             return
 
     try:
-        # Créer une connexion SFTP et télécharger le fichier
+        # Create an SFTP connection and download the file
         sftp = client.open_sftp()
         sftp.get(remote_pcap_file, local_pcap_file)
         sftp.close()
-        print("Téléchargement terminé.")
     except Exception as e:
-        print(f"Erreur durant le téléchargement : {e}")
+        print(f"Error downloading file: {e}")
 
 def get_open_ports(client):
     """
-    Récupère la liste des ports ouverts sur la machine distante via SSH.
+    Retrieves the list of open ports on the remote machine via SSH.
     """
     stdin, stdout, stderr = client.exec_command("ss -tuln")
     output = stdout.read().decode()
     error = stderr.read().decode()
 
     if error:
-        print(f"Erreur lors de la récupération des ports ouverts : {error}")
+        print(f"Error retrieving open ports: {error}")
         return set()
 
     open_ports = set()
@@ -111,21 +106,21 @@ def get_open_ports(client):
                     port = address.split(':')[-1]
                     if port.isdigit():
                         open_ports.add(int(port))
-    print(f"Ports ouverts sur la machine distante : {open_ports}")
-    return open_ports
 
+    print(f"Open ports on the remote machine: {open_ports}")
+    return open_ports
 
 def analyze_pcap_and_generate_script(client, file_path):
     """
-    Analyse un fichier PCAP et génère un script IPTABLES uniquement
-    pour les ports ouverts détectés sur la machine distante.
+    Analyzes a PCAP file and generates an IPTABLES script
+    only for open ports detected on the remote machine.
     """
     open_ports = get_open_ports(client)
     cap = pyshark.FileCapture(file_path)
     traffic_summary = {}
     source_ports_to_allow = set()
 
-    print("Analyse en cours...")
+    print("Analysis in progress...")
 
     try:
         for packet in cap:
@@ -138,138 +133,310 @@ def analyze_pcap_and_generate_script(client, file_path):
                     if src_port in open_ports:
                         source_ports_to_allow.add((protocol, src_port))
 
-                key = f"Protocole: {protocol}, Port source: {src_port}"
+                key = f"Protocol: {protocol}, Source Port: {src_port}"
                 traffic_summary[key] = traffic_summary.get(key, 0) + 1
     except Exception as e:
-        print(f"Erreur lors de l'analyse du fichier PCAP : {e}")
+        print(f"Error while analyzing the PCAP file: {e}")
     finally:
         cap.close()
 
-    # Afficher le résumé
-    print("\nRésumé du trafic analysé (filtré sur les ports ouverts) :")
-    for key, count in traffic_summary.items():
-        print(f"{key}: {count} paquets")
+    # Display the summary
 
-    # Execution des regles iptable IPTABLES
-    execute_iptables_commands(client ,source_ports_to_allow)
+    print("\nSummary of analyzed traffic (filtered for open ports):")
+    for key, count in traffic_summary.items():
+        print(f"{key}: {count} packets")
+
+    # Execute the IPTABLES rules
+    execute_iptables_commands(client, source_ports_to_allow)
 
 def execute_iptables_commands(client, source_ports_to_allow):
     """
-    Exécute directement les commandes IPTABLES sur le serveur distant
-    pour autoriser le trafic entrant provenant des ports source spécifiés,
-    après avoir effectué une sauvegarde des règles existantes.
+    Executes IPTABLES commands on the remote server to allow traffic
+    on specific ports, includes specific rules for port 22, and
+    implements security-enhancing features. Allows the user to add
+    additional source IP addresses and networks for port 22 manually.
     """
     try:
-        # Générer un chemin de sauvegarde unique basé sur l'heure actuelle
-        backup_file = f"/tmp/iptables-backup.rules"
+        # Step 1: Backup existing rules
+        backup_file = "/tmp/iptables-backup.rules"
 
-        print(f"Sauvegarde des règles IPTABLES actuelles dans {backup_file}...")
-
-        # Effectuer la sauvegarde des règles actuelles sur le serveur distant
+        print(f"Backing up current IPTABLES rules to {backup_file}...")
         stdin, stdout, stderr = client.exec_command(f"iptables-save > {backup_file}")
-        output = stdout.read().decode()
         error = stderr.read().decode()
-
         if error:
-            print(f"Erreur lors de la sauvegarde des règles actuelles : {error.strip()}")
-        else:
-            print("Sauvegarde réussie.")
+            print(f"Error while backing up current rules: {error.strip()}")
 
-        # Réinitialiser les règles IPTABLES
+        # Step 2: Check if port 22 (SSH) is included in source_ports_to_allow
+        authorised_sources = []
+        if ('TCP', 22) in source_ports_to_allow:
+            stdin, stdout, stderr = client.exec_command(
+                "last -i | awk '{print $3}' | sort | uniq | grep -E '[0-9]{1,3}(\.[0-9]{1,3}){3}'"
+            )
+            last_ips = stdout.read().decode().splitlines()
+
+            if not last_ips:
+                source_ports_to_allow.remove(('TCP', 22))  # Remove port 22 if no IP is detected
+            else:
+                print("Sources address detected :")
+                for ip in last_ips:
+                    print(f"- {ip}")
+
+                # Automatically add detected IPs as sources
+                network_dict = defaultdict(list)
+                for ip in last_ips:
+                    try:
+                        ip_network = ipaddress.IPv4Interface(ip + '/24').network
+                        network_dict[ip_network].append(ip)
+                    except ValueError:
+                        print(f"Invalid IP address ignored: {ip}")
+
+                # Prepare the IPs and subnets to allow
+                for network, ips in network_dict.items():
+                    if len(ips) > 1:  # Multiple IPs in the network -> Add the /24 network
+                        authorised_sources.append(str(network))
+                    else:  # Single IP in the network -> Add the individual IP
+                        authorised_sources.append(ips[0])
+
+                # Step 2.1: Ask the user if they want to add more IPs or networks
+                while True : 
+                    additional_sources = input("Do you want to add more IP addresses or networks for port 22? (yes/no): ").strip().lower()
+                    if additional_sources == "yes":
+                        while True:
+                            new_source = input("Enter an IP address or network in CIDR format (or press Enter to finish): ").strip()
+                            if not new_source:
+                                break
+                            try:
+                                # Validate the IP or network
+                                if "/" in new_source : 
+                                    ip_network = ipaddress.IPv4Network(new_source, strict=False)
+                                    authorised_sources.append(str(ip_network))
+                                    print(f"\nSource {new_source} added.\n")
+                                else :  
+                                    ip = ipaddress.IPv4Address(new_source)
+                                    authorised_sources.append(str(ip))
+                                    print(f"\nSource {new_source} added.\n") 
+                            except ValueError:
+                                print(f"Invalid IP address or network: {new_source}")
+                    elif additional_sources == 'no' : 
+                        break
+                    else : 
+                        print("Invalid option")
+
+        # Step 3: Reset and define basic IPTABLES rules
         commands = [
-            "iptables -F",
+            "iptables -F",  # Reset rules
             "iptables -X",
             "iptables -P INPUT DROP",
             "iptables -P FORWARD DROP",
             "iptables -P OUTPUT ACCEPT",
             "iptables -A INPUT -i lo -j ACCEPT",
-            "iptables -A INPUT -m conntrack --ctstate ESTABLISHED -j ACCEPT",
+            "iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+        ]
+        # Step 3.1: Display the list of currently allowed ports
+        if source_ports_to_allow:
+            print("\nCurrently allowed ports:")
+            for protocol, port in source_ports_to_allow:
+                print(f"- Protocol: {protocol}, Port: {port}")
+        else:
+            print("\nNo ports are currently allowed.")
+
+        add_ports = input("Do you want to authorize additional ports? (yes/no): ").strip().lower()
+        if add_ports == "yes":
+            while True:
+                try:
+                    print("Enter 'exit' at any time to leave this process.")
+                    protocol = input("Enter the protocol (TCP/UDP) for the port: ").strip().upper()
+                    if protocol == "EXIT":
+                        print("Exiting the port addition process.")
+                        break
+                    if protocol not in ["TCP", "UDP"]:
+                        print("Invalid protocol. Please enter TCP or UDP.")
+                        continue
+
+                    port = input("Enter the port number (or press Enter to finish): ").strip()
+                    if not port:
+                        break
+                    if port.lower() == "exit":
+                        print("Exiting the port addition process.")
+                        break
+
+                    if port.isdigit() and 1 <= int(port) <= 65535:
+                        source_ports_to_allow.add((protocol, int(port)))
+                        print(f"Port {port}/{protocol} added to the list of allowed ports.")
+                    else:
+                        print("Invalid port number. Please enter a number between 1 and 65535.")
+                except ValueError:
+                    print("Invalid input. Please try again.")
+
+
+        # Step 4: Add specific rules for each protocol and port
+        for protocol, port in source_ports_to_allow:
+            if port == 22:  # Specific rules for port 22
+                for source in authorised_sources:
+                    commands.append(f"iptables -A INPUT -p {protocol.lower()} --dport {port} -s {source} -j ACCEPT")
+            elif port == 80:  # HTTP port
+                commands.append(f"iptables -A INPUT -p tcp --dport {port} -m conntrack --ctstate NEW -j ACCEPT")
+                commands.append(f"iptables -A INPUT -p tcp --dport {port} -m limit --limit 50/min --limit-burst 100 -j ACCEPT")
+            elif port == 443:  # HTTPS port
+                commands.append(f"iptables -A INPUT -p tcp --dport {port} -m conntrack --ctstate NEW -j ACCEPT")
+                commands.append(f"iptables -A INPUT -p tcp --dport {port} -m limit --limit 100/min --limit-burst 200 -j ACCEPT")
+            else:  # General rules for other ports
+                commands.append(f"iptables -A INPUT -p {protocol.lower()} --dport {port} -j ACCEPT")
+
+            # Step 5: Implement connection limits to prevent DDoS attacks
+            commands.append(
+                f"iptables -A INPUT -p {protocol.lower()} --dport {port} -m connlimit --connlimit-above 10 -j REJECT"
+            )
+
+        # Step 6: Enable logging for dropped packets for analysis
+        commands.append("iptables -A INPUT -j LOG --log-prefix 'IPTABLES DROPPED: '")
+
+        # Step 7: Create the IPTABLES script
+        iptable_script = "/root/iptables_authorize.sh"
+        print(f"Creating the script {iptable_script}...")
+
+        # Define the blocklist sources
+        blocklists = [
+            "https://lists.blocklist.de/lists/all.txt",  # Blocklist.de
         ]
 
-        # Ajouter les règles pour les ports source détectés
-        for protocol, port in source_ports_to_allow:
-            commands.append(f"iptables -A INPUT -p {protocol} --dport {port} -j ACCEPT")
+        # Prompt the user
+        add_blocklist = input("Do you want to block malicious IP addresses using external sources? (yes/no): ").strip().lower()
+        if add_blocklist == "yes":
+            # Inform the user about the sources
+            print("\nThe following sources will be used to retrieve malicious IP addresses:")
+            for url in blocklists:
+                print(f"- {url}")
+            
+            confirm_download = input("\nDo you want to proceed with downloading and blocking these IPs? (yes/no): ").strip().lower()
+            if confirm_download == "yes":
+                # Remove any existing blacklist file to start fresh
+                print("Removing any existing blacklist file from /root/blacklist.txt...")
+                stdin, stdout, stderr = client.exec_command("rm -f /root/blacklist.txt")
+                stdout.channel.recv_exit_status()  # Wait for the command to complete
+                
+                # Handle errors in removal
+                error = stderr.read().decode().strip()
+                if error:
+                    print(f"Error while removing existing blacklist file: {error}")
 
-        # Créer et exécuter le script IPTABLES sur le serveur distant
-        iptable = "/iptables.sh"
+                # Download blocklists to the server
+                for url in blocklists:
+                    print(f"Downloading blocklist from {url}...")
+                    stdin, stdout, stderr = client.exec_command(f"curl -s {url} >> /root/blacklist.txt")
+                    stdout.channel.recv_exit_status()  # Wait for the download to complete
+                    
+                    # Handle errors in download
+                    error = stderr.read().decode().strip()
+                    if error:
+                        print(f"Error downloading blocklist from {url}: {error}")
+                        continue
 
-        print(f"Création du script {iptable}...")
-        stdin, stdout, stderr = client.exec_command(f"echo '#!/bin/bash' > {iptable}")
-        stdin, stdout, stderr = client.exec_command(f"chmod +x {iptable}")
+                print("Downloaded and consolidated blocklists into /root/blacklist.txt.")
+                
+                # Add the script for processing the blocklist and injecting IPs into iptables
+                commands.append(
+                    """
+if [[ -f /root/blacklist.txt ]]; then
+        while IFS= read -r ip; do
+                echo 'Blocking and logging for: \$ip'
+                iptables -w -A INPUT -s \$ip -j DROP
+        done < <(grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]{1,2}))?' /root/blacklist.txt | sort -u)
+else
+    echo Blacklist file not found. Skipping IP blocking.
+fi
+                    """
+                )
+                print("Added malicious IP blocking rules to the iptables script.")
+            else:
+                print("Aborted malicious IP blocking process.")
+        else:
+            print("Skipping malicious IP blocking.")
 
+      
+        stdin, stdout, stderr = client.exec_command(f"echo '#!/bin/bash' > {iptable_script}")
+        stdin, stdout, stderr = client.exec_command(f"chmod u+x {iptable_script}")
         for command in commands:
-            stdin, stdout, stderr = client.exec_command(f"echo {command} >> {iptable}")
+            client.exec_command(f"echo \"{command}\" >> {iptable_script}")
+
+        # Display the generated script
+        print("\nGenerated IPTABLES script content:\n")
+        stdin, stdout, stderr = client.exec_command(f"cat {iptable_script}")
+        script_content = stdout.read().decode()
+        print(script_content)
+
+        # Step 8: Confirm execution of the script
+        execute_script = input("Do you want to execute this script to apply the new rules? (yes/no): ").strip().lower()
+        if execute_script == "yes":
+            print("Applying the new IPTABLES rules...")
+            stdin, stdout, stderr = client.exec_command(f"bash {iptable_script}")
             output = stdout.read().decode()
             error = stderr.read().decode()
-
             if error:
-                print(f"Erreur lors de l'ajout de la commande : {error.strip()}")
-
-        print("Exécution des nouvelles règles IPTABLES...")
-        stdin, stdout, stderr = client.exec_command(f"bash {iptable}")
-        output = stdout.read().decode()
-        error = stderr.read().decode()
-
-        if error:
-            print(f"Erreur lors de l'exécution des nouvelles règles : {error.strip()}")
+                print(f"Error while applying the new rules: {error.strip()}")
+            else:
+                print("New rules successfully applied.")
         else:
-            print("Nouvelles règles appliquées avec succès.")
+            print("Execution canceled by the user.")
 
     except Exception as e:
-        print(f"Erreur lors de l'exécution des commandes IPTABLES : {e}")
+        print(f"Error: {e}")
 
-def apply_80(client):
+
+def iptables(client, yaml_file):
     """
-    Fonction principale pour capturer le trafic réseau, télécharger le fichier PCAP
-    et générer un script IPTABLES en fonction des données analysées.
+    Main function to capture network traffic, download the PCAP file,
+    and generate an IPTABLES script based on the analyzed data.
     """
 
-    # Lister les interfaces réseau sur la machine distante
+    # List network interfaces on the remote machine
     interfaces = list_interfaces(client)
     if not interfaces:
-        print("Aucune interface disponible. Veuillez vérifier la configuration distante.")
+        print("No interfaces available. Please check the remote configuration.")
         return
 
-    # Demander à l'utilisateur de choisir une interface
+    # Ask the user to select an interface
     try:
-        choice = int(input("\nSélectionnez une interface (numéro) : ")) - 1
+        choice = int(input("\nSelect an interface (number): ")) - 1
         if 0 <= choice < len(interfaces):
             selected_interface = interfaces[choice]
-            print(f"Interface sélectionnée : {selected_interface}")
+            print(f"Selected interface: {selected_interface}")
         else:
-            print("Choix invalide. Veuillez réessayer.")
+            print("Invalid choice. Please try again.")
             return
     except ValueError:
-        print("Entrée invalide. Veuillez entrer un numéro.")
+        print("Invalid input. Please enter a number.")
         return
 
-    # Demander à l'utilisateur la durée d'écoute
+    # Ask the user for the listening duration
     try:
-        capture_duration = int(input("\nEntrez la durée d'écoute en secondes : "))
+        capture_duration = int(input("\nEnter the listening duration in seconds: "))
         if capture_duration <= 0:
-            print("Veuillez entrer une durée valide (supérieure à 0).")
+            print("Please enter a valid duration (greater than 0).")
             return
     except ValueError:
-        print("Entrée invalide. Veuillez entrer un entier positif pour la durée.")
+        print("Invalid input. Please enter a positive integer for the duration.")
         return
 
-    # Configuration pour la capture distante
-    output_file = "/tmp/captured_traffic.pcap"  # Chemin distant
-    local_pcap_file = "/tmp/captured_traffic.pcap"  # Chemin local
+    # Configuration for remote capture
+    output_file = "/tmp/captured_traffic.pcap"  # Remote path
+    local_pcap_file = "/tmp/captured_traffic.pcap"  # Local path
 
-    # Lancer la capture
+    # Start the capture
     capture_traffic(client, selected_interface, capture_duration, output_file)
     download_pcap(client, output_file, local_pcap_file)
-    # Analyser le fichier PCAP et générer le fichier .sh
+
+    # Analyze the PCAP file and generate the .sh script
     analyze_pcap_and_generate_script(client, local_pcap_file)
+
 
 def apply_rule(rule_name, yaml_file, client , level):
     if level =='min' : 
         if rule_name == "R80":
-            apply_80(client)
+            iptables(client , yaml_file)
         else:
-            print(f"Règle inconnue : {rule_name}")
-    elif level == "moyen" : 
+            print(f"Règle inconnue:{rule_name}")
+    elif level == "moyen": 
         pass
     else : 
         pass
@@ -280,7 +447,7 @@ def apply_recommandation_reseau(yaml_file, client , level):
         if not data or 'network' not in data:
             return
         for rule, rule_data in data['network'].items():
-            if rule_data.get('appliquer', False):
+            if not rule_data.get('apply', False):
                 print(f"Règle {rule} déjà appliquée.")
             else:
                 apply_rule(rule, yaml_file, client , level)
