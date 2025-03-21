@@ -4,7 +4,7 @@ import os
 import re
 from GenerationRapport.GenerationRapport import generate_ssh_html_report
 
-# Dictionnaire de commentaires pour les règles SSH
+# Dictionary of comments for SSH rules
 ssh_comments = {
     "R1": "SSH Protocol version must be 2",
     "R2": "Pubkey Authentication should be enabled",
@@ -30,10 +30,11 @@ ssh_comments = {
     "R22": "ClientAliveInterval should be set to 300",
     "R23": "ClientAliveCountMax should be set to 0",
     "R24": "LoginGraceTime should be set to 20",
-    "R25": "ListenAddress should be 192.168.1.1",
+    "R25": "ListenAddress should be filled with server IP",
     "R26": "Port should be 22"
 }
 
+# Function to generate YAML report for SSH compliance based on provided rules and comments.
 def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
     try:
         output_dir = "GenerationRapport/RapportAnalyse"
@@ -57,7 +58,7 @@ def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
             file.write("ssh_compliance:\n")
 
             for rule, details in all_rules.items():
-                # Récupère le commentaire depuis le dictionnaire, si fourni
+                # Retrieve the comment from the dictionary, if provided
                 comment = comments.get(rule, "") if comments else ""
                 file.write(f"  {rule}:  # {comment}\n")
                 file.write(f"    apply: {'true' if details.get('apply') else 'false'}\n")
@@ -66,13 +67,13 @@ def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
                 file.write(f"    status: \"{details.get('status')}\"\n")
         print(f"YAML report generated: {yaml_path}")
 
-        # Génère le rapport HTML à partir du YAML
+        # Generate HTML report from YAML
         generate_ssh_html_report(yaml_path, html_path)
 
     except (OSError, IOError) as e:
         print(f"Error generating the YAML file: {e}")
 
-# Exemple d'utilisation dans le flux global de vérification
+# Function to check SSH configuration compliance by retrieving, parsing, and analyzing the configuration.
 def check_ssh_configuration_compliance(server, os_info):
     config_data = retrieve_ssh_configuration(server, os_info)
     if config_data is None:
@@ -82,12 +83,12 @@ def check_ssh_configuration_compliance(server, os_info):
     compliance_results = check_anssi_compliance(parsed_config)
     
     if compliance_results:
-        # Passage du dictionnaire de commentaires pour les règles SSH
+        # Passing the comments dictionary for SSH rules
         generate_yaml_report(compliance_results, filename="analyse_ssh.yaml", comments=ssh_comments)
     else:
         print("No compliance data has been generated.")
 
-# --- Reste de votre code (fonctions de récupération, parsing, etc.) ---
+# Function to convert a time value string (e.g., "30s", "5m", "2h") into seconds.
 def convert_time_to_seconds(time_value):
     if time_value.isdigit():
         return int(time_value)
@@ -103,6 +104,7 @@ def convert_time_to_seconds(time_value):
             total_seconds += value
     return total_seconds
 
+# Function to load ANSSI SSH compliance criteria from a YAML file.
 def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
     try:
         if not os.path.exists(file_path):
@@ -116,6 +118,7 @@ def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH
         print(f"Error loading criteria: {e}")
         return {}
 
+# Function to check SSH configuration compliance against ANSSI criteria.
 def check_anssi_compliance(config):
     anssi_criteria = load_anssi_criteria()
     all_rules = {}
@@ -170,6 +173,7 @@ def check_anssi_compliance(config):
         }
     return all_rules
 
+# Function to retrieve SSH configuration from a server using SSH.
 def retrieve_ssh_configuration(server, os_info):
     if not isinstance(server, paramiko.SSHClient):
         print("Error: Invalid SSH server.")
@@ -196,6 +200,7 @@ def retrieve_ssh_configuration(server, os_info):
         print(f"Error retrieving SSH configuration: {e}")
         return None
 
+# Function to merge base SSH configuration with additional configuration.
 def merge_ssh_configurations(base_config, extra_config):
     parsed_config = parse_ssh_configuration(base_config)
     extra_parsed_config = parse_ssh_configuration(extra_config)
@@ -203,6 +208,7 @@ def merge_ssh_configurations(base_config, extra_config):
     merged_config = "\n".join([f"{k} {v}" for k, v in parsed_config.items()])
     return merged_config
 
+# Function to parse SSH configuration file content into a dictionary.
 def parse_ssh_configuration(config_data):
     parsed_config = {}
     for line in config_data.split("\n"):
