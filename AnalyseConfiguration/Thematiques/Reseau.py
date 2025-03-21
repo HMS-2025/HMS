@@ -3,13 +3,40 @@ import os
 import paramiko
 from GenerationRapport.GenerationRapport import generate_html_report
 
-# Executes an SSH command on the remote server and returns the result as a list of lines.
+# Execute an SSH command on the remote server and return the result as a list of lines.
 def execute_ssh_command(server, command):
     stdin, stdout, stderr = server.exec_command(command)
     return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-# Compare detected values with reference data.
+# Compare detected values with reference data. For rule R78, ensure no slice has 50% or more of the services.
 def check_compliance(rule_id, detected_values, reference_data):
+    if rule_id == "R78":
+        slice_to_services = detected_values.get("slice_to_services", {})
+        total_services = sum(len(services) for services in slice_to_services.values())
+        
+        # No service detected
+        if total_services == 0:
+            return {
+                "apply": False,
+                "status": "Non-Compliant",
+                "expected_elements": "At least one service should be detected",
+                "detected_elements": "No service detected"
+            }
+        
+        # Calculate maximum percentage for any slice
+        max_percentage = max((len(services) / total_services) * 100 for services in slice_to_services.values())
+        
+        # The system is compliant if no slice contains 50% or more of the services
+        compliant = max_percentage < 50.0
+        
+        return {
+            "apply": compliant,
+            "status": "Compliant" if compliant else "Non-Compliant",
+            "expected_elements": "No slice should contain 50% or more of the services",
+            "detected_elements": slice_to_services  # returns the dictionary for a clean YAML presentation
+        }
+    
+    # For other rules, proceed with the default comparison.
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
     expected_values_list = []
     
@@ -29,7 +56,7 @@ def check_compliance(rule_id, detected_values, reference_data):
         "detected_elements": detected_values or "None"
     }
 
-# Check IPv4 configuration via sysctl.
+# Check IPv4 configuration via sysctl on Ubuntu.
 def check_ipv4_configuration(server, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command = "sysctl net.ipv4"
@@ -43,7 +70,7 @@ def check_ipv4_configuration(server, os_info):
         print(f"[check_ipv4_configuration] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); IPv4 configuration check skipped.")
         return {}
 
-# Check IPv6 disable configuration via sysctl.
+# Check if IPv6 is disabled via sysctl on Ubuntu.
 def disable_ipv6(server, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command = "sysctl -a | grep 'net.ipv6.conf.*.disable_ipv6'"
@@ -57,7 +84,7 @@ def disable_ipv6(server, os_info):
         print(f"[disable_ipv6] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); IPv6 disable check skipped.")
         return {}
 
-# List running services.
+# List running services on Ubuntu.
 def harden_exposed_services(server, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command = "systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}'"
@@ -66,7 +93,7 @@ def harden_exposed_services(server, os_info):
         print(f"[harden_exposed_services] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); running services not retrieved.")
         return {"running_services": []}
 
-# Check certain PAM rules in /etc/pam.d/sshd.
+# Check SSH PAM configuration on Ubuntu.
 def secure_remote_authentication_pam(server, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command = "grep -E '^(auth|account|password|session)' /etc/pam.d/sshd | awk '{$1=$1};1'"
@@ -75,7 +102,7 @@ def secure_remote_authentication_pam(server, os_info):
         print(f"[secure_remote_authentication_pam] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); PAM rules not retrieved.")
         return {"pam_rules": []}
 
-# Retrieve the list of network interfaces and their IP addresses.
+# Retrieve network interfaces and their IP addresses on Ubuntu.
 def get_interfaces_with_ips(server, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         command = "ip -o addr show"
@@ -93,7 +120,34 @@ def get_interfaces_with_ips(server, os_info):
         print(f"[get_interfaces_with_ips] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); network interfaces not retrieved.")
         return {}
 
-# Network analysis and report generation.
+# Check service isolation by grouping services by their systemd slice on Ubuntu.
+def check_services_isolation(server, os_info):
+    if os_info and os_info.get("distro", "").lower() == "ubuntu":
+        list_command = "systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}'"
+        services = execute_ssh_command(server, list_command)
+        slice_to_services = {}
+        
+        for service in services:
+            slice_command = f"systemctl show {service} -p Slice"
+            slice_output = execute_ssh_command(server, slice_command)
+            slice_value = "unknown"
+            if slice_output:
+                line = slice_output[0]
+                if "=" in line:
+                    _, slice_value = line.split("=", 1)
+                    slice_value = slice_value.strip()
+            if slice_value not in slice_to_services:
+                slice_to_services[slice_value] = []
+            slice_to_services[slice_value].append(service)
+        
+        return {
+            "slice_to_services": slice_to_services,
+        }
+    else:
+        print(f"[check_services_isolation] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); service isolation check skipped.")
+        return {"slice_to_services": {}}
+
+# Perform network analysis and generate a compliance report based on defined rules.
 def analyse_reseau(server, niveau, reference_data=None, os_info=None):
     if reference_data is None:
         reference_data = {}
@@ -109,6 +163,9 @@ def analyse_reseau(server, niveau, reference_data=None, os_info=None):
             "R79": (harden_exposed_services, "Harden exposed services (manual modifications required)"),
             "R67": (secure_remote_authentication_pam, "Secure remote authentication with PAM"),
             "R81": (get_interfaces_with_ips, "Verify restricted interfaces (R81 same as R80)")
+        },
+        "renforce": {
+            "R78": (check_services_isolation, "Isolate network services: verify services are distributed into distinct slices")
         }
     }
     
@@ -125,12 +182,7 @@ def analyse_reseau(server, niveau, reference_data=None, os_info=None):
     print(f"\nCompliance rate for level {niveau.upper()} (Network) : {compliance_percentage:.2f}%")
     generate_html_report(yaml_path, html_path, niveau)
 
-    html_yaml_path = f"GenerationRapport/RapportAnalyse/RapportHTML/analyse_{niveau}.yml"
-
-    if os.path.exists(html_yaml_path):
-        os.remove(html_yaml_path)
-
-# Save the analysis report in a YAML file.
+# Save the analysis report to a YAML file.
 def save_yaml_report(data, output_file, rules, niveau):
     if not data:
         return
@@ -152,3 +204,4 @@ def save_yaml_report(data, output_file, rules, niveau):
         file.write("\n")
     
     print(f"Report generated : {output_path}")
+
