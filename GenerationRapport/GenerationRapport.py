@@ -8,8 +8,8 @@ def extract_comments(yaml_path):
         for line in file:
             if "#" in line:
                 parts = line.split("#", 1)
-                rule_id = parts[0].strip().rstrip(":")  # Récupération du rule_id sans ':'
-                comment = parts[1].strip()  # Récupération du commentaire
+                rule_id = parts[0].strip().rstrip(":")
+                comment = parts[1].strip()
                 comments[rule_id] = comment
     return comments
 
