@@ -289,14 +289,14 @@ def get_non_privileged_sudo_users(serveur, os_info):
 
 def get_negation_in_sudoers(serveur, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        return execute_ssh_command(serveur, "sudo grep -E '!' /etc/sudoers")
+        return execute_ssh_command(serveur, "sudo grep -E '^[^#].*!' /etc/sudoers")
     else:
         print("[get_negation_in_sudoers] Non-Ubuntu OS detected; negation operators not retrieved.")
         return []
 
 def get_strict_sudo_arguments(serveur, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        result = execute_ssh_command(serveur, "sudo grep -E 'ALL=' /etc/sudoers | grep -E '*'",)
+        result = execute_ssh_command(serveur, "sudo grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\*'")
         cleaned_elements = [element.replace("\t", " ") for element in result]
         return cleaned_elements
     else:

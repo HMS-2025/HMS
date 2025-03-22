@@ -37,6 +37,7 @@ def update (application_file , analyse_file , thematique , rule ) :
         yaml.safe_dump(data, file)
 
 def update_report(level , thematique ,  rule, clear_keys=[]):
+    
     if level == 'min' : 
         update(application_min , analyse_min , thematique , rule)
     elif level ==  'moyen' :
@@ -57,7 +58,7 @@ def apply_r30(serveur, report):
         execute_ssh_command(serveur, f'sudo passwd -l {user}')
     
     print("-  R30 : Tous les comptes inactifs ont été désactivés.")
-    update_report('min' , 'gestion_acces' , 'R30')
+    update_report('min' , 'access_management' , 'R30')
 
 def apply_r53(serveur, report):
 
@@ -74,7 +75,7 @@ def apply_r53(serveur, report):
         execute_ssh_command(serveur, f"sudo chown root:root {file_path}")
     
     print("-  R53 : Tous les fichiers sans propriétaire ont été corrigés.")
-    update_report('min' ,'gestion_acces' , 'R53')
+    update_report('min' ,'access_management' , 'R53')
 
 def apply_r56(serveur, report):
 
@@ -93,7 +94,7 @@ def apply_r56(serveur, report):
         execute_ssh_command(serveur, f"sudo chmod -s {file_path}")
 
     print("-  R56 : Tous les fichiers dangereux ont été sécurisés.")
-    update_report('min' ,'gestion_acces' , 'R56')
+    update_report('min' ,'access_management' , 'R56')
 
 
 def apply_R34(serveur,report):
@@ -110,7 +111,7 @@ def apply_R34(serveur,report):
         execute_ssh_command(serveur,f"sudo passwd -l {compte}")
 
     print("-  R34 : Les comptes inactifs ont été désactivé avec succes")
-    update_report('moyen' ,'gestion_acces' , 'R34')
+    update_report('moyen' ,'access_management' , 'R34')
 
 
 def apply_R39(serveur, report):
@@ -146,13 +147,14 @@ def apply_R39(serveur, report):
             execute_ssh_command(serveur, sed_command)
 
     print("-  R39 : Directives sudoers non conformes commentées avec succès.")
-    update_report('moyen', 'gestion_acces', 'R39')
-
+    update_report('moyen', 'access_management', 'R39')
 
 
 ##l'application se fait bien mais l'analyse donne false
 """
+
 L'application de la règle R40 vise à restreindre l'accès sudo aux seuls utilisateurs autorisés, tels que root, ubuntu, administrateur, et %admin, tout en conservant les privilèges spécifiques pour d'autres utilisateurs ayant des restrictions sur certaines commandes. Si un utilisateur non autorisé dispose de privilèges sudo complets (ALL), ces privilèges sont révoqués. En revanche, si un utilisateur possède des restrictions spécifiques (par exemple, l'accès à /usr/bin/apt), sa configuration est préservée. Le fichier /etc/sudoers est modifié en conséquence, et un rapport est mis à jour pour refléter l'état de la conformité.
+
 """
 
 def apply_R40(serveur, report):
@@ -174,7 +176,7 @@ def apply_R40(serveur, report):
         execute_ssh_command(serveur, sed_command)
 
     print("-  R40 : Les entrées sudo non privilégiées ont été commentées avec succès.")
-    update_report('moyen', 'gestion_acces', 'R40')
+    update_report('moyen', 'access_management', 'R40')
 
 #Regle 42
 def apply_R42(serveur, report):
@@ -188,7 +190,7 @@ def apply_R42(serveur, report):
 
     if not r42_detected_elements:
         print("-  R42 : Aucun opérateur de négation détecté.")
-        update_report('min', 'gestion_acces', 'R42')
+        update_report('min', 'access_management', 'R42')
         return "Compliant"
 
     # Sauvegarde du fichier sudoers avant modification si ce n'est pas encore fait
@@ -200,7 +202,7 @@ def apply_R42(serveur, report):
         execute_ssh_command(serveur, sed_command)
 
     print("-  R42 : Les lignes contenant des opérateurs de négation ont été commentées avec succès.")
-    update_report('moyen', 'gestion_acces', 'R42')
+    update_report('moyen', 'access_management', 'R42')
 
 def apply_R43(serveur, report):
 
@@ -222,7 +224,7 @@ def apply_R43(serveur, report):
             execute_ssh_command(serveur, sed_command)
 
     print("-  R43 : Les lignes sudo sans spécification stricte d’arguments ont été commentées avec succès.")
-    update_report('moyen', 'gestion_acces', 'R43')
+    update_report('moyen', 'access_management', 'R43')
 
 
 def apply_R44(serveur, report):
@@ -245,7 +247,7 @@ def apply_R44(serveur, report):
             execute_ssh_command(serveur, sed_command)
 
     print("-  R44 : Les lignes avec des violations de configuration pour sudoedit ont été commentées avec succès.")
-    update_report('moyen', 'gestion_acces', 'R44')
+    update_report('moyen', 'access_management', 'R44')
 
 
 def apply_R50(serveur, report):
@@ -311,7 +313,7 @@ def apply_R50(serveur, report):
             serveur.exec_command(chmod_command)
             all_files_modified.append(file_path)
 
-    update_report('moyen', 'gestion_acces', 'R50') 
+    update_report('moyen', 'access_management', 'R50') 
 
 
 #Regle 52
@@ -345,15 +347,13 @@ def apply_R52(serveur, report):
     # Application des permissions attendues
     for element in detected_elements:
         file_path = element.split()[0]
-        print(file_path)
         if file_path in expected_permissions:
             # Modifier les permissions
             chmod_command = f"sudo chmod {expected_permissions[file_path]} {file_path}"
-            print(chmod_command)
             serveur.exec_command(chmod_command)
             all_elements_modified.append(file_path)
 
-    update_report('moyen', 'gestion_acces', 'R52') 
+    update_report('moyen', 'access_management', 'R52') 
     print("The R52 is ssuccessfully applied and  report updated")
     
 #Regle 55
@@ -365,9 +365,9 @@ def apply_R55(serveur, report):
     - Monte les répertoires avec les options de sécurité
     """
     # Vérification si la règle est activée
-    if  report.get("gestion_acces", {}).get("R55", {}).get("apply", True): 
+    if  report.get("access_management", {}).get("R55", {}).get("apply", True): 
         # Récupérer la règle R55 depuis le rapport
-        detected_elements = report.get("gestion_acces", {}).get("R55", {}).get("detected_elements", [])
+        detected_elements = report.get("access_management", {}).get("R55", {}).get("detected_elements", [])
         # Vérification si des éléments ont été détectés
         if not detected_elements:
             print("   Rule 55 : Nothing elements are detected, for isolation.")
@@ -397,17 +397,18 @@ def apply_R55(serveur, report):
         print("-  The R55 is ssuccessfully applied and  report updated 📁")
 
 
-
 #Regle 67
 def apply_R67(serveur, report, reference_data):
     """
+    
     Affiche les règles PAM détectées (R67) et les règles manquantes avec risques et commandes associées.
+    
     """
 
     # Vérification si la règle est activée
-    if report.get("gestion_acces", {}).get("R67", {}).get("apply", True):      
+    if report.get("access_management", {}).get("R67", {}).get("apply", True):      
         print("\n    Appling rule 67 (PAM authentication))    \n")  
-        detected_elements = report.get("gestion_acces", {}).get("R67", {}).get("detected_elements", [])
+        detected_elements = report.get("access_management", {}).get("R67", {}).get("detected_elements", [])
         if not detected_elements:
             print("   Nothing PAM rule are detected for PAM authentication .")
             return
@@ -439,7 +440,6 @@ def apply_R67(serveur, report, reference_data):
         }
 
         # Etape 2 : Affichage des éléments attendus non détectés
-        print("\n =============== Règles PAM manquantes (non détectées) ===================")
         expected_elements = reference_data.get("R67", {}).get("expected", {}).get("pam_rules", [])
 
         for pam_rule in expected_elements:
@@ -451,16 +451,16 @@ def apply_R67(serveur, report, reference_data):
                 # Si le fichier est trouvé, on affiche la commande d'application
                 if pam_file:
                     print(f"\nDirective PAM:  {pam_rule}")
-                    print(f"   ⚠ Risque : {risks.get(pam_rule, '⚠ Risque non documenté.')}")
+                    print(f"\nRisque : {risks.get(pam_rule, 'Risque non documenté.')}")
                     print(f"\nCommande d'application : echo '{pam_rule}' | sudo tee -a {pam_file} > /dev/null")
                     print("\n" + "+" * 100)
 
 
-def apply_gestion_acces(serveur, niveau, report_data):
+def apply_access_management(serveur, niveau, report_data):
     if report_data is None:
         report_data = {}
 
-    apply_data = report_data.get("gestion_acces",None)
+    apply_data = report_data.get("access_management",None)
     if  apply_data is None: 
         return 
     
