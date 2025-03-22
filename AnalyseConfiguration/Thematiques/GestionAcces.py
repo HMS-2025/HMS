@@ -477,35 +477,6 @@ def get_protected_sockets(serveur, os_info):
         print("[get_protected_sockets] Non-Ubuntu OS detected; protected sockets not retrieved.")
         return []
 
-def check_pam_security(serveur, reference_data, os_info):
-    if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        expected_values = reference_data.get("R67", {}).get("expected", {})
-        command_pam_auth = "grep -Ei 'pam_ldap' /etc/pam.d/* 2>/dev/null"
-        stdin, stdout, stderr = serveur.exec_command(command_pam_auth)
-        detected_pam_entries = stdout.read().decode().strip().split("\n")
-    else:
-        print("[check_pam_security] Non-Ubuntu OS detected; skipping PAM check.")
-        detected_pam_entries = []
-    detected_pam_module = "pam_ldap" if detected_pam_entries and any("pam_ldap" in line for line in detected_pam_entries) else "Non trouvé"
-    security_modules = expected_values.get("security_modules", {}) if os_info and os_info.get("distro", "").lower() == "ubuntu" else {}
-    detected_security_modules = {}
-    for module in security_modules.keys():
-        command = f"grep -E '{module}' /etc/pam.d/* 2>/dev/null"
-        if os_info and os_info.get("distro", "").lower() == "ubuntu":
-            stdin, stdout, stderr = serveur.exec_command(command)
-            detected_status = "Enabled" if stdout.read().decode().strip() else "Non trouvé"
-        else:
-            detected_status = "Non vérifié"
-        detected_security_modules[module] = detected_status
-    detected_elements = {
-        "detected_pam_modules": detected_pam_module,
-        "security_modules": detected_security_modules
-    }
-    detected_list = [f"detected_pam_modules: {detected_elements['detected_pam_modules']}"]
-    for module, detected_status in detected_elements["security_modules"].items():
-        detected_list.append(f"{module}: {detected_status}")
-    return detected_list
-
 def check_boot_directory_access(serveur, reference_data, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         detected_elements = {}
@@ -599,7 +570,6 @@ def analyse_gestion_acces(serveur, niveau, reference_data, os_info):
             "R50": (get_secure_permissions, "Ensure secure file permissions"),
             "R52": (get_protected_sockets, "Protect named sockets and pipes"),
             "R55": (get_user_private_tmp, "Separate user temporary directories"),
-            "R67": (check_pam_security, "Secure remote authentication via PAM")
         },
         "renforce": {
             "R29": (check_boot_directory_access, "Restrict access to /boot directory"),

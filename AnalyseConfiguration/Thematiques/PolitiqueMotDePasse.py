@@ -113,8 +113,9 @@ def get_password_policy(serveur, os_info):
         # 1. Check password policy in PAM
         pam_policy_raw = execute_remote_command(
             serveur,
-            "sudo grep -E 'pam_pwquality.so|pam_unix.so' /etc/pam.d/common-password",
-            "Detected", "No PAM policy detected"
+            "sudo grep -v '^[[:space:]]*#' /etc/pam.d/common-password | grep -E 'pam_pwquality.so|pam_unix.so'",
+            "Detected", 
+            "No PAM policy detected"
         )
         if pam_policy_raw != "No PAM policy detected":
             pam_policy_cleaned = " ".join(pam_policy_raw.split())
