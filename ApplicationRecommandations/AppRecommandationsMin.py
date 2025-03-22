@@ -1,6 +1,6 @@
 import yaml
 from ApplicationRecommandations.Thematiques.GestionAcces import apply_access_management
-
+from ApplicationRecommandations.Thematiques.PolitiqueMotDePasse import apply_password_policy
 
 # Fonction de chargement des rapports d'analyse
 def load_analysis_report(file_path):
@@ -18,8 +18,14 @@ def application_recommandations_min (client) :
     path_report="./GenerationRapport/RapportApplication/application_min.yml"
     report_data = load_analysis_report(path_report)
 
-    print("\n[Correction] Gestion des accès (niveau moyen)...")
+    print("\n[Correction] Gestion des accès (niveau min)...")
     apply_access_management(client, niveau="min", report_data=report_data)
+
+    print("\n [Correction] Mot de passe ( niveau min) ")
+    apply_password_policy(client, niveau="min", report_data=report_data)
+
+
+
 
 
 

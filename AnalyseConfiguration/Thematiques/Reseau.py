@@ -35,7 +35,31 @@ def check_compliance(rule_id, detected_values, reference_data):
             "expected_elements": "No slice should contain 50% or more of the services",
             "detected_elements": slice_to_services  # returns the dictionary for a clean YAML presentation
         }
-    
+    if rule_id == 'R67' : 
+        # For other rules, proceed with the default comparison.
+        expected_values = reference_data.get(rule_id, {}).get("expected", {}).get("pam_rules",[])
+        detected = detected_values.get('pam_rules', [])
+        difference = []
+        for rule in expected_values : 
+            if rule not in detected : 
+                difference.append(rule)
+        
+        if len(difference) != 0 : 
+            return {
+                "apply": False ,
+                "status": "Non-Compliant",
+                "expected_elements": expected_values or "None",
+                "difference": difference or "None"
+            }
+        else :
+            return {
+                "apply": True ,
+                "status": "Compliant",
+                "expected_elements": expected_values or "None",
+                "difference": difference or "None"
+            } 
+
+
     # For other rules, proceed with the default comparison.
     expected_values = reference_data.get(rule_id, {}).get("expected", {})
     expected_values_list = []
@@ -96,7 +120,7 @@ def harden_exposed_services(server, os_info):
 # Check SSH PAM configuration on Ubuntu.
 def secure_remote_authentication_pam(server, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        command = "grep -E '^(auth|account|password|session)' /etc/pam.d/sshd | awk '{$1=$1};1'"
+        command = "grep -E '^(auth|account|password|session)' /etc/pam.d/common-auth | awk '{$1=$1};1'"
         return {"pam_rules": execute_ssh_command(server, command)}
     else:
         print(f"[secure_remote_authentication_pam] Non-Ubuntu OS ({os_info.get('distro', 'unknown') if os_info else 'unknown'}); PAM rules not retrieved.")
