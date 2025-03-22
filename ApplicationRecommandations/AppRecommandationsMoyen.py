@@ -1,5 +1,5 @@
 import yaml
-from ApplicationRecommandations.Thematiques.GestionAcces import apply_gestion_acces
+from ApplicationRecommandations.Thematiques.GestionAcces import apply_access_management
 
 # Fonction de chargement des rapports d'analyse
 def load_analysis_report(file_path):
@@ -19,6 +19,6 @@ def application_recommandations_moyen (client) :
     
 
     print("\n[Correction] Gestion des accès (niveau moyen)...")
-    apply_gestion_acces(client, niveau="moyen", report_data=report_data)
+    apply_access_management(client, niveau="moyen", report_data=report_data)
 
     print("\n Corrections terminées pour le niveau moyen.")
