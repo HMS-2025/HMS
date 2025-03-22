@@ -72,7 +72,7 @@ def apply_recommandation_service(yaml_file, client , level ):
         if not data or 'services' not in data:
             return
         for rule, rule_data in data['services'].items():
-            if not rule_data.get('apply', False):
+            if rule_data.get('appliquer', False):
                 print(f"Règle {rule} déjà appliquée.")
             else:
                 apply_rule(rule, yaml_file, client , level)
@@ -86,20 +86,13 @@ def apply_recommandation_service(yaml_file, client , level ):
 
 ######----------------------------------------PARTIE moyen--------------------------------------------------------------------------------------------------######
 
-import yaml
 import os
+from ApplicationRecommandations.execute_command import execute_ssh_command
 
 # ============================
 # Fonction utilitaire commune
 # ============================
-def execute_ssh_command(serveur, command):
-    """Exécute une commande SSH sur le serveur distant et retourne la sortie."""
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-# ============================
-# Fonction de sauvegarde YAML
-# ============================
 def save_yaml_fix_report_services(data, output_file, rules, niveau):
     if not data:
         return
@@ -121,78 +114,124 @@ def save_yaml_fix_report_services(data, output_file, rules, niveau):
     print(f"✅ Rapport des corrections SERVICES généré : {output_path}")
 
 # ============================
-# SERVICES - Correctifs
+# RÈGLES SERVICES
 # ============================
+
 def apply_r35(serveur, report):
+    """
+    Applique la règle R35 : Utiliser des comptes de service uniques et exclusifs.
+    """
     r35_data = report.get("services", {}).get("R35", {})
+
     if not r35_data.get("apply", False):
         print("✅ R35 : Aucune action nécessaire.")
         return "Conforme"
 
-    print("🛠️ Vérification et correction des comptes de service...")
-    service_accounts = r35_data.get("detected_elements", [])
-    if not service_accounts:
-        print("✅ Aucun compte de service incorrect détecté.")
+    print("🔧 Application de la règle R35 : Comptes de service uniques...")
+
+    detected_accounts = r35_data.get("detected_elements", [])
+    if not detected_accounts:
+        print("➡️ Aucun compte à corriger trouvé.")
         return "Conforme"
 
-    for account in service_accounts:
-        print(f"🔧 Modification du compte de service {account} pour utilisation exclusive...")
-        execute_ssh_command(serveur, f"sudo usermod -s /usr/sbin/nologin {account}")
+    print(f"➡️ Comptes de service à analyser : {detected_accounts}")
 
-    print("✅ R35 : Tous les comptes de service ont été sécurisés.")
+    # Exemple : désactivation des comptes doublons ou mal configurés
+    for account in detected_accounts:
+        user = account.split()[1]
+        print(f"🔒 Désactivation du compte {user}")
+        execute_ssh_command(serveur, f"sudo usermod -L {user}")
+        execute_ssh_command(serveur, f"sudo passwd -l {user}")
+
+    print("✅ R35 : Comptes de service sécurisés.")
     return "Appliqué"
 
 def apply_r63(serveur, report):
+    """
+    Applique la règle R63 : Désactiver les fonctionnalités des services non essentielles.
+    """
     r63_data = report.get("services", {}).get("R63", {})
+
     if not r63_data.get("apply", False):
         print("✅ R63 : Aucune action nécessaire.")
         return "Conforme"
 
-    unnecessary_services = r63_data.get("detected_elements", [])
-    if not unnecessary_services:
-        print("✅ Aucun service superflu détecté.")
+    print("🔧 Application de la règle R63 : Suppression des capabilities non nécessaires...")
+
+    detected_features = r63_data.get("detected_elements", [])
+    if not detected_features:
+        print("➡️ Aucun service avec capability détecté.")
         return "Conforme"
 
-    print("🛠️ Désactivation des services non essentiels...")
-    for service in unnecessary_services:
-        print(f"🔧 Désactivation de {service}...")
-        execute_ssh_command(serveur, f"sudo systemctl disable --now {service}")
+    success = True
 
-    print("✅ R63 : Tous les services inutiles ont été désactivés.")
-    return "Appliqué"
+    for line in detected_features:
+        binary = line.split()[0]
+        print(f"➡️ Suppression des capabilities pour {binary}")
+        _, stdout, stderr = serveur.exec_command(f"sudo setcap -r {binary}")
+        error = stderr.read().decode().strip()
+        if error:
+            print(f"❌ Erreur sur {binary} : {error}")
+            success = False
+
+    if success:
+        print("✅ R63 : Toutes les capabilities inutiles ont été supprimées.")
+        return "Appliqué"
+    else:
+        print("⚠️ R63 : Problèmes lors de la suppression de capabilities.")
+        return "Erreur"
 
 def apply_r74(serveur, report):
+    """
+    Applique la règle R74 : Durcir le service de messagerie locale.
+    """
     r74_data = report.get("services", {}).get("R74", {})
+
     if not r74_data.get("apply", False):
         print("✅ R74 : Aucune action nécessaire.")
         return "Conforme"
 
-    print("🔐 Durcissement du service de messagerie locale (Postfix)...")
-    execute_ssh_command(serveur, "sudo postconf -e 'inet_interfaces = loopback-only'")
-    execute_ssh_command(serveur, "sudo postconf -e 'smtpd_tls_security_level = encrypt'")
-    execute_ssh_command(serveur, "sudo postconf -e 'disable_vrfy_command = yes'")
-    execute_ssh_command(serveur, "sudo systemctl restart postfix")
+    print("🔧 Application de la règle R74 : Durcissement du service mail local...")
 
-    print("✅ R74 : Service de messagerie locale durci.")
+    expected = r74_data.get("expected_elements", {}).get("hardened_mail_service", {})
+    detected = r74_data.get("detected_elements", {})
+
+    # Exemple avec Postfix
+    for interface in expected.get("listen_interfaces", []):
+        execute_ssh_command(serveur, f"sudo postconf -e 'inet_interfaces = {interface}'")
+
+    for domain in expected.get("allow_local_delivery", []):
+        execute_ssh_command(serveur, f"sudo postconf -e 'mydestination = {domain}'")
+
+    execute_ssh_command(serveur, "sudo systemctl restart postfix")
+    print("✅ R74 : Messagerie locale durcie.")
     return "Appliqué"
 
 def apply_r75(serveur, report):
+    """
+    Applique la règle R75 : Configurer un alias de messagerie des comptes de service.
+    """
     r75_data = report.get("services", {}).get("R75", {})
+
     if not r75_data.get("apply", False):
         print("✅ R75 : Aucune action nécessaire.")
         return "Conforme"
 
-    print("📧 Configuration des alias de messagerie pour les comptes de service...")
-    execute_ssh_command(serveur, "sudo sed -i '/^root:/d' /etc/aliases")
-    execute_ssh_command(serveur, "echo 'root: admin@example.com' | sudo tee -a /etc/aliases")
-    execute_ssh_command(serveur, "sudo newaliases")
+    print("🔧 Application de la règle R75 : Configuration des alias mail pour comptes de service...")
 
-    print("✅ R75 : Alias de messagerie configuré.")
+    expected_aliases = r75_data.get("expected_elements", [])
+
+    if not expected_aliases:
+        print("➡️ Aucun alias d'attendu trouvé.")
+        return "Erreur"
+
+    for alias in expected_aliases:
+        execute_ssh_command(serveur, f"echo '{alias}: admin@example.com' | sudo tee -a /etc/aliases")
+
+    execute_ssh_command(serveur, "sudo newaliases")
+    print("✅ R75 : Alias de messagerie configurés.")
     return "Appliqué"
 
-# ============================
-# Fonction principale par niveau pour SERVICES
-# ============================
 def apply_services(serveur, niveau, report_data):
     if report_data is None:
         report_data = {}
@@ -200,23 +239,27 @@ def apply_services(serveur, niveau, report_data):
     fix_results = {}
 
     rules = {
-        "moyen": {
-            "R35": (apply_r35, "Utiliser des comptes de service uniques et exclusifs"),
-            "R63": (apply_r63, "Désactiver les fonctionnalités des services non essentielles"),
-            "R74": (apply_r74, "Durcir le service de messagerie locale"),
-            "R75": (apply_r75, "Configurer un alias de messagerie des comptes de service")
+        "services": {
+            "moyen": {
+                "R35": (apply_r35, "Utiliser des comptes de service uniques et exclusifs"),
+                "R63": (apply_r63, "Désactiver les fonctionnalités des services non essentielles"),
+                "R74": (apply_r74, "Durcir le service de messagerie locale"),
+                "R75": (apply_r75, "Configurer un alias de messagerie des comptes de service")
+            },
+            "renforce": {
+                # Si besoin, on ajoutera des règles pour le niveau renforcé ici
+            }
         }
     }
 
-    if niveau in rules:
-        for rule_id, (function, comment) in rules[niveau].items():
+    if niveau in rules["services"]:
+        for rule_id, (function, comment) in rules["services"][niveau].items():
             print(f"-> Application de la règle {rule_id} : {comment}")
             fix_results[rule_id] = function(serveur, report_data)
 
-    save_yaml_fix_report_services(fix_results, f"fixes_{niveau}_services.yml", rules, niveau)
+    output_file = f"fixes_{niveau}_services.yml"
+    save_yaml_fix_report_services(fix_results, output_file, rules, niveau)
 
-    yaml_path = f"GenerationRapport/RapportCorrections/fixes_{niveau}_services.yml"
-    html_path = f"GenerationRapport/RapportCorrectionsHTML/fixes_{niveau}_services.html"
-
-    print(f"\n✅ Correctifs appliqués - SERVICES - Niveau {niveau.upper()}")
+    print(f"\n✅ Correctifs appliqués - SERVICES - Niveau {niveau.upper()} : {output_file}")
+    return fix_results
 
