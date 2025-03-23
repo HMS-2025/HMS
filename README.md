@@ -4,6 +4,7 @@
 
 **Hardening Magic Script (HMS)** is a Python script (compatible with Python 3.8) designed to audit and harden the security of **Ubuntu servers (version 20.04 LTS and above)** based on the official **ANSSI guidelines** for GNU/Linux systems and OpenSSH configurations.
 
+## How is it working  
 HMS connects to a remote server via SSH and analyzes its security posture against the ANSSI recommendations. It generates a detailed YAML configuration report and can apply recommended hardening measures — without disrupting production services. 
 he tool also includes **risk warnings** for recommendations that may impact live systems.
 
@@ -15,8 +16,6 @@ The goal is to identify weak passwords using smart dictionaries (e.g., cracking 
 The script outputs a **customizable YAML configuration file** that documents each proposed change. This YAML can be edited and reused across multiple servers with similar configurations.
 
 **Note:** HMS is designed for **non-disruptive deployments**. Users remain in full control of which actions are applied.
-
----
 
 ## Installation
 
