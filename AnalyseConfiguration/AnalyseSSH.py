@@ -1,29 +1,3 @@
-import yaml
-import paramiko
-
-def load_yaml(yaml_file):
-    """Charger un fichier YAML en UTF-8."""
-    with open(yaml_file, 'r', encoding='utf-8') as file:
-        return yaml.safe_load(file)
-
-def save_yaml(yaml_file, config):
-    """Sauvegarder la configuration dans un fichier YAML en UTF-8."""
-    with open(yaml_file, 'w', encoding='utf-8') as file:
-        yaml.safe_dump(config, file, default_flow_style=False, allow_unicode=True)
-
-def apply_command(command, client):
-    """Exécute une commande via le client SSH et retourne True en cas de succès."""
-    try:
-        stdin, stdout, stderr = client.exec_command(command)
-        output = stdout.read().decode('utf-8')
-        error = stderr.read().decode('utf-8')
-        if error:
-            print(f"Erreur lors de l'exécution de la commande : {error}")
-            return False
-        return True
-    except Exception as e:
-        print(f"Erreur lors de l'exécution de la commande : {e}")
-        return False
 import paramiko
 import yaml
 import os
@@ -96,49 +70,6 @@ def get_server_ip(server):
         print(f"Error retrieving server IP: {e}")
         return None
 
-# List directives and their file paths from /etc/ssh/sshd_config and /etc/ssh/sshd_config.d/*.conf.
-# The last occurrence (in processing order) is considered effective.
-def list_directives_with_paths(client):
-    directives_map = {}
-    main_file = "/etc/ssh/sshd_config"
-    # Process main configuration file
-    try:
-        stdin, stdout, stderr = client.exec_command(f"cat {main_file}")
-        main_content = stdout.read().decode()
-        for line in main_content.splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split(None, 1)
-            if len(parts) == 2:
-                directive, value = parts
-                directives_map[directive] = (value, main_file)
-    except Exception as e:
-        print(f"Error reading {main_file}: {e}")
-    
-    # Process additional configuration files in sshd_config.d/
-    try:
-        stdin, stdout, stderr = client.exec_command("ls /etc/ssh/sshd_config.d/*.conf")
-        files_list = stdout.read().decode().splitlines()
-        for file_path in files_list:
-            try:
-                stdin, stdout, stderr = client.exec_command(f"cat {file_path}")
-                content = stdout.read().decode()
-                for line in content.splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    parts = line.split(None, 1)
-                    if len(parts) == 2:
-                        directive, value = parts
-                        directives_map[directive] = (value, file_path)
-            except Exception as e:
-                print(f"Error reading {file_path}: {e}")
-    except Exception as e:
-        print(f"Error listing /etc/ssh/sshd_config.d/*.conf: {e}")
-    
-    return directives_map
-
 # Update the SSH criteria YAML file with system info (AllowUsers, AllowGroups, ListenAddress)
 def update_ssh_criteria_with_system_info(server, file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
     # Update expected_value for R12, R13, and R25 based on system info.
@@ -180,25 +111,25 @@ def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
     try:
         output_dir = "GenerationRapport/RapportAnalyse"
         html_output_dir = "GenerationRapport/RapportAnalyse/RapportHTML"
-        
+
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(html_output_dir, exist_ok=True)
-        
+
         yaml_path = os.path.join(output_dir, filename)
         html_path = os.path.join(html_output_dir, filename.replace(".yaml", ".html"))
-        
+
         total_rules = len(all_rules)
         compliant_rules = sum(1 for rule in all_rules.values() if rule.get("apply", False))
         compliance_percentage = (compliant_rules / total_rules) * 100 if total_rules > 0 else 0
-        
+
         print(f"SSH compliance: {compliance_percentage:.1f}%")
-        
+
         with open(yaml_path, "w", encoding="utf-8") as file:
             file.write("# SSH Analysis Report\n")
             file.write("# Change 'apply' to 'true' if you want to apply this recommendation.\n")
             file.write("# Reminder: Modify the expected_value in ssh_criteria as per your configuration requirements, as this file will be used by the application.\n\n")
             file.write("ssh_compliance:\n")
-            
+
             for rule, details in all_rules.items():
                 comment = comments.get(rule, "") if comments else ""
                 file.write(f"  {rule}:  # {comment}\n")
@@ -207,89 +138,29 @@ def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
                 file.write(f"    detected_elements: {details.get('detected_elements')}\n")
                 file.write(f"    status: \"{details.get('status')}\"\n")
         print(f"YAML report generated: {yaml_path}")
-        
+
         # Generate HTML report from YAML
         generate_ssh_html_report(yaml_path, html_path)
-    
+
     except (OSError, IOError) as e:
         print(f"Error generating the YAML file: {e}")
 
-# Apply selected SSH recommendations by updating the SSH configuration based on the analysis file.
-# For each rule, the corresponding directive is updated in the file where it is defined.
-# The last occurrence (in files /etc/ssh/sshd_config.d/ or /etc/ssh/sshd_config) is considered effective.
-def apply_selected_recommendationsSSH(yaml_file, client):
-    """
-    Apply selected SSH recommendations by updating the SSH configuration based on the analysis file.
-    For each rule, the corresponding directive is updated in the file where it is defined.
-    The last occurrence (in files /etc/ssh/sshd_config.d/ or /etc/ssh/sshd_config) is considered effective.
-    """
-    # Backup the sshd_config file if not already backed up
-    backup_command = "test -f /etc/ssh/sshd_config.back || sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.back"
-    if apply_command(backup_command, client):
-        print("sshd_config backup created (or already exists).")
-    else:
-        print("Error creating sshd_config backup.")
+# Check SSH configuration compliance and generate reports
+def check_ssh_configuration_compliance(server, os_info):
+    # Update criteria with system info before analysis
+    update_ssh_criteria_with_system_info(server)
     
-    # Load the analysis file
-    config = load_yaml(yaml_file)
-    # Accept either 'ssh_conformite' or 'ssh_compliance'
-    rules = config.get("ssh_conformite") or config.get("ssh_compliance")
-    if not rules:
-        print("No compliance data found in the analysis file.")
+    config_data = retrieve_ssh_configuration(server, os_info)
+    if config_data is None:
         return
     
-    # Load SSH criteria from the criteria file
-    criteria_file = "AnalyseConfiguration/Thematiques/criteres_SSH.yaml"
-    criteria_data = load_yaml(criteria_file)
-    ssh_criteria = criteria_data.get("ssh_criteria", {})
-    if not ssh_criteria:
-        print("No SSH criteria found in the criteria file.")
-        return
+    parsed_config = parse_ssh_configuration(config_data)
+    compliance_results = check_anssi_compliance(parsed_config)
     
-    # Retrieve the mapping of directives and their file paths.
-    directives_map = list_directives_with_paths(client)
-    
-    # For each rule in the analysis file, update the SSH configuration in the file where the directive is defined.
-    for rule, details in rules.items():
-        if rule not in ssh_criteria:
-            print(f"Rule {rule} not found in criteria file. Skipping.")
-            continue
-        
-        directive = ssh_criteria[rule].get("directive")
-        expected_value = ssh_criteria[rule].get("expected_value")
-        
-        if not directive or expected_value is None:
-            print(f"Missing directive or expected value for rule {rule}.")
-            continue
-        
-        # Replace commas with spaces for AllowUsers and AllowGroups
-        if directive in ["AllowUsers", "AllowGroups"]:
-            expected_value = expected_value.replace(",", " ")
-        
-        # Determine the file path to update:
-        # If the directive is found in the mapping, use its file; otherwise, default to /etc/ssh/sshd_config.
-        file_path = directives_map.get(directive, (None, "/etc/ssh/sshd_config"))[1]
-        
-        # Build the sed command to update the directive in the determined file
-        command = f"sudo sed -i '/^#\\?\\s*{directive}/c\\{directive} {expected_value}' {file_path}"
-        print(f"Applying rule {rule}: updating '{directive}' to '{expected_value}' in {file_path}")
-        if apply_command(command, client):
-            details["apply"] = True
-            details["status"] = "Compliant"
-            print(f"Rule {rule} applied successfully.")
-        else:
-            details["status"] = "Non compliant"
-            print(f"Failed to apply rule {rule}.")
-    
-    # Restart the SSH service to apply changes
-    if apply_command("sudo systemctl restart ssh", client):
-        print("SSH service restarted successfully.")
+    if compliance_results:
+        generate_yaml_report(compliance_results, filename="analyse_ssh.yaml", comments=ssh_comments)
     else:
-        print("Error restarting SSH service.")
-    
-    # Update and save the analysis file
-    config["ssh_conformite"] = rules
-    save_yaml(yaml_file, config)
+        print("No compliance data has been generated.")
 
 # Convert time value (e.g., '30s', '1h') to seconds
 def convert_time_to_seconds(time_value):
@@ -332,7 +203,7 @@ def check_anssi_compliance(config):
         directive = criteria.get("directive", "Unknown")
         expected_value = criteria.get("expected_value", "Unknown")
         actual_value = config.get(directive, "not defined")
-        
+
         if rule == "R1":
             status = "Compliant"
             apply_val = True
@@ -367,7 +238,7 @@ def check_anssi_compliance(config):
             status = f"{'Compliant' if apply_val else 'Non-Compliant'} -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
             expected = expected_value
             detected = actual_value
-        
+
         all_rules[rule] = {
             "status": status,
             "apply": apply_val,
@@ -376,7 +247,7 @@ def check_anssi_compliance(config):
         }
     return all_rules
 
-# Retrieve SSH configuration from server by merging /etc/ssh/sshd_config and files in sshd_config.d/
+# Retrieve SSH configuration from server
 def retrieve_ssh_configuration(server, os_info):
     if not isinstance(server, paramiko.SSHClient):
         print("Error: Invalid SSH server.")
