@@ -191,7 +191,6 @@ R74:
         - "HMS.lxd"
         - "$myhostname"
 
-
 R75:
   description: "Configure a mail alias for service accounts (The function only detects aliases; it is necessary to manually check if the alias is correctly associated with the administrator's email. The detected elements come from the reference file. If none of the expected elements are found, the value of expected_elements will be an empty list. At least one alias is sufficient for the rule to be compliant.)"
   expected:
