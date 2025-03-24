@@ -77,7 +77,7 @@ def check_compliance(rule_id, detected_values, reference_data):
 def check_memory_configuration(serveur, expected_params, os_info=None):
     if os_info and os_info.get("distro", "").lower() != "ubuntu":
         print(f"[check_memory_configuration] Warning: Detected OS {os_info.get('distro', 'unknown')}. Command syntax may differ.")
-    command = "grep '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub | sed 's/GRUB_CMDLINE_LINUX_DEFAULT=\"//;s/\"$//'"
+    command = "grep '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub.d/50-cloudimg-settings.cfg | sed 's/GRUB_CMDLINE_LINUX_DEFAULT=\"//;s/\"$//'"
     stdin, stdout, stderr = serveur.exec_command(command)
     grub_cmdline = list(set(stdout.read().decode().strip().split()))
     detected_elements = [param for param in grub_cmdline if param in expected_params]

@@ -230,4 +230,4 @@ R67:
       - "session [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so open"
       - "auth required pam_faillock.so preauth silent audit deny=5 unlock_time=300"
       - "auth required pam_faillock.so authfail audit deny=5 unlock_time=300"
-      - "auth optional pam_pwquality.so retry=3 minlen=8 difok=2"
+      - "auth optional pam_pwquality.so retry=3 minlen=12 difok=2"
