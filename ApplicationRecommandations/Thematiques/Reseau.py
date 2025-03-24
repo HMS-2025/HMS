@@ -698,7 +698,6 @@ def apply_reseau(serveur, niveau, report_data):
         "moyen": {
             "R12": (apply_r12, "Paramétrer les options de configuration IPv4"),
             "R13": (apply_r13, "Désactiver le plan IPv6"),
-            "R69": (apply_r69, "Sécuriser les accès aux bases utilisateurs distantes"),
             "R79": (apply_r79, "Durcir et surveiller les services exposés"),
             "R67": (apply_r67, "Sécuriser les authentifications distantes par PAM"),
             "R81": (apply_r81, "Restreindre les interfaces réseau exposées")
