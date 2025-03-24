@@ -1,265 +1,188 @@
-# Ce fichier et coupé en deux partie (partie minimale et partie [moyen + renforcer])
 import yaml
-import subprocess
 
-def update_yaml(yaml_file, thematique ,  rule, clear_keys=[]):
-    with open(yaml_file, 'r', encoding="utf-8") as file:
+#=========== Global ==========
+application_min = "./GenerationRapport/RapportApplication/application_min.yml"
+analyse_min = "./GenerationRapport/RapportAnalyse/analyse_min.yml"
+
+application_moyen = "./GenerationRapport/RapportApplication/application_moyen.yml"
+analyse_moyen = "./GenerationRapport/RapportAnalyse/analyse_moyen.yml"
+
+
+def execute_ssh_command(client, command):
+    """Execute an SSH command and return output and error."""
+    stdin, stdout, stderr = client.exec_command(command)
+    output = list(filter(None, stdout.read().decode().strip().split("\n")))
+    error = stderr.read().decode().strip()
+    return output, error
+
+def update(application_file, analyse_file, thematique, rule):
+    with open(application_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
-    
     data[thematique][rule]['apply'] = False
-    data[thematique][rule]['status'] = 'Conforme'
-    with open(yaml_file, 'w', encoding="utf-8") as file:
+    data[thematique][rule]['status'] = 'Compliant'
+    with open(application_file, 'w', encoding="utf-8") as file:
         yaml.safe_dump(data, file)
 
-def apply_R62(yaml_file, client):
-    """Appliquer la recommandation R62 (Désactivation des services moyendits) et mettre à jour le YAML."""
-    print("Application de la recommandation R62")
-    
-    with open(yaml_file, 'r', encoding="utf-8") as file:
+    with open(analyse_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
+    data[thematique][rule]['apply'] = True
+    data[thematique][rule]['status'] = 'Compliant'
+    with open(analyse_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
-    if not data["services"]["R62"]["apply"]:
-        print("La règle R62 n'est pas marquée pour application.")
-        return None
-    else:
-        # Récupérer la liste des services moyendits détectés
-        prohibited_services = data["services"]["R62"]["detected_prohibited_elements"]
-
-        # Afficher une confirmation pour l'utilisateur
-        if prohibited_services:
-            print("Les services suivants ont été détectés comme moyendits et seront désactivés :")
-            for service in prohibited_services:
-                print(f"- {service}")
-            
-            confirmation = input("Confirmez-vous la désactivation de ces services ? (oui/non) : ").strip().lower()
-            if confirmation != "oui":
-                print("Annulation de l'application de la recommandation R62.")
-                return None
-
-        # Désactiver les services moyendits détectés et leurs sockets
-        for service in prohibited_services:
-            print(f"Désactivation du service et de ses sockets associés : {service}")
-            client.exec_command(f"sudo systemctl stop {service}")
-            client.exec_command(f"sudo systemctl disable {service}")
-            
-            # Désactiver les sockets associés si le service peut être réactivé
-            socket_name = service.replace(".service", ".socket")
-            client.exec_command(f"sudo systemctl stop {socket_name}")
-            client.exec_command(f"sudo systemctl disable {socket_name}")
-
-        print("Tous les services moyendits détectés et leurs sockets associés ont été désactivés.")
-
-        # Mettre à jour le fichier YAML pour indiquer la conformité
-        update_yaml(yaml_file, "services", "R62")
-
-
-def apply_rule(rule_name, yaml_file, client , level):
-    if level == 'min' : 
-        if rule_name == "R62":
-            apply_R62(yaml_file, client)
-        else:
-            print(f"Règle inconnue : {rule_name}")
-    elif level == "moyen" : 
-        pass
-    else : 
-        pass
-
-def apply_recommandation_service(yaml_file, client , level ):
-    try:
-        with open(yaml_file, 'r', encoding="utf-8") as file:
-            data = yaml.safe_load(file)
-            
-        if not data or 'services' not in data:
-            return
-        for rule, rule_data in data['services'].items():
-            if rule_data.get('appliquer', False):
-                print(f"Règle {rule} déjà appliquée.")
-            else:
-                apply_rule(rule, yaml_file, client , level)
-                
-    except FileNotFoundError:
-        print(f"Fichier {yaml_file} non trouvé.")
-    except yaml.YAMLError as e:
-        print(f"Erreur lors de la lecture du fichier YAML : {e}")
-    except Exception as e:
-        print(f"Une erreur inattendue s'est produite : {e}")
-
-######----------------------------------------PARTIE moyen--------------------------------------------------------------------------------------------------######
-
-import os
-from ApplicationRecommandations.execute_command import execute_ssh_command
+def update_report(level, thematique, rule):
+    if level == 'min':
+        update(application_min, analyse_min, thematique, rule)
+    elif level == 'moyen':
+        update(application_moyen, analyse_moyen, thematique, rule)
 
 # ============================
-# Fonction utilitaire commune
+# RULES - MINIMAL
 # ============================
 
-def save_yaml_fix_report_services(data, output_file, rules, niveau):
-    if not data:
-        return
+def apply_r62(serveur, report):
+    r62_data = report.get("R62", {})
+    if not r62_data.get("apply", False):
+        print("R62: No action required.")
+        return "Compliant"
 
-    output_dir = "GenerationRapport/RapportCorrections"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, output_file)
+    prohibited_services = r62_data.get("detected_prohibited_elements", [])
+    if not prohibited_services:
+        print(" No prohibited services detected.")
+        return "Compliant"
 
-    with open(output_path, "w", encoding="utf-8") as file:
-        file.write("corrections:\n")
+    print(" Applying rule R62: Disabling prohibited services...")
 
-        for rule_id, status in data.items():
-            for thematique, niveaux in rules.items():
-                if niveau in niveaux and rule_id in niveaux[niveau]:
-                    comment = niveaux[niveau][rule_id][1]
-                    file.write(f"  {rule_id}:  # {comment} ({thematique})\n")
-                    file.write(f"    status: {status}\n")
+    for service in prohibited_services:
+        print(f" Disabling {service} and its associated sockets")
+        execute_ssh_command(serveur, f"sudo systemctl stop {service}")
+        execute_ssh_command(serveur, f"sudo systemctl disable {service}")
 
-    print(f"✅ Rapport des corrections SERVICES généré : {output_path}")
+        socket_name = service.replace(".service", ".socket")
+        execute_ssh_command(serveur, f"sudo systemctl stop {socket_name}")
+        execute_ssh_command(serveur, f"sudo systemctl disable {socket_name}")
+
+    update_report('min', 'services', 'R62')
+
+    print(" R62: Prohibited services disabled.")
+    return "Applied"
 
 # ============================
-# RÈGLES SERVICES
+# RULES - MEDIUM
 # ============================
 
 def apply_r35(serveur, report):
-    """
-    Applique la règle R35 : Utiliser des comptes de service uniques et exclusifs.
-    """
-    r35_data = report.get("services", {}).get("R35", {})
-
+    r35_data = report.get("R35", {})
     if not r35_data.get("apply", False):
-        print("✅ R35 : Aucune action nécessaire.")
-        return "Conforme"
-
-    print("🔧 Application de la règle R35 : Comptes de service uniques...")
+        print("R35: No action required.")
+        return "Compliant"
 
     detected_accounts = r35_data.get("detected_elements", [])
     if not detected_accounts:
-        print("➡️ Aucun compte à corriger trouvé.")
-        return "Conforme"
+        print(" No shared service accounts detected.")
+        return "Compliant"
 
-    print(f"➡️ Comptes de service à analyser : {detected_accounts}")
-
-    # Exemple : désactivation des comptes doublons ou mal configurés
+    print(" Applying rule R35: Enforcing exclusive service accounts...")
+    print("The following accounts are used by multiple services:")
     for account in detected_accounts:
         user = account.split()[1]
-        print(f"🔒 Désactivation du compte {user}")
-        execute_ssh_command(serveur, f"sudo usermod -L {user}")
-        execute_ssh_command(serveur, f"sudo passwd -l {user}")
+        print(f"- {user}")
 
-    print("✅ R35 : Comptes de service sécurisés.")
-    return "Appliqué"
+    print("\n⚠️ This rule's application is not yet supported.\n")
 
 def apply_r63(serveur, report):
-    """
-    Applique la règle R63 : Désactiver les fonctionnalités des services non essentielles.
-    """
-    r63_data = report.get("services", {}).get("R63", {})
-
+    r63_data = report.get("R63", {})
     if not r63_data.get("apply", False):
-        print("✅ R63 : Aucune action nécessaire.")
-        return "Conforme"
-
-    print("🔧 Application de la règle R63 : Suppression des capabilities non nécessaires...")
+        print("R63: No action required.")
+        return "Compliant"
 
     detected_features = r63_data.get("detected_elements", [])
     if not detected_features:
-        print("➡️ Aucun service avec capability détecté.")
-        return "Conforme"
+        print(" No unnecessary capabilities found.")
+        return "Compliant"
 
-    success = True
-
+    print(" Applying rule R63: Removing unnecessary capabilities...")
+    print("Files with capabilities:")
     for line in detected_features:
-        binary = line.split()[0]
-        print(f"➡️ Suppression des capabilities pour {binary}")
-        _, stdout, stderr = serveur.exec_command(f"sudo setcap -r {binary}")
-        error = stderr.read().decode().strip()
-        if error:
-            print(f"❌ Erreur sur {binary} : {error}")
-            success = False
+        print(f"- {line}")
 
-    if success:
-        print("✅ R63 : Toutes les capabilities inutiles ont été supprimées.")
-        return "Appliqué"
-    else:
-        print("⚠️ R63 : Problèmes lors de la suppression de capabilities.")
-        return "Erreur"
+    print("\n⚠️ This rule's application is not yet supported.\n")
+    return "Applied"
 
 def apply_r74(serveur, report):
-    """
-    Applique la règle R74 : Durcir le service de messagerie locale.
-    """
-    r74_data = report.get("services", {}).get("R74", {})
-
+    r74_data = report.get("R74", {})
     if not r74_data.get("apply", False):
-        print("✅ R74 : Aucune action nécessaire.")
-        return "Conforme"
+        print("R74: No action required.")
+        return "Compliant"
 
-    print("🔧 Application de la règle R74 : Durcissement du service mail local...")
+    print(" Applying rule R74: Hardening the local mail service...")
 
     expected = r74_data.get("expected_elements", {}).get("hardened_mail_service", {})
-    detected = r74_data.get("detected_elements", {})
 
-    # Exemple avec Postfix
     for interface in expected.get("listen_interfaces", []):
         execute_ssh_command(serveur, f"sudo postconf -e 'inet_interfaces = {interface}'")
 
-    for domain in expected.get("allow_local_delivery", []):
-        execute_ssh_command(serveur, f"sudo postconf -e 'mydestination = {domain}'")
+    # Ask user for domains to add to mydestination
+    user_input = input("Enter domains to allow for local delivery (comma separated): ")
+    domaines = [d.strip() for d in user_input.split(",") if d.strip()]
+
+    if domaines:
+        domain_list = ", ".join(domaines)
+        execute_ssh_command(serveur, f"sudo postconf -e 'mydestination = {domain_list}'")
+        print(f"Domains added to mydestination: {domain_list}")
+    else:
+        print("No domains added to mydestination.")
 
     execute_ssh_command(serveur, "sudo systemctl restart postfix")
-    print("✅ R74 : Messagerie locale durcie.")
-    return "Appliqué"
+    update_report('moyen', 'services', 'R74')
+
+    print(" R74: Local mail service hardened.")
+    return "Applied"
 
 def apply_r75(serveur, report):
-    """
-    Applique la règle R75 : Configurer un alias de messagerie des comptes de service.
-    """
-    r75_data = report.get("services", {}).get("R75", {})
-
+    r75_data = report.get("R75", {})
     if not r75_data.get("apply", False):
-        print("✅ R75 : Aucune action nécessaire.")
-        return "Conforme"
+        print("R75: No action required.")
+        return "Compliant"
 
-    print("🔧 Application de la règle R75 : Configuration des alias mail pour comptes de service...")
+    print(" Applying rule R75: Configuring mail aliases for service accounts...")
 
     expected_aliases = r75_data.get("expected_elements", [])
 
-    if not expected_aliases:
-        print("➡️ Aucun alias d'attendu trouvé.")
-        return "Erreur"
-
+    print("Found aliases:")
     for alias in expected_aliases:
-        execute_ssh_command(serveur, f"echo '{alias}: admin@example.com' | sudo tee -a /etc/aliases")
+        print(f"- {alias}")
 
-    execute_ssh_command(serveur, "sudo newaliases")
-    print("✅ R75 : Alias de messagerie configurés.")
-    return "Appliqué"
+    print("\n⚠️ This rule's application is not yet supported.\n")
 
-def apply_services(serveur, niveau, report_data):
-    if report_data is None:
-        report_data = {}
+# ============================
+# MAIN
+# ============================
 
+def apply_services(client, level, report_data):
     fix_results = {}
+    apply_data = report_data.get("services", None)
+    if apply_data is None:
+        return
 
     rules = {
-        "services": {
-            "moyen": {
-                "R35": (apply_r35, "Utiliser des comptes de service uniques et exclusifs"),
-                "R63": (apply_r63, "Désactiver les fonctionnalités des services non essentielles"),
-                "R74": (apply_r74, "Durcir le service de messagerie locale"),
-                "R75": (apply_r75, "Configurer un alias de messagerie des comptes de service")
-            },
-            "renforce": {
-                # Si besoin, on ajoutera des règles pour le niveau renforcé ici
-            }
+        "min": {
+            "R62": (apply_r62, "Disable prohibited services detected")
+        },
+        "moyen": {
+            "R35": (apply_r35, "Use unique and exclusive service accounts"),
+            "R63": (apply_r63, "Disable non-essential capabilities"),
+            "R74": (apply_r74, "Harden the local mail service"),
+            "R75": (apply_r75, "Configure mail aliases for service accounts")
         }
     }
 
-    if niveau in rules["services"]:
-        for rule_id, (function, comment) in rules["services"][niveau].items():
-            print(f"-> Application de la règle {rule_id} : {comment}")
-            fix_results[rule_id] = function(serveur, report_data)
+    apply_data = report_data.get("services", {})
+    if level in rules:
+        for rule_id, (function, comment) in rules[level].items():
+            if apply_data.get(rule_id, {}).get("apply", False):
+                print(f"-> Applying rule {rule_id}: {comment}")
+                function(client, apply_data)
 
-    output_file = f"fixes_{niveau}_services.yml"
-    save_yaml_fix_report_services(fix_results, output_file, rules, niveau)
-
-    print(f"\n✅ Correctifs appliqués - SERVICES - Niveau {niveau.upper()} : {output_file}")
+    print(f"\n Fixes applied - SERVICES - Level {level.upper()}")
     return fix_results
-

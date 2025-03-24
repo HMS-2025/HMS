@@ -34,8 +34,7 @@ def check_compliance(rule_id, detected_values, reference_data):
         detected_interfaces = set(detected_values.get("listen_interfaces", []))
         expected_interfaces = set(expected_values.get("hardened_mail_service", {}).get("listen_interfaces", []))
         detected_local_delivery = set(detected_values.get("allow_local_delivery", []))
-        expected_local_delivery = set(expected_values.get("hardened_mail_service", {}).get("allow_local_delivery", []))
-        is_compliant = (detected_interfaces == expected_interfaces) and (detected_local_delivery == expected_local_delivery)
+        is_compliant = (detected_interfaces == expected_interfaces)
         return {
             "apply": is_compliant,
             "status": "Compliant" if is_compliant else "Non-Compliant",
@@ -45,7 +44,6 @@ def check_compliance(rule_id, detected_values, reference_data):
             },
             "expected_elements": {
                 "listen_interfaces": list(expected_interfaces),
-                "allow_local_delivery": list(expected_local_delivery)
             }
         }
     # Specific case for R75: at least one expected alias must be detected
@@ -149,8 +147,11 @@ def check_hardened_mail_service(serveur, os_info):
         command_listen = "ss -tuln | grep ':25' | awk '{print $5}'"
         detected_interfaces = [line.strip() for line in execute_ssh_command(serveur, command_listen) if line.strip()]
         command_destination = "postconf -h mydestination"
+
         mydestination_raw = " ".join(execute_ssh_command(serveur, command_destination))
         detected_local_delivery = [item.strip() for item in mydestination_raw.split(",") if item.strip()]
+        print(f"les interface {detected_interfaces} et {detected_local_delivery}")
+
         return {
             "listen_interfaces": detected_interfaces,
             "allow_local_delivery": detected_local_delivery

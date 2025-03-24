@@ -4,6 +4,7 @@ from ApplicationRecommandations.Thematiques.PolitiqueMotDePasse import apply_pas
 from ApplicationRecommandations.Thematiques.Maintenance import apply_maintenance
 from ApplicationRecommandations.Thematiques.MiseAJour import apply_mise_a_jour
 from ApplicationRecommandations.Thematiques.Systeme import apply_system
+from ApplicationRecommandations.Thematiques.Services import apply_services
 
 
 # Fonction de chargement des rapports d'analyse
@@ -37,4 +38,7 @@ def application_recommandations_moyen (client) :
 
     print("\n [Correction] System ( niveau moyen) ")
     apply_system(client, niveau="moyen", report_data=report_data)
+
+    print("\n [Correction] services ( niveau moyen) ")
+    apply_services(client, niveau="moyen", report_data=report_data)
 

@@ -4,6 +4,7 @@ from ApplicationRecommandations.Thematiques.PolitiqueMotDePasse import apply_pas
 from ApplicationRecommandations.Thematiques.Maintenance import apply_maintenance
 from ApplicationRecommandations.Thematiques.MiseAJour import apply_mise_a_jour
 from ApplicationRecommandations.Thematiques.Systeme import apply_system
+from ApplicationRecommandations.Thematiques.Services import apply_services
 
 
 # Fonction de chargement des rapports d'analyse
@@ -31,11 +32,16 @@ def application_recommandations_min (client) :
     print("\n [Correction] Maintenance ( niveau min) ")
     apply_maintenance(client, niveau="min", report_data=report_data)
 
-    print("\n [Correction] Mise à jour ( niveau moyen) ")
+    print("\n [Correction] Mise à jour ( niveau min) ")
     apply_mise_a_jour(client, niveau="min", report_data=report_data)
 
-    print("\n [Correction] System ( niveau moyen) ")
+    print("\n [Correction] System ( niveau min) ")
     apply_system(client, niveau="min", report_data=report_data)
+
+    print("\n [Correction] Services ( niveau min) ")
+    apply_services(client, niveau="min", report_data=report_data)
+
+
 
 
 
