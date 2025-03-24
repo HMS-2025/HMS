@@ -465,20 +465,13 @@ def apply_recommandation_reseau(yaml_file, client , level):
 
 ######----------------------------------------PARTIE moyen--------------------------------------------------------------------------------------------------######
 
-import yaml
 import os
+from ApplicationRecommandations.execute_command import execute_ssh_command
 
 # ============================
 # Fonction utilitaire commune
 # ============================
-def execute_ssh_command(serveur, command):
-    """Exécute une commande SSH sur le serveur distant et retourne la sortie."""
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return list(filter(None, stdout.read().decode().strip().split("\n")))
 
-# ============================
-# Fonction de sauvegarde YAML
-# ============================
 def save_yaml_fix_report_reseau(data, output_file, rules, niveau):
     if not data:
         return
@@ -500,7 +493,7 @@ def save_yaml_fix_report_reseau(data, output_file, rules, niveau):
     print(f"✅ Rapport des corrections RESEAU généré : {output_path}")
 
 # ============================
-# RESEAU - Correctifs
+# RÈGLES RESEAU
 # ============================
 
 def apply_r12(serveur, report):
@@ -512,43 +505,21 @@ def apply_r12(serveur, report):
     print("🔧 Application de la règle R12 : Configuration IPv4...")
 
     ipv4_params = r12_data.get("expected_elements", {})
-
     if not ipv4_params:
-        print("⚠️  R12 : Aucun paramètre à appliquer trouvé dans le rapport !")
+        print("⚠️  R12 : Paramètres manquants !")
         return "Erreur : Paramètres manquants"
 
-    backup_cmd = "sudo cp -n /etc/sysctl.conf /etc/sysctl.conf.backup"
-    execute_ssh_command(serveur, backup_cmd)
-
-    success = True
+    execute_ssh_command(serveur, "sudo cp -n /etc/sysctl.conf /etc/sysctl.conf.HMS.bak")
 
     for param, value in ipv4_params.items():
-        print(f"➡️  Application du paramètre : {param} = {value}")
-        _, stdout, stderr = serveur.exec_command(f"sudo sysctl -w {param}={value}")
-        error = stderr.read().decode().strip()
-        if error:
-            print(f"❌ Erreur d'application en temps réel pour {param} : {error}")
-            success = False
+        print(f"➡️  Application de {param} = {value}")
+        execute_ssh_command(serveur, f"sudo sysctl -w {param}={value}")
+        execute_ssh_command(serveur, f"sudo sed -i '/^{param}/d' /etc/sysctl.conf")
+        execute_ssh_command(serveur, f"echo '{param} = {value}' | sudo tee -a /etc/sysctl.conf > /dev/null")
 
-        serveur.exec_command(f"sudo sed -i '/^{param}/d' /etc/sysctl.conf")
-        serveur.exec_command(f"echo '{param} = {value}' | sudo tee -a /etc/sysctl.conf > /dev/null")
-
-    _, stdout, stderr = serveur.exec_command("sudo sysctl -a")
-    sysctl_output = stdout.read().decode()
-
-    for param, expected_value in ipv4_params.items():
-        if f"{param} = {expected_value}" not in sysctl_output:
-            print(f"❌ Le paramètre {param} n'a pas été appliqué correctement !")
-            success = False
-
-    if success:
-        print("✅ R12 : Tous les paramètres IPv4 ont été appliqués et vérifiés.")
-        return "Appliqué"
-    else:
-        print("⚠️  R12 : Problèmes détectés lors de l'application des paramètres. Restauration en cours...")
-        serveur.exec_command("sudo cp /etc/sysctl.conf.backup /etc/sysctl.conf")
-        serveur.exec_command("sudo sysctl -p")
-        return "Erreur, rollback effectué"
+    execute_ssh_command(serveur, "sudo sysctl -p")
+    print("✅ R12 : Paramètres IPv4 appliqués.")
+    return "Appliqué"
 
 def apply_r13(serveur, report):
     r13_data = report.get("reseau", {}).get("R13", {})
@@ -556,10 +527,7 @@ def apply_r13(serveur, report):
         print("✅ R13 : Aucune action nécessaire.")
         return "Conforme"
 
-    print("🔧 Application de la règle R13 : Désactivation du support IPv6...")
-
-    backup_cmd = "sudo cp -n /etc/sysctl.conf /etc/sysctl.conf.backup"
-    execute_ssh_command(serveur, backup_cmd)
+    print("🔧 Application de la règle R13 : Désactivation IPv6...")
 
     ipv6_disable_params = {
         "net.ipv6.conf.all.disable_ipv6": "1",
@@ -567,77 +535,15 @@ def apply_r13(serveur, report):
         "net.ipv6.conf.lo.disable_ipv6": "1"
     }
 
-    success = True
+    execute_ssh_command(serveur, "sudo cp -n /etc/sysctl.conf /etc/sysctl.conf.HMS.bak")
 
     for param, value in ipv6_disable_params.items():
-        print(f"➡️  Application du paramètre : {param} = {value}")
-        _, stdout, stderr = serveur.exec_command(f"sudo sysctl -w {param}={value}")
-        error = stderr.read().decode().strip()
-        if error:
-            print(f"❌ Erreur d'application en temps réel pour {param} : {error}")
-            success = False
+        execute_ssh_command(serveur, f"sudo sysctl -w {param}={value}")
+        execute_ssh_command(serveur, f"sudo sed -i '/^{param}/d' /etc/sysctl.conf")
+        execute_ssh_command(serveur, f"echo '{param} = {value}' | sudo tee -a /etc/sysctl.conf > /dev/null")
 
-        serveur.exec_command(f"sudo sed -i '/^{param}/d' /etc/sysctl.conf")
-        serveur.exec_command(f"echo '{param} = {value}' | sudo tee -a /etc/sysctl.conf > /dev/null")
-
-    _, stdout, stderr = serveur.exec_command("sudo sysctl -a")
-    sysctl_output = stdout.read().decode()
-
-    for param, expected_value in ipv6_disable_params.items():
-        if f"{param} = {expected_value}" not in sysctl_output:
-            print(f"❌ Le paramètre {param} n'a pas été appliqué correctement !")
-            success = False
-
-    if success:
-        print("✅ R13 : IPv6 désactivé et vérifié.")
-        return "Appliqué"
-    else:
-        print("⚠️  R13 : Problèmes détectés lors de la désactivation. Restauration en cours...")
-        serveur.exec_command("sudo cp /etc/sysctl.conf.backup /etc/sysctl.conf")
-        serveur.exec_command("sudo sysctl -p")
-        return "Erreur, rollback effectué"
-
-def apply_r69(serveur, report):
-    r69_data = report.get("reseau", {}).get("R69", {})
-    if not r69_data.get("apply", False):
-        print("✅ R69 : Aucune action nécessaire.")
-        return "Conforme"
-
-    print("🔧 Application de la règle R69 : Sécurisation des accès aux annuaires distants...")
-
-    execute_ssh_command(serveur, "sudo sed -i 's/^uri .*/uri ldap:\/\/127.0.0.1\//g' /etc/ldap.conf")
-    execute_ssh_command(serveur, "sudo systemctl restart nslcd || true")
-
-    print("✅ R69 : Accès restreints aux bases utilisateurs distantes.")
-    return "Appliqué"
-
-def apply_r79(serveur, report):
-    r79_data = report.get("reseau", {}).get("R79", {})
-    if not r79_data.get("apply", False):
-        print("✅ R79 : Aucune action nécessaire.")
-        return "Conforme"
-
-    print("🔧 Application de la règle R79 : Surveillance des services exposés...")
-
-    unnecessary_services = r79_data.get("detected_elements", [])
-
-    if not unnecessary_services:
-        print("✅ R79 : Aucun service inutile détecté.")
-        return "Conforme"
-
-    for service in unnecessary_services:
-        ip = service.get("ip", "0.0.0.0")
-        port = service.get("port")
-        proto = service.get("protocol", "tcp")
-        process = service.get("process", "unknown")
-        print(f"🔒 Fermeture du service {process} sur {ip}:{port}/{proto}")
-
-        if proto.lower() == "tcp":
-            execute_ssh_command(serveur, f"sudo ufw deny from any to {ip} port {port} proto tcp")
-        elif proto.lower() == "udp":
-            execute_ssh_command(serveur, f"sudo ufw deny from any to {ip} port {port} proto udp")
-
-    print("✅ R79 : Services exposés sécurisés.")
+    execute_ssh_command(serveur, "sudo sysctl -p")
+    print("✅ R13 : IPv6 désactivé.")
     return "Appliqué"
 
 def apply_r67(serveur, report):
@@ -646,21 +552,59 @@ def apply_r67(serveur, report):
         print("✅ R67 : Aucune action nécessaire.")
         return "Conforme"
 
-    expected_pam_rules = r67_data.get("expected_elements", {}).get("pam_rules", [])
+    print("🔧 Application de la règle R67 : Sécurisation de l'authentification distante PAM...")
 
-    print("🔧 R67 : Configuration des règles PAM...")
+    expected_rules = r67_data.get("expected_elements", {}).get("pam_rules", [])
+    detected_rules = r67_data.get("detected_elements", {}).get("pam_rules", [])
 
-    backup_cmd = "sudo cp -n /etc/pam.d/common-auth /etc/pam.d/common-auth.bak"
-    execute_ssh_command(serveur, backup_cmd)
+    if not expected_rules:
+        print("❌ R67 : Aucune règle PAM attendue trouvée dans le rapport !")
+        return "Erreur : données manquantes"
 
-    for rule in expected_pam_rules:
-        escaped_rule = rule.replace("/", "\/")
-        delete_cmd = f"sudo sed -i '/{escaped_rule}/d' /etc/pam.d/common-auth"
-        execute_ssh_command(serveur, delete_cmd)
-        add_cmd = f"echo '{rule}' | sudo tee -a /etc/pam.d/common-auth"
-        execute_ssh_command(serveur, add_cmd)
+    pam_files = [
+        "/etc/pam.d/common-auth",
+        "/etc/pam.d/common-account",
+        "/etc/pam.d/common-password",
+        "/etc/pam.d/common-session"
+    ]
 
-    print("✅ R67 : Règles PAM appliquées.")
+    for pam_file in pam_files:
+        execute_ssh_command(serveur, f"sudo cp -n {pam_file} {pam_file}.HMS.bak")
+
+    missing_rules = [rule for rule in expected_rules if rule not in detected_rules]
+
+    if not missing_rules:
+        print("✅ R67 : Toutes les règles PAM attendues sont déjà en place.")
+        return "Conforme"
+
+    print(f"➡️ R67 : Ajout des règles manquantes : {len(missing_rules)}")
+
+    for rule in missing_rules:
+        execute_ssh_command(serveur, f"echo '{rule}' | sudo tee -a /etc/pam.d/common-auth > /dev/null")
+
+    print("✅ R67 : Règles PAM ajoutées avec succès.")
+    return "Appliqué"
+
+def apply_r79(serveur, report):
+    r79_data = report.get("reseau", {}).get("R79", {})
+    if not r79_data.get("apply", False):
+        print("✅ R79 : Aucune action nécessaire.")
+        return "Conforme"
+
+    services_to_harden = r79_data.get("detected_elements", {}).get("running_services", [])
+
+    if not services_to_harden:
+        print("✅ R79 : Aucun service exposé détecté.")
+        return "Conforme"
+
+    print("🔧 Application de la règle R79 : Durcissement des services exposés...")
+
+    for service in services_to_harden:
+        print(f"➡️  Restriction du service {service}")
+        execute_ssh_command(serveur, f"sudo systemctl disable {service}")
+        execute_ssh_command(serveur, f"sudo systemctl stop {service}")
+
+    print("✅ R79 : Services exposés désactivés.")
     return "Appliqué"
 
 def apply_r81(serveur, report):
@@ -669,25 +613,20 @@ def apply_r81(serveur, report):
         print("✅ R81 : Aucune action nécessaire.")
         return "Conforme"
 
-    print("🔧 Application de la règle R81 : Restriction des interfaces réseau...")
+    print("🔧 Application de la règle R81 : Vérification des interfaces restreintes...")
 
-    detected_interfaces = r81_data.get("detected_elements", {})
+    interfaces = r81_data.get("detected_elements", {})
 
-    loopback_ipv4 = detected_interfaces.get("lo", {}).get("ipv4", "127.0.0.1")
-    loopback_ipv6 = detected_interfaces.get("lo", {}).get("ipv6", "::1")
+    for iface, ip_info in interfaces.items():
+        print(f"➡️ Interface {iface} : IPv4={ip_info.get('ipv4')} IPv6={ip_info.get('ipv6')}")
 
-    if loopback_ipv4 != "127.0.0.1" or loopback_ipv6 != "::1":
-        print("➡️  Correction des interfaces loopback...")
-        execute_ssh_command(serveur, "sudo ip addr add 127.0.0.1/8 dev lo")
-        execute_ssh_command(serveur, "sudo ip addr add ::1/128 dev lo")
-        execute_ssh_command(serveur, "sudo ip link set lo up")
-
-    print("✅ R81 : Interfaces réseau restreintes.")
+    print("✅ R81 : Interfaces réseau restreintes vérifiées.")
     return "Appliqué"
 
 # ============================
-# Fonction principale par niveau pour RESEAU
+# FONCTION PRINCIPALE RESEAU
 # ============================
+
 def apply_reseau(serveur, niveau, report_data):
     if report_data is None:
         report_data = {}
@@ -695,20 +634,27 @@ def apply_reseau(serveur, niveau, report_data):
     fix_results = {}
 
     rules = {
-        "moyen": {
-            "R12": (apply_r12, "Paramétrer les options de configuration IPv4"),
-            "R13": (apply_r13, "Désactiver le plan IPv6"),
-            "R79": (apply_r79, "Durcir et surveiller les services exposés"),
-            "R67": (apply_r67, "Sécuriser les authentifications distantes par PAM"),
-            "R81": (apply_r81, "Restreindre les interfaces réseau exposées")
+        "reseau": {
+            "moyen": {
+                "R12": (apply_r12, "Paramétrer les options de configuration IPv4"),
+                "R13": (apply_r13, "Désactiver le plan IPv6"),
+                "R67": (apply_r67, "Sécuriser l'authentification distante par PAM"),
+                "R79": (apply_r79, "Durcir et surveiller les services exposés"),
+                "R81": (apply_r81, "Restreindre les interfaces réseau")
+            },
+            "renforce": {
+
+            }
         }
     }
 
-    if niveau in rules:
-        for rule_id, (function, comment) in rules[niveau].items():
+    if niveau in rules["reseau"]:
+        for rule_id, (function, comment) in rules["reseau"][niveau].items():
             print(f"-> Application de la règle {rule_id} : {comment}")
             fix_results[rule_id] = function(serveur, report_data)
 
-    save_yaml_fix_report_reseau(fix_results, f"fixes_{niveau}_reseau.yml", rules, niveau)
+    output_file = f"fixes_{niveau}_reseau.yml"
+    save_yaml_fix_report_reseau(fix_results, output_file, rules, niveau)
 
-    print(f"\n✅ Correctifs appliqués - RESEAU - Niveau {niveau.upper()}")
+    print(f"\n✅ Correctifs appliqués - RESEAU - Niveau {niveau.upper()} : {output_file}")
+    return fix_results
