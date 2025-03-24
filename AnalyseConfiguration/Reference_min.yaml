@@ -68,7 +68,6 @@ R62:
       - bluetooth.service
       - avahi-daemon.service
       - rpcbind.service
-      - dbus.service
       - smbd.service
       - nfs-server.service  # All these services must be disabled
 

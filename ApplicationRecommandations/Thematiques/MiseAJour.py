@@ -1,75 +1,88 @@
-import subprocess
-import os
 import yaml
 
-def update_yaml(yaml_file, thematique ,  rule, clear_keys=[]):
-    with open(yaml_file, 'r', encoding="utf-8") as file:
+#=========== Global ==========
+application_min = "./GenerationRapport/RapportApplication/application_min.yml"
+analyse_min = "./GenerationRapport/RapportAnalyse/analyse_min.yml"
+
+application_moyen = "./GenerationRapport/RapportApplication/application_moyen.yml"
+analyse_moyen = "./GenerationRapport/RapportAnalyse/analyse_moyen.yml"
+
+def execute_ssh_command(client, command):
+    """Execute an SSH command and return output and error."""
+    stdin, stdout, stderr = client.exec_command(command)
+    output = list(filter(None, stdout.read().decode().strip().split("\n")))
+    error = stderr.read().decode().strip()
+    return output, error
+
+def update(application_file, analyse_file, thematique, rule):
+    with open(application_file, 'r', encoding="utf-8") as file:
         data = yaml.safe_load(file)
-    
     data[thematique][rule]['apply'] = False
-    data[thematique][rule]['status'] = 'Conforme'
-    with open(yaml_file, 'w', encoding="utf-8") as file:
+    data[thematique][rule]['status'] = 'Compliant'
+    with open(application_file, 'w', encoding="utf-8") as file:
         yaml.safe_dump(data, file)
 
-def apply_R61(yaml_file, client):
-    """Appliquer la recommandation R61 et mettre à jour le YAML."""
-    print("Application de la recommandation R61")
-    with open(yaml_file, 'r', encoding="utf-8") as file:
-        data = yaml.safe_load(file)    
+    with open(analyse_file, 'r', encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    data[thematique][rule]['apply'] = True
+    data[thematique][rule]['status'] = 'Compliant'
+    with open(analyse_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
-    if not data["mise_a_jour"]["R61"]['apply']:
-        return None
-    else : 
-        # Enable and start unattended-upgrades service
-        client.exec_command("sudo apt-get install -y unattended-upgrades")
-        client.exec_command("sudo systemctl enable unattended-upgrades")
-        client.exec_command("sudo systemctl start unattended-upgrades")
-        
-        # Ensure APT::Periodic::Unattended-Upgrade is enabled
-        client.exec_command("echo 'APT::Periodic::Unattended-Upgrade \"1\";' | sudo tee /etc/apt/apt.conf.d/20auto-upgrades")
-        
-        # Create a cron job to perform updates
-        cron_job = "0 4 * * * /usr/bin/apt update && /usr/bin/apt upgrade -y"
-        client.exec_command(f"(sudo crontab -l ; echo '{cron_job}') | sudo crontab -")
-        
-        # Ensure the apt-compat script is present in /etc/cron.daily/
-        client.exec_command("sudo cp /usr/lib/apt/apt.systemd.daily /etc/cron.daily/apt-compat")
-        
-        # Ensure the apt-daily.timer is enabled and started
-        client.exec_command("sudo systemctl enable apt-daily.timer")
-        client.exec_command("sudo systemctl start apt-daily.timer")
+def update_report(level, thematique, rule):
+    if level == 'min':
+        update(application_min, analyse_min, thematique, rule)
+    elif level == 'moyen':
+        update(application_moyen, analyse_moyen, thematique, rule)
 
-        update_yaml(yaml_file, 'mise_a_jour' , 'R61')
-        
-def apply_rule(rule_name, yaml_file, client , level):
-    if level == 'min' : 
-        if rule_name == "R61":
-            apply_R61(yaml_file, client)   
-        else:
-            print(f"Règle inconnue : {rule_name}")
-    elif level == "moyen" : 
-        pass
-    else : 
-        pass
+def apply_r61(client, report):
+    r61_data = report.get("R61", {})
+    if not r61_data.get("apply", False):
+        print("- R61: No action required.")
+        return "Compliant"
 
-def apply_recommandation_mise_a_jour(yaml_file, client , level):
-    try:
-        with open(yaml_file, 'r', encoding="utf-8") as file:
-            data = yaml.safe_load(file)
-            
-        if not data or 'mise_a_jour' not in data:
-            return
-        for rule, rule_data in data['mise_a_jour'].items():
-            if not rule_data.get('apply', False):
-                print(f"Règle {rule} déjà appliquée.")
-            else:
-                apply_rule(rule, yaml_file, client , level)
-                
-    except FileNotFoundError:
-        print(f"Fichier {yaml_file} non trouvé.")
-    except yaml.YAMLError as e:
-        print(f"Erreur lors de la lecture du fichier YAML : {e}")
-    except Exception as e:
-        print(f"Une erreur inattendue s'est produite : {e}")
+    print("- Applying unattended-upgrades setup")
 
+    cmds = [
+        "sudo apt-get install -y unattended-upgrades",
+        "sudo systemctl enable unattended-upgrades",
+        "sudo systemctl start unattended-upgrades",
+        "echo 'APT::Periodic::Unattended-Upgrade \"1\";' | sudo tee /etc/apt/apt.conf.d/20auto-upgrades",
+        "(sudo crontab -l ; echo '0 4 * * * /usr/bin/apt update && /usr/bin/apt upgrade -y') | sudo crontab -",
+        "sudo cp /usr/lib/apt/apt.systemd.daily /etc/cron.daily/apt-compat",
+        "sudo systemctl enable apt-daily.timer",
+        "sudo systemctl start apt-daily.timer"
+    ]
 
+    for cmd in cmds:
+        _, err = execute_ssh_command(client, cmd)
+        if err:
+            print(f"Error: {err}")
+
+    update_report('min', 'updates', 'R61')
+
+def apply_mise_a_jour(client, niveau, report_data):
+    if report_data is None:
+        report_data = {}
+
+    apply_data = report_data.get("updates", None)
+    if apply_data is None:
+        return
+
+    rules = {
+        "min": {
+            "R61": (apply_r61, "Configurer les mises à jour automatiques avec unattended-upgrades")
+        },
+        "moyen": {
+            # Placeholder for future medium level rules
+        }
+    }
+
+    apply_data = report_data.get("updates", {})
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            if apply_data.get(rule_id, {}).get("apply", False):
+                print(f"-> Applying rule {rule_id}: {comment}")
+                function(client, apply_data)
+
+    print(f"\n- Corrections applied - updates - Level {niveau.upper()}")
