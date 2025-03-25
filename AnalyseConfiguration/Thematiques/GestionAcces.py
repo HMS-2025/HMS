@@ -71,12 +71,19 @@ def check_compliance(rule_id, detected_values, reference_data):
             "differences": differences_list if differences_list else None
         }
     elif rule_id == 'R55':
-        is_compliant = bool(detected_values)
-        status = "Compliant" if is_compliant else "Non-Compliant"
+        pam_info = detected_values.get("pam_namespace", {})
+        activated = pam_info.get("activated", False)
+        configured = pam_info.get("configured", False)
+        is_compliant = activated and configured
         return {
             "apply": is_compliant,
-            "status": status,
-            "detected_elements": detected_values if detected_values else "None"
+            "status": "Compliant" if is_compliant else "Non-Compliant",
+            "detected_elements": {
+                "pam_namespace": {
+                    "activated": activated,
+                    "configured": configured
+                }
+            }
         }
     elif rule_id == 'R67':
         is_compliant = True
@@ -347,20 +354,37 @@ def get_sudoedit_usage(serveur, os_info):
         return {"violations": [], "sudoedit_usage": []}
 
 def get_user_private_tmp(serveur, os_info):
+    result = {
+        "pam_namespace": {
+            "activated": False,
+            "configured": False
+        }
+    }
+
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        files_to_check = ["/etc/pam.d/login", "/etc/pam.d/sshd"]
-        results = []
-        for f in files_to_check:
+        # Vérifie l'activation dans les fichiers PAM
+        for pam_file in ["/etc/pam.d/login", "/etc/pam.d/sshd"]:
             try:
-                output = execute_ssh_command(serveur, f"grep -Ei 'pam_namespace|pam_mktemp' {f}")
+                output = execute_ssh_command(serveur, f"grep -Ei 'pam_namespace' {pam_file}")
                 if output:
-                    results.extend(output)
-            except Exception as e:
-                pass
-        return results if results else None
+                    result["pam_namespace"]["activated"] = True
+                    break
+            except Exception:
+                continue
+
+        # Vérifie la configuration dans namespace.conf
+        try:
+            output = execute_ssh_command(serveur, "grep -Ev '^\s*#|^\s*$' /etc/security/namespace.conf")
+            if output:
+                result["pam_namespace"]["configured"] = True
+        except Exception:
+            pass
+
+        return result
     else:
-        print("[get_user_private_tmp] Non-Ubuntu OS detected; user private tmp not retrieved.")
-        return None
+        print("[get_user_private_tmp] Non-Ubuntu OS detected; skipping check.")
+        return result
+
 
 def check_all_sticky_bit(serveur, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
@@ -374,7 +398,7 @@ def check_all_sticky_bit(serveur, os_info):
             try:
                 stat_cmd = f"stat -c '%A' {directory}"
                 output = execute_ssh_command(serveur, stat_cmd)
-            except Exception as e:
+            except Exception:
                 output = []
             if not output:
                 parent_dir = os.path.dirname(directory)
@@ -387,7 +411,7 @@ def check_all_sticky_bit(serveur, os_info):
                             continue
                     else:
                         continue
-                except Exception as e:
+                except Exception:
                     continue
                 non_conformes.append(f"{directory}: Unable to retrieve permissions.")
                 continue
@@ -408,7 +432,7 @@ def check_all_sticky_bit(serveur, os_info):
                         parent_accessible = False
                 if not parent_accessible:
                     continue
-            except Exception as e:
+            except Exception:
                 continue
             others = permissions[-3:]
             is_world_writable = others[1] == 'w'
@@ -582,7 +606,7 @@ def analyse_gestion_acces(serveur, niveau, reference_data, os_info):
     if niveau in rules:
         for rule_id, (function, comment) in rules[niveau].items():
             print(f"-> Checking rule {rule_id} # {comment}")
-            # For some rules, the function expects (serveur, reference_data, os_info)
+            # Pour certaines règles, la fonction attend (serveur, reference_data, os_info)
             if rule_id in ['R67', 'R50', 'R29', 'R38']:
                 report[rule_id] = check_compliance(rule_id, function(serveur, reference_data, os_info), reference_data)
             else:
