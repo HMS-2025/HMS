@@ -1,37 +1,69 @@
 import yaml
 import paramiko
+import os
+import re
+from datetime import datetime
+from GenerationRapport.GenerationRapport import generate_ssh_html_report
 
-# Load a YAML file in UTF-8 encoding
+# Log an action with a timestamp in the journal file located in GenerationRapport/RapportAnalyse
+def log_action(action):
+    # Log an action with a timestamp in the journal file
+    log_dir = os.path.join("GenerationRapport", "RapportAnalyse")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "journalisation.txt")
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now().isoformat()} - {action}\n")
+
+# Execute a command on the server via the SSH client and log it
+def exec_command_logged(client, command):
+    # Execute a command on the server via SSH and log it
+    log_action(f"Executing command: {command}")
+    return client.exec_command(command)
+
+# Load a YAML file and return its contents
 def load_yaml(yaml_file):
+    # Load a YAML file
     with open(yaml_file, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
 
-# Save configuration to a YAML file in UTF-8 encoding
+# Save a configuration to a YAML file
 def save_yaml(yaml_file, config):
+    # Save a configuration to a YAML file
     with open(yaml_file, 'w', encoding='utf-8') as file:
         yaml.safe_dump(config, file, default_flow_style=False, allow_unicode=True)
 
-# Execute a command via the SSH client and return True if successful
+# Create or update a backup of the specified file (saved as file_path.back)
+def backup_file(file_path, client):
+    # Create or update a backup of the specified file so that the backup reflects the initial state at each run
+    backup_path = f"{file_path}.back"
+    backup_command = f"sudo cp {file_path} {backup_path}"
+    if apply_command(backup_command, client):
+        log_action(f"Backup updated for {file_path} as {backup_path}.")
+        return True
+    else:
+        log_action(f"Failed to update backup for {file_path}.")
+        return False
+
+# Execute a command via the SSH client, log it, and return True if successful
 def apply_command(command, client):
+    # Execute a command via SSH, log its output and errors, and return True if it succeeds
     try:
-        stdin, stdout, stderr = client.exec_command(command)
-        output = stdout.read().decode('utf-8')
-        error = stderr.read().decode('utf-8')
+        stdin, stdout, stderr = exec_command_logged(client, command)
+        output = stdout.read().decode('utf-8').strip()
+        error = stderr.read().decode('utf-8').strip()
         if error:
             print(f"Error executing command: {error}")
+            log_action(f"Error executing command: {error}")
             return False
+        if output:
+            log_action(f"Command output: {output}")
         return True
     except Exception as e:
         print(f"Error executing command: {e}")
+        log_action(f"Error executing command: {e}")
         return False
 
-import paramiko
-import yaml
-import os
-import re
-from GenerationRapport.GenerationRapport import generate_ssh_html_report
-
-# Dictionary of comments for SSH rules
+# SSH compliance rules descriptions
 ssh_comments = {
     "R1": "SSH Protocol version must be 2",
     "R2": "Pubkey Authentication should be enabled",
@@ -61,348 +93,78 @@ ssh_comments = {
     "R26": "Port should be 22"
 }
 
-# Get a list of non-system users (UID >= 1000) excluding "nobody"
-def get_server_users(server):
-    # Retrieve users with UID >= 1000, excluding "nobody"
-    try:
-        stdin, stdout, stderr = server.exec_command("awk -F: '$3>=1000 {print $1}' /etc/passwd")
-        users = stdout.read().decode().splitlines()
-        return [user for user in users if user != "nobody"]
-    except Exception as e:
-        print(f"Error retrieving users: {e}")
-        return []
-
-# Get a list of non-system groups (GID >= 1000) excluding "nogroup"
-def get_server_groups(server):
-    # Retrieve groups with GID >= 1000, excluding "nogroup"
-    try:
-        stdin, stdout, stderr = server.exec_command("awk -F: '$3>=1000 {print $1}' /etc/group")
-        groups = stdout.read().decode().splitlines()
-        return [group for group in groups if group != "nogroup"]
-    except Exception as e:
-        print(f"Error retrieving groups: {e}")
-        return []
-
-# Get the server's IP address (first IP from 'hostname -I')
-def get_server_ip(server):
-    # Retrieve server IP address (first one from hostname -I)
-    try:
-        stdin, stdout, stderr = server.exec_command("hostname -I")
-        ip_output = stdout.read().decode().strip()
-        if ip_output:
-            return ip_output.split()[0]
-        else:
-            return None
-    except Exception as e:
-        print(f"Error retrieving server IP: {e}")
-        return None
-
-# List SSH directives and their file paths from /etc/ssh/sshd_config and /etc/ssh/sshd_config.d/*.conf.
-# The last occurrence (in processing order) is considered effective.
+# Retrieve for each directive the file containing its last occurrence by reading the main file and included files
 def list_directives_with_paths(client):
-    directives_map = {}
+    # Retrieve directives and their corresponding file paths from the SSH configuration
+    last_directive_file = {}
     main_file = "/etc/ssh/sshd_config"
+    include_patterns = []
     try:
-        stdin, stdout, stderr = client.exec_command(f"cat {main_file}")
+        stdin, stdout, stderr = exec_command_logged(client, f"cat {main_file}")
         main_content = stdout.read().decode()
         for line in main_content.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
+            if line.lower().startswith("include"):
+                parts = line.split()
+                if len(parts) >= 2:
+                    for pattern in parts[1:]:
+                        include_patterns.append(pattern)
+                continue
             parts = line.split(None, 1)
             if len(parts) == 2:
                 directive, value = parts
-                directives_map[directive] = (value, main_file)
+                last_directive_file[directive] = main_file
     except Exception as e:
         print(f"Error reading {main_file}: {e}")
-    
-    # Process additional configuration files in sshd_config.d/
-    try:
-        stdin, stdout, stderr = client.exec_command("ls /etc/ssh/sshd_config.d/*.conf")
-        files_list = stdout.read().decode().splitlines()
-        for file_path in files_list:
-            try:
-                stdin, stdout, stderr = client.exec_command(f"cat {file_path}")
-                content = stdout.read().decode()
-                for line in content.splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    parts = line.split(None, 1)
-                    if len(parts) == 2:
-                        directive, value = parts
-                        directives_map[directive] = (value, file_path)
-            except Exception as e:
-                print(f"Error reading {file_path}: {e}")
-    except Exception as e:
-        print(f"Error listing /etc/ssh/sshd_config.d/*.conf: {e}")
-    
-    return directives_map
+        log_action(f"Error reading {main_file}: {e}")
 
-# Update the SSH criteria YAML file with system info (AllowUsers, AllowGroups, ListenAddress)
-def update_ssh_criteria_with_system_info(server, file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
-    users = get_server_users(server)
-    groups = get_server_groups(server)
-    server_ip = get_server_ip(server)
-    
-    # Convert lists to comma-separated strings
-    users_str = ",".join(users)
-    groups_str = ",".join(groups)
-    
-    if not os.path.exists(file_path):
-        print(f"The file {file_path} does not exist.")
-        return
-    
-    # Read existing YAML file
-    with open(file_path, 'r') as f:
-        data = yaml.safe_load(f)
-    
-    if "ssh_criteria" in data:
-        if "R12" in data["ssh_criteria"]:
-            data["ssh_criteria"]["R12"]["expected_value"] = users_str
-        if "R13" in data["ssh_criteria"]:
-            data["ssh_criteria"]["R13"]["expected_value"] = groups_str
-        if server_ip and "R25" in data["ssh_criteria"]:
-            data["ssh_criteria"]["R25"]["expected_value"] = server_ip
-    
-    # Write the YAML file in block style (proper indentation)
-    with open(file_path, 'w') as f:
-        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-    
-    print(f"The expected values for R12, R13, and R25 have been updated in {file_path}.")
-    print("Reminder: Please modify the expected_value in ssh_criteria according to your desired configuration, as this file will be used for the application.")
+    for pattern in include_patterns:
+        try:
+            ls_command = f"ls {pattern}"
+            stdin, stdout, stderr = exec_command_logged(client, ls_command)
+            files_list = sorted(stdout.read().decode().splitlines())
+            for file_path in files_list:
+                try:
+                    stdin, stdout, stderr = exec_command_logged(client, f"cat {file_path}")
+                    content = stdout.read().decode()
+                    for line in content.splitlines():
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        parts = line.split(None, 1)
+                        if len(parts) == 2:
+                            directive, value = parts
+                            last_directive_file[directive] = file_path
+                except Exception as e:
+                    print(f"Error reading {file_path}: {e}")
+                    log_action(f"Error reading {file_path}: {e}")
+        except Exception as e:
+            print(f"Error listing files for pattern {pattern}: {e}")
+            log_action(f"Error listing files for pattern {pattern}: {e}")
 
-# Generate a YAML report based on compliance rules
-def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
-    try:
-        output_dir = "GenerationRapport/RapportAnalyse"
-        html_output_dir = "GenerationRapport/RapportAnalyse/RapportHTML"
-        
-        os.makedirs(output_dir, exist_ok=True)
-        os.makedirs(html_output_dir, exist_ok=True)
-        
-        yaml_path = os.path.join(output_dir, filename)
-        html_path = os.path.join(html_output_dir, filename.replace(".yaml", ".html"))
-        
-        total_rules = len(all_rules)
-        compliant_rules = sum(1 for rule in all_rules.values() if rule.get("apply", False))
-        compliance_percentage = (compliant_rules / total_rules) * 100 if total_rules > 0 else 0
-        
-        print(f"SSH compliance: {compliance_percentage:.1f}%")
-        
-        with open(yaml_path, "w", encoding="utf-8") as file:
-            file.write("# SSH Analysis Report\n")
-            file.write("# Change 'apply' to 'true' if you want to apply this recommendation.\n")
-            file.write("# Reminder: Modify the expected_value in ssh_criteria as per your configuration requirements, as this file will be used by the application.\n\n")
-            file.write("ssh_compliance:\n")
-            
-            for rule, details in all_rules.items():
-                comment = comments.get(rule, "") if comments else ""
-                file.write(f"  {rule}:  # {comment}\n")
-                file.write(f"    apply: {'true' if details.get('apply') else 'false'}\n")
-                file.write(f"    expected_elements: {details.get('expected_elements')}\n")
-                file.write(f"    detected_elements: {details.get('detected_elements')}\n")
-                file.write(f"    status: \"{details.get('status')}\"\n")
-        print(f"YAML report generated: {yaml_path}")
-        
-        # Generate HTML report from YAML
-        generate_ssh_html_report(yaml_path, html_path)
-    
-    except (OSError, IOError) as e:
-        print(f"Error generating the YAML file: {e}")
+    return last_directive_file
 
-# Apply selected SSH recommendations by updating the SSH configuration based on the analysis file.
-def apply_selected_recommendationsSSH(yaml_file, client):
-    # Backup the sshd_config file if not already backed up
-    backup_command = "test -f /etc/ssh/sshd_config.back || sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.back"
-    if apply_command(backup_command, client):
-        print("sshd_config backup created (or already exists).")
-    else:
-        print("Error creating sshd_config backup.")
-    
-    # Load the analysis file
-    config = load_yaml(yaml_file)
-    # Accept either 'ssh_conformite' or 'ssh_compliance'
-    rules = config.get("ssh_conformite") or config.get("ssh_compliance")
-    if not rules:
-        print("No compliance data found in the analysis file.")
-        return
-    
-    # Load SSH criteria from the criteria file
-    criteria_file = "AnalyseConfiguration/Thematiques/criteres_SSH.yaml"
-    criteria_data = load_yaml(criteria_file)
-    ssh_criteria = criteria_data.get("ssh_criteria", {})
-    if not ssh_criteria:
-        print("No SSH criteria found in the criteria file.")
-        return
-    
-    # Retrieve the mapping of directives and their file paths.
-    directives_map = list_directives_with_paths(client)
-    
-    # For each rule in the analysis file, update the SSH configuration in the file where the directive is defined.
-    for rule, details in rules.items():
-        if rule not in ssh_criteria:
-            print(f"Rule {rule} not found in criteria file. Skipping.")
-            continue
-        
-        directive = ssh_criteria[rule].get("directive")
-        expected_value = ssh_criteria[rule].get("expected_value")
-        
-        if not directive or expected_value is None:
-            print(f"Missing directive or expected value for rule {rule}.")
-            continue
-        
-        # Replace commas with spaces for AllowUsers and AllowGroups
-        if directive in ["AllowUsers", "AllowGroups"]:
-            expected_value = expected_value.replace(",", " ")
-        
-        # Determine the file path to update:
-        # If the directive is found in the mapping, use its file; otherwise, default to /etc/ssh/sshd_config.
-        file_path = directives_map.get(directive, (None, "/etc/ssh/sshd_config"))[1]
-        
-        # Build the sed command to update the directive in the determined file
-        command = f"sudo sed -i '/^#\\?\\s*{directive}/c\\{directive} {expected_value}' {file_path}"
-        print(f"Applying rule {rule}: updating '{directive}' to '{expected_value}' in {file_path}")
-        if apply_command(command, client):
-            details["apply"] = True
-            details["status"] = "Compliant"
-            print(f"Rule {rule} applied successfully.")
-        else:
-            details["status"] = "Non compliant"
-            print(f"Failed to apply rule {rule}.")
-    
-    # Restart the SSH service to apply changes
-    if apply_command("sudo systemctl restart ssh", client):
-        print("SSH service restarted successfully.")
-    else:
-        print("Error restarting SSH service.")
-    
-    # Update and save the analysis file
-    config["ssh_conformite"] = rules
-    save_yaml(yaml_file, config)
-
-# Convert a time value (e.g., '30s', '1h') to seconds
-def convert_time_to_seconds(time_value):
-    if time_value.isdigit():
-        return int(time_value)
-    time_pattern = re.findall(r'(\d+)([hms])', time_value.lower())
-    total_seconds = 0
-    for value, unit in time_pattern:
-        value = int(value)
-        if unit == "h":
-            total_seconds += value * 3600
-        elif unit == "m":
-            total_seconds += value * 60
-        elif unit == "s":
-            total_seconds += value
-    return total_seconds
-
-# Load ANSSI criteria from a YAML file
+# Load and return ANSSI criteria from the specified YAML file
 def load_anssi_criteria(file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
+    # Load ANSSI criteria from the YAML file
     try:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"The file {file_path} was not found.")
-        with open(file_path, "r") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             data = yaml.safe_load(file)
         if not isinstance(data, dict) or "ssh_criteria" not in data:
             raise ValueError("Invalid YAML file format: missing 'ssh_criteria' section.")
         return data.get("ssh_criteria", {})
     except (yaml.YAMLError, FileNotFoundError, ValueError) as e:
         print(f"Error loading criteria: {e}")
+        log_action(f"Error loading criteria: {e}")
         return {}
 
-# Check compliance of SSH configuration against ANSSI criteria
-def check_anssi_compliance(config):
-    anssi_criteria = load_anssi_criteria()
-    all_rules = {}
-    if not anssi_criteria:
-        print("No compliance criteria loaded. Check your YAML file.")
-        return {}
-    for rule, criteria in anssi_criteria.items():
-        directive = criteria.get("directive", "Unknown")
-        expected_value = criteria.get("expected_value", "Unknown")
-        actual_value = config.get(directive, "not defined")
-        
-        if rule == "R1":
-            status = "Compliant"
-            apply_val = True
-            expected = ["Always valid"]
-            detected = "Automatically compliant since Ubuntu 20.04 has SSH 2 by default."
-        elif directive in ["AllowUsers", "AllowGroups"]:
-            if actual_value == "not defined" or actual_value.strip() == "":
-                status = f"Non-Compliant -> '{directive}' is empty or undefined, it must be specified."
-                apply_val = False
-                expected = expected_value.split(",") if isinstance(expected_value, str) else []
-                detected = "None"
-            else:
-                status = f"Compliant -> '{directive}: {actual_value}'"
-                apply_val = True
-                expected = expected_value.split(",") if isinstance(expected_value, str) else []
-                detected = actual_value
-        elif directive in ["LoginGraceTime", "ClientAliveInterval"]:
-            expected_seconds = convert_time_to_seconds(expected_value)
-            actual_seconds = convert_time_to_seconds(actual_value)
-            if actual_seconds <= expected_seconds:
-                status = f"Compliant -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
-                apply_val = True
-                expected = expected_value
-                detected = actual_value
-            else:
-                status = f"Non-Compliant -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
-                apply_val = False
-                expected = expected_value
-                detected = actual_value
-        else:
-            apply_val = actual_value == expected_value
-            status = f"{'Compliant' if apply_val else 'Non-Compliant'} -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
-            expected = expected_value
-            detected = actual_value
-        
-        all_rules[rule] = {
-            "status": status,
-            "apply": apply_val,
-            "expected_elements": expected if isinstance(expected, list) else [expected],
-            "detected_elements": detected
-        }
-    return all_rules
-
-# Retrieve SSH configuration from the server by merging /etc/ssh/sshd_config and files in sshd_config.d/
-def retrieve_ssh_configuration(server, os_info):
-    if not isinstance(server, paramiko.SSHClient):
-        print("Error: Invalid SSH server.")
-        return None
-    try:
-        if os_info and os_info.get("distro", "").lower() == "ubuntu":
-            stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config")
-            config_data = stdout.read().decode()
-            stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config.d/*.conf 2>/dev/null")
-            extra_config_data = stdout.read().decode()
-        else:
-            print("Non-Ubuntu OS detected. Attempting alternative SSH configuration retrieval.")
-            stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config")
-            config_data = stdout.read().decode()
-            stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config.d/*.conf 2>/dev/null")
-            extra_config_data = stdout.read().decode()
-        
-        if not config_data:
-            raise ValueError("SSH configuration file is empty or inaccessible.")
-        
-        full_config = merge_ssh_configurations(config_data, extra_config_data)
-        return full_config
-    except (paramiko.SSHException, ValueError) as e:
-        print(f"Error retrieving SSH configuration: {e}")
-        return None
-
-# Merge base and extra SSH configurations into one string
-def merge_ssh_configurations(base_config, extra_config):
-    parsed_config = parse_ssh_configuration(base_config)
-    extra_parsed_config = parse_ssh_configuration(extra_config)
-    parsed_config.update(extra_parsed_config)
-    merged_config = "\n".join([f"{k} {v}" for k, v in parsed_config.items()])
-    return merged_config
-
-# Parse SSH configuration into a dictionary
+# Parse SSH configuration content into a dictionary
 def parse_ssh_configuration(config_data):
+    # Parse SSH configuration content into a dictionary
     parsed_config = {}
     for line in config_data.split("\n"):
         if line.strip() and not line.strip().startswith("#"):
@@ -410,3 +172,235 @@ def parse_ssh_configuration(config_data):
             if len(key_value) == 2:
                 parsed_config[key_value[0]] = key_value[1]
     return parsed_config
+
+# Apply SSH recommendations based on the compliance YAML file, create backups, and prepare rollback
+def apply_selected_recommendationsSSH(yaml_file, client):
+    # Apply SSH recommendations based on the compliance YAML file.
+    # Create systematic backups of the main SSH configuration and all included files, then prepare a rollback plan and update the configuration.
+    if backup_file("/etc/ssh/sshd_config", client):
+        print("sshd_config backup updated.")
+        log_action("sshd_config backup updated.")
+    else:
+        print("Error updating sshd_config backup.")
+        log_action("Error updating sshd_config backup.")
+        return
+
+    tmp_config_path = "/tmp/sshd_config.new"
+    rollback_flag_path = "/tmp/backup_flag"
+
+    # Create the rollback flag
+    apply_command(f"sudo touch {rollback_flag_path}", client)
+    log_action(f"Rollback flag created at {rollback_flag_path}.")
+
+    # Retrieve files containing current directives and build the set of files to be backed up (including the main file)
+    directives_map = list_directives_with_paths(client)
+    files_to_backup = set(directives_map.values())
+    files_to_backup.add("/etc/ssh/sshd_config")
+
+    # Create systematic backups of all files that will be modified
+    for file_path in files_to_backup:
+        backup_file(file_path, client)
+
+    # Build the rollback plan to restore all backups and restart SSH
+    rollback_cmds = []
+    for file_path in files_to_backup:
+        rollback_cmds.append(f"sudo cp {file_path}.back {file_path}")
+    rollback_cmds.append("sudo systemctl restart ssh")
+    full_rollback_command = f"if [ -f {rollback_flag_path} ]; then " + " && ".join(rollback_cmds) + "; fi"
+
+    # Schedule an automatic rollback (1 minute) if configuration validation fails
+    combined_command = f"echo \"{full_rollback_command}\" | at now + 1 minute  2>/dev/null"
+    apply_command(combined_command, client)
+    print("Rollback plan scheduled with the 'at' command (persists after reboot).")
+    log_action("Rollback plan scheduled with the 'at' command (persists after reboot).")
+
+    # Verify scheduled 'at' jobs
+    stdin, stdout, stderr = exec_command_logged(client, "atq")
+    atq_output = stdout.read().decode().strip()
+    if atq_output:
+        print("At jobs scheduled successfully:")
+        print(atq_output)
+        log_action(f"At queue:\n{atq_output}")
+    else:
+        print("No at jobs found; please check your 'at' configuration.")
+        log_action("No at jobs found; please check your 'at' configuration.")
+
+    # Load compliance configuration
+    config = load_yaml(yaml_file)
+    rules = config.get("ssh_compliance")
+    if not rules:
+        print("No compliance data found in the analysis file (ssh_compliance).")
+        log_action("No compliance data found in the analysis file (ssh_compliance).")
+        return
+
+    # Load SSH criteria (ANSSI)
+    criteria_file = "AnalyseConfiguration/Thematiques/criteres_SSH.yaml"
+    ssh_criteria = load_anssi_criteria(criteria_file)
+    if not ssh_criteria:
+        print("No SSH criteria found in the criteria file.")
+        log_action("No SSH criteria found in the criteria file.")
+        return
+
+    # Copy the main configuration file to a temporary file for modification
+    if not apply_command(f"sudo cp /etc/ssh/sshd_config {tmp_config_path}", client):
+        print("Error copying the SSH configuration.")
+        log_action("Error copying the SSH configuration.")
+        return
+
+    # Remove the UsePrivilegeSeparation directive from the temporary file
+    apply_command(f"sudo sed -i '/^#\\?\\s*UsePrivilegeSeparation/d' {tmp_config_path}", client)
+
+    modified_main_config = False
+    multi_valued_directives = ["AllowUsers", "AllowGroups", "Ciphers", "MACs"]
+
+    # Process rules R1 to R26
+    for i in range(1, 27):
+        rule = f"R{i}"
+        if rule in ["R1", "R11"]:
+            print(f"Rule {rule} removed from application (not applicable as per requirements).")
+            log_action(f"Rule {rule} removed from application (not applicable).")
+            continue
+
+        details = rules.get(rule)
+        if not details:
+            print(f"Rule {rule} not present in the YAML.")
+            log_action(f"Rule {rule} not present in the YAML.")
+            continue
+
+        apply_value = details.get("apply", False)
+        if isinstance(apply_value, str):
+            try:
+                apply_bool = yaml.safe_load(apply_value.lower())
+            except Exception:
+                apply_bool = False
+        else:
+            apply_bool = bool(apply_value)
+
+        if not apply_bool:
+            print(f"Rule {rule} ignored because 'apply' is false.")
+            log_action(f"Rule {rule} ignored because 'apply' is false.")
+            continue
+
+        if rule not in ssh_criteria:
+            print(f"Rule {rule} missing from SSH criteria.")
+            log_action(f"Rule {rule} missing from SSH criteria.")
+            continue
+
+        directive = ssh_criteria[rule].get("directive")
+        expected_value = ssh_criteria[rule].get("expected_value")
+        if not directive or expected_value is None:
+            print(f"Missing directive or expected value for rule {rule}.")
+            log_action(f"Missing directive or expected value for rule {rule}.")
+            continue
+
+        if isinstance(expected_value, list):
+            expected_value = " ".join(expected_value)
+        if directive in ["AllowUsers", "AllowGroups"]:
+            expected_value = expected_value.replace(",", " ")
+
+        effective_file = directives_map.get(directive, None)
+        if effective_file is None:
+            effective_file = tmp_config_path
+            modified_main_config = True
+            file_origin = "main file (temporary)"
+        else:
+            file_origin = f"associated file {effective_file}"
+
+        if directive in multi_valued_directives:
+            delete_command = f"sudo sed -i '/^#\\?\\s*{directive}\\b/d' {effective_file}"
+            if apply_command(delete_command, client):
+                print(f"Occurrences of {directive} have been removed in {file_origin}.")
+                log_action(f"Occurrences of {directive} removed in {file_origin}.")
+            else:
+                print(f"Error removing {directive} in {file_origin}.")
+                log_action(f"Error removing {directive} in {file_origin}.")
+                details["status"] = "Non compliant"
+                continue
+
+            append_command = f"echo '{directive} {expected_value}' | sudo tee -a {effective_file} >/dev/null"
+            if apply_command(append_command, client):
+                details["status"] = "Compliant"
+                print(f"Rule {rule} successfully applied in {file_origin} (directive {directive} reset).")
+                log_action(f"Rule {rule} successfully applied in {file_origin}.")
+            else:
+                details["status"] = "Non compliant"
+                print(f"Failed to apply rule {rule} for {directive} in {file_origin}.")
+                log_action(f"Failed to apply rule {rule} for {directive} in {file_origin}.")
+        else:
+            command = f"sudo sed -i '/^#\\?\\s*{directive}\\b/c\\{directive} {expected_value}' {effective_file}"
+            print(f"Applying rule {rule} on {file_origin}: updating '{directive}' to '{expected_value}'")
+            log_action(f"Applying rule {rule} on {file_origin}: updating '{directive}' to '{expected_value}'")
+            if apply_command(command, client):
+                check_command = f"grep -q '^{directive}\\b' {effective_file}"
+                stdin, stdout, stderr = exec_command_logged(client, check_command)
+                if stdout.channel.recv_exit_status() != 0:
+                    append_command = f"echo '{directive} {expected_value}' | sudo tee -a {effective_file} >/dev/null"
+                    apply_command(append_command, client)
+                    print(f"{directive} added in {file_origin} as it did not exist.")
+                    log_action(f"{directive} added in {file_origin} as it did not exist.")
+                details["status"] = "Compliant"
+                print(f"Rule {rule} successfully applied in {file_origin}.")
+                log_action(f"Rule {rule} successfully applied in {file_origin}.")
+            else:
+                details["status"] = "Non compliant"
+                print(f"Failed to apply rule {rule} in {file_origin}.")
+                log_action(f"Failed to apply rule {rule} in {file_origin}.")
+
+    # If the main file was modified using the temporary file, validate and apply changes
+    if modified_main_config:
+        print("Validating temporary SSH configuration...")
+        log_action("Validating temporary SSH configuration...")
+        stdin, stdout, stderr = exec_command_logged(client, f"sudo sshd -t -f {tmp_config_path}")
+        error = stderr.read().decode()
+        if error:
+            print(f"Invalid configuration: {error}\nRollback will be triggered automatically.")
+            log_action(f"Invalid configuration: {error} - Rollback will be triggered.")
+            return
+
+        print("Valid configuration. Applying changes to the main file.")
+        log_action("Valid configuration. Applying changes to the main file.")
+        if apply_command(f"sudo mv {tmp_config_path} /etc/ssh/sshd_config", client):
+            user_input = input("Do you want to restart the SSH service now? [y/N] : ").strip().lower()
+            if user_input == 'y':
+                if apply_command("sudo systemctl restart ssh", client):
+                    apply_command(f"sudo rm -f {rollback_flag_path}", client)
+                    print("SSH service restarted successfully. Rollback flag removed.")
+                    log_action("SSH service restarted successfully. Rollback flag removed.")
+                    # Remove scheduled at jobs
+                    stdin, stdout, stderr = exec_command_logged(client, "atq")
+                    atq_output = stdout.read().decode().strip()
+                    if atq_output:
+                        for line in atq_output.splitlines():
+                            job_id = line.split()[0]
+                            apply_command(f"atrm {job_id}", client)
+                            log_action(f"Removed at job {job_id}.")
+                else:
+                    print("Failed to restart the SSH service. Rollback will be executed.")
+                    log_action("Failed to restart SSH service. Rollback will be executed.")
+            else:
+                print("SSH restart cancelled by the user. The scheduled rollback will be executed if necessary.")
+                log_action("SSH restart cancelled by the user. Rollback scheduled if necessary.")
+        else:
+            print("Error updating the main SSH file.")
+            log_action("Error updating the main SSH file.")
+    else:
+        user_input = input("Do you want to restart the SSH service now? [y/N] : ").strip().lower()
+        if user_input == 'y':
+            if apply_command("sudo systemctl restart ssh", client):
+                apply_command(f"sudo rm -f {rollback_flag_path}", client)
+                print("SSH service restarted successfully. Rollback flag removed.")
+                log_action("SSH service restarted successfully. Rollback flag removed.")
+                # Remove scheduled at jobs
+                stdin, stdout, stderr = exec_command_logged(client, "atq")
+                atq_output = stdout.read().decode().strip()
+                if atq_output:
+                    for line in atq_output.splitlines():
+                        job_id = line.split()[0]
+                        apply_command(f"atrm {job_id}", client)
+                        log_action(f"Removed at job {job_id}.")
+            else:
+                print("Failed to restart the SSH service. Rollback will be executed.")
+                log_action("Failed to restart SSH service. Rollback will be executed.")
+        else:
+            print("SSH restart cancelled by the user. The scheduled rollback will be executed if necessary.")
+            log_action("SSH restart cancelled by the user. Rollback scheduled if necessary.")
