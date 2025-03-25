@@ -5,6 +5,8 @@ from ApplicationRecommandations.Thematiques.Maintenance import apply_maintenance
 from ApplicationRecommandations.Thematiques.MiseAJour import apply_mise_a_jour
 from ApplicationRecommandations.Thematiques.Systeme import apply_system
 from ApplicationRecommandations.Thematiques.Services import apply_services
+from ApplicationRecommandations.Thematiques.Reseau import apply_network
+from ApplicationRecommandations.Thematiques.Utilisateurs import apply_user
 
 
 # Fonction de chargement des rapports d'analyse
@@ -41,28 +43,7 @@ def application_recommandations_min (client) :
     print("\n [Correction] Services ( niveau min) ")
     apply_services(client, niveau="min", report_data=report_data)
 
+    print("\n [Correction] min ( niveau min) ")
+    apply_network(client, niveau="min", report_data=report_data)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-"""def application_recommandations_min(client):
-    Applique toutes les recommandations minimales à partir du rapport YAML
-    path_report="./GenerationRapport/RapportApplication/"
-    # Ici, on passe le chemin complet du fichier à chaque fonction sans vérification préalable
-    apply_recommandation_acces(f"{path_report}/application.yml", client ,"min")
-    apply_recommandation_mise_a_jour(f"{path_report}/application.yml", client , "min")
-    apply_recommandation_politique_mot_de_passe(f"{path_report}/application.yml", client , "min")
-    apply_recommandation_service(f"{path_report}/application.yml", client , "min")
-    apply_recommandation_maintenance(f"{path_report}/application.yml", client , "min")
-    apply_recommandation_reseau(f"{path_report}/application.yml", client , "min")
-"""
