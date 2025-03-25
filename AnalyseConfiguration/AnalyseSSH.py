@@ -36,7 +36,6 @@ ssh_comments = {
 
 # Get list of non-system users (UID >= 1000) excluding "nobody"
 def get_server_users(server):
-    # Retrieve users with UID >= 1000, excluding "nobody"
     try:
         stdin, stdout, stderr = server.exec_command("awk -F: '$3>=1000 {print $1}' /etc/passwd")
         users = stdout.read().decode().splitlines()
@@ -47,7 +46,6 @@ def get_server_users(server):
 
 # Get list of non-system groups (GID >= 1000) excluding "nogroup"
 def get_server_groups(server):
-    # Retrieve groups with GID >= 1000, excluding "nogroup"
     try:
         stdin, stdout, stderr = server.exec_command("awk -F: '$3>=1000 {print $1}' /etc/group")
         groups = stdout.read().decode().splitlines()
@@ -58,7 +56,6 @@ def get_server_groups(server):
 
 # Get the server IP address using 'hostname -I'
 def get_server_ip(server):
-    # Retrieve server IP address (first one from hostname -I)
     try:
         stdin, stdout, stderr = server.exec_command("hostname -I")
         ip_output = stdout.read().decode().strip()
@@ -72,14 +69,10 @@ def get_server_ip(server):
 
 # Update the SSH criteria YAML file with system info (AllowUsers, AllowGroups, ListenAddress)
 def update_ssh_criteria_with_system_info(server, file_path="AnalyseConfiguration/Thematiques/criteres_SSH.yaml"):
-    # Update expected_value for R12, R13, and R25 based on system info.
-    # NOTE: Modify the expected_value in ssh_criteria as per your desired configuration
-    # because this file will be used for the application.
     users = get_server_users(server)
     groups = get_server_groups(server)
     server_ip = get_server_ip(server)
     
-    # Convert lists to comma-separated strings
     users_str = ",".join(users)
     groups_str = ",".join(groups)
     
@@ -87,23 +80,27 @@ def update_ssh_criteria_with_system_info(server, file_path="AnalyseConfiguration
         print(f"The file {file_path} does not exist.")
         return
     
-    # Read existing YAML file
     with open(file_path, 'r') as f:
         data = yaml.safe_load(f)
     
     if "ssh_criteria" in data:
         if "R12" in data["ssh_criteria"]:
-            data["ssh_criteria"]["R12"]["expected_value"] = users_str
+            current_value = data["ssh_criteria"]["R12"].get("expected_value", "").strip()
+            if not current_value:
+                data["ssh_criteria"]["R12"]["expected_value"] = users_str
         if "R13" in data["ssh_criteria"]:
-            data["ssh_criteria"]["R13"]["expected_value"] = groups_str
+            current_value = data["ssh_criteria"]["R13"].get("expected_value", "").strip()
+            if not current_value:
+                data["ssh_criteria"]["R13"]["expected_value"] = groups_str
         if server_ip and "R25" in data["ssh_criteria"]:
-            data["ssh_criteria"]["R25"]["expected_value"] = server_ip
+            current_value = data["ssh_criteria"]["R25"].get("expected_value", "").strip()
+            if not current_value:
+                data["ssh_criteria"]["R25"]["expected_value"] = server_ip
     
-    # Write the YAML file in block style (proper indentation)
     with open(file_path, 'w') as f:
         yaml.dump(data, f, default_flow_style=False, sort_keys=False)
     
-    print(f"The expected values for R12, R13, and R25 have been updated in {file_path}.")
+    print(f"The expected values for R12, R13, and R25 have been updated in {file_path} (only if they were initially empty).")
     print("Reminder: Please modify the expected_value in ssh_criteria according to your desired configuration, as this file will be used for the application.")
 
 # Generate a YAML report based on compliance rules
@@ -147,7 +144,6 @@ def generate_yaml_report(all_rules, filename="analyse_ssh.yaml", comments=None):
 
 # Check SSH configuration compliance and generate reports
 def check_ssh_configuration_compliance(server, os_info):
-    # Update criteria with system info before analysis
     update_ssh_criteria_with_system_info(server)
     
     config_data = retrieve_ssh_configuration(server, os_info)
@@ -203,39 +199,68 @@ def check_anssi_compliance(config):
         directive = criteria.get("directive", "Unknown")
         expected_value = criteria.get("expected_value", "Unknown")
         actual_value = config.get(directive, "not defined")
-
+        
+        # Special cases: some directives are always compliant by default
         if rule == "R1":
             status = "Compliant"
             apply_val = True
             expected = ["Always valid"]
-            detected = "Automatically compliant since Ubuntu 20.04 has SSH 2 by default."
+            detected = "Automatically compliant since SSH 2 is default."
+        elif rule == "R11":
+            status = "Compliant"
+            apply_val = True
+            expected = ["Always valid"]
+            detected = "Default to sandbox"
+        # If the directive is not detected, mark the rule as Non-Compliant
+        elif actual_value in ["not defined", None, ""]:
+            status = "Non-Compliant"
+            apply_val = False
+            expected = expected_value
+            detected = actual_value
         elif directive in ["AllowUsers", "AllowGroups"]:
-            if actual_value == "not defined" or actual_value.strip() == "":
-                status = f"Non-Compliant -> '{directive}' is empty or undefined, it must be specified."
-                apply_val = False
-                expected = expected_value.split(",") if isinstance(expected_value, str) else []
-                detected = "None"
+            expected_list = ([x.strip() for x in expected_value.split(",") if x.strip()]
+                             if isinstance(expected_value, str) else [])
+            actual_list = ([x.strip() for x in actual_value.split(",") if x.strip()]
+                           if actual_value.strip() != "" else [])
+            if not expected_list:
+                if actual_list:
+                    status = f"Suggested -> '{directive}' initially empty criteria updated with: {actual_value}."
+                    expected_list = actual_list
+                    apply_val = True
+                else:
+                    status = "Non-Compliant"
+                    apply_val = False
+                expected = expected_list
+                detected = actual_list
             else:
-                status = f"Compliant -> '{directive}: {actual_value}'"
-                apply_val = True
-                expected = expected_value.split(",") if isinstance(expected_value, str) else []
-                detected = actual_value
+                if set(expected_list) == set(actual_list):
+                    status = "Compliant"
+                    apply_val = True
+                else:
+                    status = "Non-Compliant"
+                    apply_val = False
+                expected = expected_list
+                detected = actual_list
         elif directive in ["LoginGraceTime", "ClientAliveInterval"]:
-            expected_seconds = convert_time_to_seconds(expected_value)
-            actual_seconds = convert_time_to_seconds(actual_value)
-            if actual_seconds <= expected_seconds:
-                status = f"Compliant -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
-                apply_val = True
+            if actual_value in ["not defined", None, ""]:
+                status = "Non-Compliant"
+                apply_val = False
                 expected = expected_value
                 detected = actual_value
             else:
-                status = f"Non-Compliant -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
-                apply_val = False
+                expected_seconds = convert_time_to_seconds(expected_value)
+                actual_seconds = convert_time_to_seconds(actual_value)
+                if actual_seconds <= expected_seconds:
+                    status = "Compliant"
+                    apply_val = True
+                else:
+                    status = "Non-Compliant"
+                    apply_val = False
                 expected = expected_value
                 detected = actual_value
         else:
-            apply_val = actual_value == expected_value
-            status = f"{'Compliant' if apply_val else 'Non-Compliant'} -> '{directive}: {actual_value}' | expected: '{directive}: {expected_value}'"
+            apply_val = (actual_value == expected_value)
+            status = "Compliant" if apply_val else "Non-Compliant"
             expected = expected_value
             detected = actual_value
 
@@ -247,28 +272,42 @@ def check_anssi_compliance(config):
         }
     return all_rules
 
-# Retrieve SSH configuration from server
+# Retrieve SSH configuration from server taking into account the Includes specified in the base file
 def retrieve_ssh_configuration(server, os_info):
     if not isinstance(server, paramiko.SSHClient):
         print("Error: Invalid SSH server.")
         return None
     try:
-        if os_info and os_info.get("distro", "").lower() == "ubuntu":
-            stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config")
-            config_data = stdout.read().decode()
-            stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config.d/*.conf 2>/dev/null")
-            extra_config_data = stdout.read().decode()
-        else:
-            print("Non-Ubuntu OS detected. Attempting alternative SSH configuration retrieval.")
-            stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config")
-            config_data = stdout.read().decode()
-            stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config.d/*.conf 2>/dev/null")
-            extra_config_data = stdout.read().decode()
-        
-        if not config_data:
+        # Reading the base configuration file
+        stdin, stdout, stderr = server.exec_command("cat /etc/ssh/sshd_config")
+        base_config_data = stdout.read().decode()
+        if not base_config_data:
             raise ValueError("SSH configuration file is empty or inaccessible.")
         
-        full_config = merge_ssh_configurations(config_data, extra_config_data)
+        # Searching for Include directives in the base file
+        include_files = []
+        for line in base_config_data.splitlines():
+            stripped = line.strip()
+            # Ignore empty lines and comments
+            if stripped and not stripped.startswith("#") and stripped.lower().startswith("include "):
+                parts = stripped.split(None, 1)
+                if len(parts) == 2:
+                    # An include can contain multiple paths separated by spaces
+                    patterns = parts[1].split()
+                    include_files.extend(patterns)
+        
+        extra_config_data = ""
+        # If an Include directive is specified, process the corresponding files
+        if include_files:
+            for pattern in include_files:
+                stdin, stdout, stderr = server.exec_command(f"cat {pattern} 2>/dev/null")
+                data = stdout.read().decode()
+                extra_config_data += "\n" + data
+        else:
+            # No Include is present, so /etc/ssh/sshd_config.d/* is not processed by default.
+            extra_config_data = ""
+        
+        full_config = merge_ssh_configurations(base_config_data, extra_config_data)
         return full_config
     except (paramiko.SSHException, ValueError) as e:
         print(f"Error retrieving SSH configuration: {e}")
@@ -278,6 +317,7 @@ def retrieve_ssh_configuration(server, os_info):
 def merge_ssh_configurations(base_config, extra_config):
     parsed_config = parse_ssh_configuration(base_config)
     extra_parsed_config = parse_ssh_configuration(extra_config)
+    # The last occurrence of each directive (from the includes) replaces the one in the base file
     parsed_config.update(extra_parsed_config)
     merged_config = "\n".join([f"{k} {v}" for k, v in parsed_config.items()])
     return merged_config
