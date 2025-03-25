@@ -159,7 +159,7 @@ def apply_r75(serveur, report):
 # MAIN
 # ============================
 
-def apply_services(client, level, report_data):
+def apply_services(client, niveau , report_data):
     fix_results = {}
     apply_data = report_data.get("services", None)
     if apply_data is None:
@@ -178,11 +178,11 @@ def apply_services(client, level, report_data):
     }
 
     apply_data = report_data.get("services", {})
-    if level in rules:
-        for rule_id, (function, comment) in rules[level].items():
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
             if apply_data.get(rule_id, {}).get("apply", False):
                 print(f"-> Applying rule {rule_id}: {comment}")
                 function(client, apply_data)
 
-    print(f"\n Fixes applied - SERVICES - Level {level.upper()}")
+    print(f"\n Fixes applied - SERVICES - Level {niveau.upper()}")
     return fix_results
