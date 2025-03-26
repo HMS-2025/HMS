@@ -23,5 +23,5 @@ ssh_criteria:
   R22: { directive: "ClientAliveInterval", expected_value: "300" }
   R23: { directive: "ClientAliveCountMax", expected_value: "0" }
   R24: { directive: "LoginGraceTime", expected_value: "20" }
-  R25: { directive: "ListenAddress", expected_value: "192.168.1.1" }
+  R25: { directive: "ListenAddress", expected_value: "" }
   R26: { directive: "Port", expected_value: "22" }

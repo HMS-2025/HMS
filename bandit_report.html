@@ -1,0 +1,1849 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+    Bandit Report
+</title>
+
+<style>
+
+html * {
+    font-family: "Arial", sans-serif;
+}
+
+pre {
+    font-family: "Monaco", monospace;
+}
+
+.bordered-box {
+    border: 1px solid black;
+    padding-top:.5em;
+    padding-bottom:.5em;
+    padding-left:1em;
+}
+
+.metrics-box {
+    font-size: 1.1em;
+    line-height: 130%;
+}
+
+.metrics-title {
+    font-size: 1.5em;
+    font-weight: 500;
+    margin-bottom: .25em;
+}
+
+.issue-description {
+    font-size: 1.3em;
+    font-weight: 500;
+}
+
+.candidate-issues {
+    margin-left: 2em;
+    border-left: solid 1px; LightGray;
+    padding-left: 5%;
+    margin-top: .2em;
+    margin-bottom: .2em;
+}
+
+.issue-block {
+    border: 1px solid LightGray;
+    padding-left: .5em;
+    padding-top: .5em;
+    padding-bottom: .5em;
+    margin-bottom: .5em;
+}
+
+.issue-sev-high {
+    background-color: Pink;
+}
+
+.issue-sev-medium {
+    background-color: NavajoWhite;
+}
+
+.issue-sev-low {
+    background-color: LightCyan;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="metrics">
+    <div class="metrics-box bordered-box">
+        <div class="metrics-title">
+            Metrics:<br>
+        </div>
+        Total lines of code: <span id="loc">7191</span><br>
+        Total lines skipped (#nosec): <span id="nosec">0</span>
+    </div>
+</div>
+
+
+
+
+<br>
+<div id="results">
+    
+<div id="issue-0">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/AnalyseSSH.py" target="_blank">./AnalyseConfiguration/AnalyseSSH.py</a><br>
+    <b>Line number: </b>40<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+39	    try:
+40	        stdin, stdout, stderr = server.exec_command(&quot;awk -F: &#x27;$3&gt;=1000 {print $1}&#x27; /etc/passwd&quot;)
+41	        users = stdout.read().decode().splitlines()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-1">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/AnalyseSSH.py" target="_blank">./AnalyseConfiguration/AnalyseSSH.py</a><br>
+    <b>Line number: </b>50<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+49	    try:
+50	        stdin, stdout, stderr = server.exec_command(&quot;awk -F: &#x27;$3&gt;=1000 {print $1}&#x27; /etc/group&quot;)
+51	        groups = stdout.read().decode().splitlines()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-2">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/AnalyseSSH.py" target="_blank">./AnalyseConfiguration/AnalyseSSH.py</a><br>
+    <b>Line number: </b>60<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+59	    try:
+60	        stdin, stdout, stderr = server.exec_command(&quot;hostname -I&quot;)
+61	        ip_output = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-3">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/AnalyseSSH.py" target="_blank">./AnalyseConfiguration/AnalyseSSH.py</a><br>
+    <b>Line number: </b>282<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+281	        # Reading the base configuration file
+282	        stdin, stdout, stderr = server.exec_command(&quot;cat /etc/ssh/sshd_config&quot;)
+283	        base_config_data = stdout.read().decode()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-4">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/AnalyseSSH.py" target="_blank">./AnalyseConfiguration/AnalyseSSH.py</a><br>
+    <b>Line number: </b>303<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+302	            for pattern in include_files:
+303	                stdin, stdout, stderr = server.exec_command(f&quot;cat {pattern} 2&gt;/dev/null&quot;)
+304	                data = stdout.read().decode()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-5">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/GestionAcces.py" target="_blank">./AnalyseConfiguration/Thematiques/GestionAcces.py</a><br>
+    <b>Line number: </b>8<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+7	def execute_ssh_command(serveur, command):
+8	    stdin, stdout, stderr = serveur.exec_command(command)
+9	    return list(filter(None, stdout.read().decode().strip().split(&quot;\n&quot;)))
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-6">
+<div class="issue-block issue-sev-low">
+    <b>try_except_continue: </b> Try, Except, Continue detected.<br>
+    <b>Test ID:</b> B112<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/703.html" target="_blank">CWE-703</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/GestionAcces.py" target="_blank">./AnalyseConfiguration/Thematiques/GestionAcces.py</a><br>
+    <b>Line number: </b>372<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b112_try_except_continue.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b112_try_except_continue.html</a><br>
+
+<div class="code">
+<pre>
+371	                    break
+372	            except Exception:
+373	                continue
+374	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-7">
+<div class="issue-block issue-sev-low">
+    <b>try_except_pass: </b> Try, Except, Pass detected.<br>
+    <b>Test ID:</b> B110<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/703.html" target="_blank">CWE-703</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/GestionAcces.py" target="_blank">./AnalyseConfiguration/Thematiques/GestionAcces.py</a><br>
+    <b>Line number: </b>380<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b110_try_except_pass.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b110_try_except_pass.html</a><br>
+
+<div class="code">
+<pre>
+379	                result[&quot;pam_namespace&quot;][&quot;configured&quot;] = True
+380	        except Exception:
+381	            pass
+382	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-8">
+<div class="issue-block issue-sev-low">
+    <b>try_except_continue: </b> Try, Except, Continue detected.<br>
+    <b>Test ID:</b> B112<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/703.html" target="_blank">CWE-703</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/GestionAcces.py" target="_blank">./AnalyseConfiguration/Thematiques/GestionAcces.py</a><br>
+    <b>Line number: </b>414<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b112_try_except_continue.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b112_try_except_continue.html</a><br>
+
+<div class="code">
+<pre>
+413	                        continue
+414	                except Exception:
+415	                    continue
+416	                non_conformes.append(f&quot;{directory}: Unable to retrieve permissions.&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-9">
+<div class="issue-block issue-sev-low">
+    <b>try_except_continue: </b> Try, Except, Continue detected.<br>
+    <b>Test ID:</b> B112<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/703.html" target="_blank">CWE-703</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/GestionAcces.py" target="_blank">./AnalyseConfiguration/Thematiques/GestionAcces.py</a><br>
+    <b>Line number: </b>435<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b112_try_except_continue.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b112_try_except_continue.html</a><br>
+
+<div class="code">
+<pre>
+434	                    continue
+435	            except Exception:
+436	                continue
+437	            others = permissions[-3:]
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-10">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Maintenance.py" target="_blank">./AnalyseConfiguration/Thematiques/Maintenance.py</a><br>
+    <b>Line number: </b>18<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+17	    try:
+18	        stdin, stdout, stderr = server.exec_command(command)
+19	        return list(filter(None, stdout.read().decode().strip().split(&quot;\n&quot;)))
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-11">
+<div class="issue-block issue-sev-low">
+    <b>hardcoded_password_string: </b> Possible hardcoded password: 'grep -E 'password_pbkdf2' /etc/grub.d/* /boot/grub/grub.cfg'<br>
+    <b>Test ID:</b> B105<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/259.html" target="_blank">CWE-259</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Maintenance.py" target="_blank">./AnalyseConfiguration/Thematiques/Maintenance.py</a><br>
+    <b>Line number: </b>40<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html</a><br>
+
+<div class="code">
+<pre>
+39	        command_check_superusers = &quot;grep -E &#x27;set\\s+superusers&#x27; /etc/grub.d/* /boot/grub/grub.cfg&quot;
+40	        command_check_password = &quot;grep -E &#x27;password_pbkdf2&#x27; /etc/grub.d/* /boot/grub/grub.cfg&quot;
+41	        superusers_output = execute_ssh_command(server, command_check_superusers)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-12">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/MiseAJour.py" target="_blank">./AnalyseConfiguration/Thematiques/MiseAJour.py</a><br>
+    <b>Line number: </b>18<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+17	    try:
+18	        stdin, stdout, stderr = server.exec_command(command)
+19	        return list(filter(None, stdout.read().decode().strip().split(&quot;\n&quot;)))
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-13">
+<div class="issue-block issue-sev-low">
+    <b>hardcoded_password_string: </b> Possible hardcoded password: 'grep -E 'password_pbkdf2' /etc/grub.d/* /boot/grub/grub.cfg'<br>
+    <b>Test ID:</b> B105<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/259.html" target="_blank">CWE-259</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/MiseAJour.py" target="_blank">./AnalyseConfiguration/Thematiques/MiseAJour.py</a><br>
+    <b>Line number: </b>72<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html</a><br>
+
+<div class="code">
+<pre>
+71	        cmd_superusers = &quot;grep -E &#x27;set\\s+superusers&#x27; /etc/grub.d/* /boot/grub/grub.cfg&quot;
+72	        cmd_password = &quot;grep -E &#x27;password_pbkdf2&#x27; /etc/grub.d/* /boot/grub/grub.cfg&quot;
+73	        superusers_output = execute_ssh_command(server, cmd_superusers)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-14">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/PolitiqueMotDePasse.py" target="_blank">./AnalyseConfiguration/Thematiques/PolitiqueMotDePasse.py</a><br>
+    <b>Line number: </b>195<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+194	    try:
+195	        stdin, stdout, stderr = serveur.exec_command(command)
+196	        output = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-15">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Reseau.py" target="_blank">./AnalyseConfiguration/Thematiques/Reseau.py</a><br>
+    <b>Line number: </b>8<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+7	def execute_ssh_command(server, command):
+8	    stdin, stdout, stderr = server.exec_command(command)
+9	    return list(filter(None, stdout.read().decode().strip().split(&quot;\n&quot;)))
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-16">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Services.py" target="_blank">./AnalyseConfiguration/Thematiques/Services.py</a><br>
+    <b>Line number: </b>111<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+110	def execute_ssh_command(serveur, command):
+111	    stdin, stdout, stderr = serveur.exec_command(command)
+112	    output = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-17">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Services.py" target="_blank">./AnalyseConfiguration/Thematiques/Services.py</a><br>
+    <b>Line number: </b>234<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+233	            commande = &quot;cat /proc/sys/kernel/modules_disabled&quot;
+234	            stdin, stdout, stderr = serveur.exec_command(commande)
+235	            value = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-18">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Systeme.py" target="_blank">./AnalyseConfiguration/Thematiques/Systeme.py</a><br>
+    <b>Line number: </b>21<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+20	def execute_ssh_command(serveur, command):
+21	    stdin, stdout, stderr = serveur.exec_command(command)
+22	    output = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-19">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Systeme.py" target="_blank">./AnalyseConfiguration/Thematiques/Systeme.py</a><br>
+    <b>Line number: </b>81<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+80	    command = &quot;grep &#x27;^GRUB_CMDLINE_LINUX_DEFAULT=&#x27; /etc/default/grub.d/50-cloudimg-settings.cfg | sed &#x27;s/GRUB_CMDLINE_LINUX_DEFAULT=\&quot;//;s/\&quot;$//&#x27;&quot;
+81	    stdin, stdout, stderr = serveur.exec_command(command)
+82	    grub_cmdline = list(set(stdout.read().decode().strip().split()))
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-20">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Systeme.py" target="_blank">./AnalyseConfiguration/Thematiques/Systeme.py</a><br>
+    <b>Line number: </b>93<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+92	        command = f&quot;sysctl -n {param}&quot;
+93	        stdin, stdout, stderr = serveur.exec_command(command)
+94	        detected_settings[param] = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-21">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Systeme.py" target="_blank">./AnalyseConfiguration/Thematiques/Systeme.py</a><br>
+    <b>Line number: </b>100<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+99	    command = &quot;sysctl -n kernel.yama.ptrace_scope&quot;
+100	    stdin, stdout, stderr = serveur.exec_command(command)
+101	    yama_status = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-22">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Systeme.py" target="_blank">./AnalyseConfiguration/Thematiques/Systeme.py</a><br>
+    <b>Line number: </b>109<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+108	        command = f&quot;sysctl -n {param}&quot;
+109	        stdin, stdout, stderr = serveur.exec_command(command)
+110	        detected_settings[param] = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-23">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Systeme.py" target="_blank">./AnalyseConfiguration/Thematiques/Systeme.py</a><br>
+    <b>Line number: </b>186<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+185	    # Lance la commande avec sudo pour s&#x27;assurer d&#x27;avoir toutes les infos
+186	    stdin, stdout, stderr = serveur.exec_command(&quot;sudo aa-status&quot;)
+187	    
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-24">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Utilisateurs.py" target="_blank">./AnalyseConfiguration/Thematiques/Utilisateurs.py</a><br>
+    <b>Line number: </b>43<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+42	def execute_ssh_command(serveur, command):
+43	    stdin, stdout, stderr = serveur.exec_command(command)
+44	    output = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-25">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Utilisateurs.py" target="_blank">./AnalyseConfiguration/Thematiques/Utilisateurs.py</a><br>
+    <b>Line number: </b>267<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+266	        command_logind = &quot;sudo grep -E &#x27;^(IdleAction|IdleActionSec|RuntimeMaxSec)=&#x27; /etc/systemd/logind.conf | grep -v &#x27;^#&#x27;&quot;
+267	        stdin, stdout, stderr = serveur.exec_command(command_logind)
+268	        logind_output = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-26">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./AnalyseConfiguration/Thematiques/Utilisateurs.py" target="_blank">./AnalyseConfiguration/Thematiques/Utilisateurs.py</a><br>
+    <b>Line number: </b>425<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+424	        command_logind = &quot;sudo grep -E &#x27;^(IdleAction|IdleActionSec|RuntimeMaxSec)=&#x27; /etc/systemd/logind.conf | grep -v &#x27;^#&#x27;&quot;
+425	        stdin, stdout, stderr = serveur.exec_command(command_logind)
+426	        logind_output = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-27">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/AppRecommandationsSSH.py" target="_blank">./ApplicationRecommandations/AppRecommandationsSSH.py</a><br>
+    <b>Line number: </b>21<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+20	    log_action(f&quot;Executing command: {command}&quot;)
+21	    return client.exec_command(command)
+22	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-28">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/AppRecommandationsSSH.py" target="_blank">./ApplicationRecommandations/AppRecommandationsSSH.py</a><br>
+    <b>Line number: </b>188<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+187	
+188	    tmp_config_path = &quot;/tmp/sshd_config.new&quot;
+189	    rollback_flag_path = &quot;/tmp/backup_flag&quot;
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-29">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/AppRecommandationsSSH.py" target="_blank">./ApplicationRecommandations/AppRecommandationsSSH.py</a><br>
+    <b>Line number: </b>189<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+188	    tmp_config_path = &quot;/tmp/sshd_config.new&quot;
+189	    rollback_flag_path = &quot;/tmp/backup_flag&quot;
+190	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-30">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/GestionAcces.py" target="_blank">./ApplicationRecommandations/Thematiques/GestionAcces.py</a><br>
+    <b>Line number: </b>669<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+668	    # Copier sudoers vers un fichier temporaire
+669	    temp_file = &quot;/tmp/sudoers_modif_R41&quot;
+670	    serveur.exec_command(f&quot;sudo cp /etc/sudoers {temp_file}&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-31">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/GestionAcces.py" target="_blank">./ApplicationRecommandations/Thematiques/GestionAcces.py</a><br>
+    <b>Line number: </b>728<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+727	        # Sauvegarde des fichiers détectés dans un fichier temporaire sur le serveur
+728	        temp_file = &quot;/tmp/unauthorized_setuid_files&quot;
+729	        file_list = &quot;\n&quot;.join(unauthorized_files)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-32">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/GestionAcces.py" target="_blank">./ApplicationRecommandations/Thematiques/GestionAcces.py</a><br>
+    <b>Line number: </b>784<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+783	        # Sauvegarde des fichiers détectés dans un fichier temporaire sur le serveur
+784	        temp_file = &quot;/tmp/unauthorized_privilege_files&quot;
+785	        file_list = &quot;\n&quot;.join(unauthorized_files)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-33">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/JournalisationAudit.py" target="_blank">./ApplicationRecommandations/Thematiques/JournalisationAudit.py</a><br>
+    <b>Line number: </b>105<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+104	    # Créer un fichier temporaire pour les modifications
+105	    temp_file = &quot;/tmp/rsyslog_temp&quot;
+106	    print(&quot;🔹 Creating a temporary file for modifications...&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-34">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/JournalisationAudit.py" target="_blank">./ApplicationRecommandations/Thematiques/JournalisationAudit.py</a><br>
+    <b>Line number: </b>211<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+210	        # Create a temporary file for modifications
+211	        temp_file = f&quot;/tmp/{log_file.split(&#x27;/&#x27;)[-1]}_temp&quot;
+212	        serveur.exec_command(f&quot;sudo cp {log_file} {temp_file}&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-35">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/JournalisationAudit.py" target="_blank">./ApplicationRecommandations/Thematiques/JournalisationAudit.py</a><br>
+    <b>Line number: </b>261<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+260	    # 1. Backup des fichiers importants avant toute modification
+261	    backup_dir = &quot;/tmp/auditd_backup&quot;
+262	    os.makedirs(backup_dir, exist_ok=True)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-36">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/JournalisationAudit.py" target="_blank">./ApplicationRecommandations/Thematiques/JournalisationAudit.py</a><br>
+    <b>Line number: </b>270<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+269	    # 2. Vérifier les permissions des répertoires temporaires
+270	    tmp_dir = &quot;/tmp&quot;
+271	    if os.path.exists(tmp_dir):
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-37">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/Reseau.py" target="_blank">./ApplicationRecommandations/Thematiques/Reseau.py</a><br>
+    <b>Line number: </b>162<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+161	        # Step 1: Backup existing rules
+162	        backup_file = &quot;/tmp/iptables-backup.rules&quot;
+163	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-38">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/Reseau.py" target="_blank">./ApplicationRecommandations/Thematiques/Reseau.py</a><br>
+    <b>Line number: </b>427<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+426	    # Configuration for remote capture
+427	    output_file = &quot;/tmp/captured_traffic.pcap&quot;  # Remote path
+428	    local_pcap_file = &quot;/tmp/captured_traffic.pcap&quot;  # Local path
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-39">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/Reseau.py" target="_blank">./ApplicationRecommandations/Thematiques/Reseau.py</a><br>
+    <b>Line number: </b>428<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+427	    output_file = &quot;/tmp/captured_traffic.pcap&quot;  # Remote path
+428	    local_pcap_file = &quot;/tmp/captured_traffic.pcap&quot;  # Local path
+429	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-40">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/Services.py" target="_blank">./ApplicationRecommandations/Thematiques/Services.py</a><br>
+    <b>Line number: </b>199<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+198	        # Copier le fichier de configuration actuel dans un fichier temporaire
+199	        temp_file = &quot;/tmp/blacklist_temp.conf&quot;
+200	        serveur.exec_command(f&quot;sudo cp /etc/modprobe.d/blacklist.conf {temp_file}&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-41">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_tmp_directory: </b> Probable insecure usage of temp file/directory.<br>
+    <b>Test ID:</b> B108<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/377.html" target="_blank">CWE-377</a><br>
+    <b>File: </b><a href="./ApplicationRecommandations/Thematiques/Systeme.py" target="_blank">./ApplicationRecommandations/Thematiques/Systeme.py</a><br>
+    <b>Line number: </b>268<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b108_hardcoded_tmp_directory.html</a><br>
+
+<div class="code">
+<pre>
+267	        # Copier /etc/profile dans un fichier temporaire
+268	        temp_file = &quot;/tmp/profile_temp&quot;
+269	        serveur.exec_command(f&quot;sudo cp /etc/profile {temp_file}&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-42">
+<div class="issue-block issue-sev-low">
+    <b>blacklist: </b> Consider possible security implications associated with the subprocess module.<br>
+    <b>Test ID:</b> B404<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./Config.py" target="_blank">./Config.py</a><br>
+    <b>Line number: </b>7<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/blacklists/blacklist_imports.html#b404-import-subprocess" target="_blank">https://bandit.readthedocs.io/en/1.7.10/blacklists/blacklist_imports.html#b404-import-subprocess</a><br>
+
+<div class="code">
+<pre>
+6	import socket
+7	import subprocess
+8	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-43">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_without_shell_equals_true: </b> subprocess call - check for execution of untrusted input.<br>
+    <b>Test ID:</b> B603<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./Config.py" target="_blank">./Config.py</a><br>
+    <b>Line number: </b>26<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b603_subprocess_without_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b603_subprocess_without_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+25	        ping_cmd = [&quot;ping&quot;, &quot;-c&quot;, &quot;1&quot;, &quot;-W&quot;, &quot;1&quot;, hostname] if os.name != &quot;nt&quot; else [&quot;ping&quot;, &quot;-n&quot;, &quot;1&quot;, hostname]
+26	        result = subprocess.run(ping_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+27	        return result.returncode == 0
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-44">
+<div class="issue-block issue-sev-high">
+    <b>ssh_no_host_key_verification: </b> Paramiko call with policy set to automatically trust the unknown host key.<br>
+    <b>Test ID:</b> B507<br>
+    <b>Severity: </b>HIGH<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/295.html" target="_blank">CWE-295</a><br>
+    <b>File: </b><a href="./Config.py" target="_blank">./Config.py</a><br>
+    <b>Line number: </b>60<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b507_ssh_no_host_key_verification.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b507_ssh_no_host_key_verification.html</a><br>
+
+<div class="code">
+<pre>
+59	        client = paramiko.SSHClient()
+60	        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+61	        key = None
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-45">
+<div class="issue-block issue-sev-low">
+    <b>blacklist: </b> Consider possible security implications associated with the subprocess module.<br>
+    <b>Test ID:</b> B404<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>3<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/blacklists/blacklist_imports.html#b404-import-subprocess" target="_blank">https://bandit.readthedocs.io/en/1.7.10/blacklists/blacklist_imports.html#b404-import-subprocess</a><br>
+
+<div class="code">
+<pre>
+2	import os
+3	import subprocess
+4	import shutil
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-46">
+<div class="issue-block issue-sev-low">
+    <b>start_process_with_partial_path: </b> Starting a process with a partial executable path<br>
+    <b>Test ID:</b> B607<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>27<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html</a><br>
+
+<div class="code">
+<pre>
+26	    try:
+27	        subprocess.run(&quot;sudo apt update&quot;, shell=True, check=True)
+28	        subprocess.run(&quot;sudo apt install -y build-essential libssl-dev&quot;, shell=True, check=True)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-47">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_popen_with_shell_equals_true: </b> subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell<br>
+    <b>Test ID:</b> B602<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>27<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+26	    try:
+27	        subprocess.run(&quot;sudo apt update&quot;, shell=True, check=True)
+28	        subprocess.run(&quot;sudo apt install -y build-essential libssl-dev&quot;, shell=True, check=True)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-48">
+<div class="issue-block issue-sev-low">
+    <b>start_process_with_partial_path: </b> Starting a process with a partial executable path<br>
+    <b>Test ID:</b> B607<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>28<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html</a><br>
+
+<div class="code">
+<pre>
+27	        subprocess.run(&quot;sudo apt update&quot;, shell=True, check=True)
+28	        subprocess.run(&quot;sudo apt install -y build-essential libssl-dev&quot;, shell=True, check=True)
+29	        subprocess.run(&quot;git clone https://github.com/openwall/john.git&quot;, shell=True, check=True)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-49">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_popen_with_shell_equals_true: </b> subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell<br>
+    <b>Test ID:</b> B602<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>28<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+27	        subprocess.run(&quot;sudo apt update&quot;, shell=True, check=True)
+28	        subprocess.run(&quot;sudo apt install -y build-essential libssl-dev&quot;, shell=True, check=True)
+29	        subprocess.run(&quot;git clone https://github.com/openwall/john.git&quot;, shell=True, check=True)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-50">
+<div class="issue-block issue-sev-low">
+    <b>start_process_with_partial_path: </b> Starting a process with a partial executable path<br>
+    <b>Test ID:</b> B607<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>29<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html</a><br>
+
+<div class="code">
+<pre>
+28	        subprocess.run(&quot;sudo apt install -y build-essential libssl-dev&quot;, shell=True, check=True)
+29	        subprocess.run(&quot;git clone https://github.com/openwall/john.git&quot;, shell=True, check=True)
+30	        src_dir = os.path.join(os.getcwd(), &quot;john&quot;, &quot;src&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-51">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_popen_with_shell_equals_true: </b> subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell<br>
+    <b>Test ID:</b> B602<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>29<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+28	        subprocess.run(&quot;sudo apt install -y build-essential libssl-dev&quot;, shell=True, check=True)
+29	        subprocess.run(&quot;git clone https://github.com/openwall/john.git&quot;, shell=True, check=True)
+30	        src_dir = os.path.join(os.getcwd(), &quot;john&quot;, &quot;src&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-52">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_popen_with_shell_equals_true: </b> subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell<br>
+    <b>Test ID:</b> B602<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>31<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+30	        src_dir = os.path.join(os.getcwd(), &quot;john&quot;, &quot;src&quot;)
+31	        subprocess.run(&quot;./configure&quot;, shell=True, check=True, cwd=src_dir)
+32	        subprocess.run(&quot;make -sj$(nproc)&quot;, shell=True, check=True, cwd=src_dir)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-53">
+<div class="issue-block issue-sev-low">
+    <b>start_process_with_partial_path: </b> Starting a process with a partial executable path<br>
+    <b>Test ID:</b> B607<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>32<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html</a><br>
+
+<div class="code">
+<pre>
+31	        subprocess.run(&quot;./configure&quot;, shell=True, check=True, cwd=src_dir)
+32	        subprocess.run(&quot;make -sj$(nproc)&quot;, shell=True, check=True, cwd=src_dir)
+33	        print(&quot;[John] Installation successful!&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-54">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_popen_with_shell_equals_true: </b> subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell<br>
+    <b>Test ID:</b> B602<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>32<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b602_subprocess_popen_with_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+31	        subprocess.run(&quot;./configure&quot;, shell=True, check=True, cwd=src_dir)
+32	        subprocess.run(&quot;make -sj$(nproc)&quot;, shell=True, check=True, cwd=src_dir)
+33	        print(&quot;[John] Installation successful!&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-55">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>40<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+39	    try:
+40	        stdin, stdout, stderr = ssh_client.exec_command(f&quot;sudo cat {remote_path}&quot;)
+41	        file_content = stdout.read()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-56">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_without_shell_equals_true: </b> subprocess call - check for execution of untrusted input.<br>
+    <b>Test ID:</b> B603<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>98<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b603_subprocess_without_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b603_subprocess_without_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+97	    try:
+98	        subprocess.run(command, check=True, cwd=john_run_dir)
+99	        print(&quot;[John] Displaying results:&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-57">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_without_shell_equals_true: </b> subprocess call - check for execution of untrusted input.<br>
+    <b>Test ID:</b> B603<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./john.py" target="_blank">./john.py</a><br>
+    <b>Line number: </b>100<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b603_subprocess_without_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b603_subprocess_without_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+99	        print(&quot;[John] Displaying results:&quot;)
+100	        subprocess.run([john_binary, &quot;--show&quot;, abs_hash_file], check=True, cwd=john_run_dir)
+101	    except FileNotFoundError:
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-58">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>36<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+35	        print(&quot;\n*******Test des comptes de services ********&quot;)
+36	        stdin, stdout, stderr = self.client.exec_command(&quot;awk -F: &#x27;($3 &lt; 1000) &amp;&amp; ($1 != \&quot;root\&quot;) {print $1}&#x27; /etc/passwd&quot;)
+37	        output = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-59">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>47<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+46	        &quot;&quot;&quot;Test de récupération des directives sudo&quot;&quot;&quot;
+47	        stdin, stdout, stderr = self.client.exec_command(&quot;sudo grep -E &#x27;^Defaults&#x27; /etc/sudoers&quot;,get_pty=True)
+48	        output = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-60">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>56<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+55	        print(&quot;\n*****Test de recuperation des comptes privilegiers non sudo******\n&quot;)
+56	        stdin, stdout, stderr = self.client.exec_command(&quot;sudo grep -E &#x27;^[^#].*ALL=&#x27; /etc/sudoers | grep -E &#x27;\\(ALL.*\\)&#x27; | grep -Ev &#x27;(NOPASSWD|%sudo|root)&#x27;&quot;, get_pty=True)
+57	        output = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-61">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>72<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+71	        #test
+72	        stdin, stdout, stderr = self.client.exec_command(&quot;sudo grep -E &#x27;!&#x27; /etc/sudoers&quot;, get_pty=True)
+73	        output = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-62">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>86<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+85	        print(&quot;\n*****Test of Specify arguments in sudo specifications******\n&quot;)
+86	        stdin, stdout, stderr = self.client.exec_command(&quot;sudo grep -E &#x27;ALL=.*[\\s!]&#x27; /etc/sudoers&quot;, get_pty=True)
+87	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-63">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>100<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+99	
+100	        stdin, stdout, stderr = self.client.exec_command(&quot;sudo grep -E &#x27;ALL=.*sudoedit&#x27; /etc/sudoers&quot;, get_pty=True)
+101	        output = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-64">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>115<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+114	
+115	        stdin, stdout, stderr = self.client.exec_command(&quot;sudo find / -type f -perm -0002 -ls 2&gt;/dev/null | head -n 20&quot;, get_pty=True)
+116	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-65">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>123<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+122	        print(&quot;\n*****Test of protected socket *****\n&quot;)
+123	        stdin, stdout, stderr = self.client.exec_command(&quot;sudo ss -xp | awk &#x27;{print $5}&#x27; | cut -d&#x27;:&#x27; -f1 | sort -u&quot;, get_pty=True)
+124	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-66">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>131<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+130	        print(&quot;\n*****Test of get_user_private_tmp (Isolate user temporary directories) *****\n&quot;)
+131	        stdin, stdout, stderr = self.client.exec_command(&quot;mount | grep &#x27; /tmp&#x27;&quot;)
+132	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-67">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>143<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+142	        command_pam_auth = &quot;grep -Ei &#x27;pam_ldap&#x27; /etc/pam.d/* 2&gt;/dev/null&quot;
+143	        stdin, stdout, stderr = self.client.exec_command(command_pam_auth)
+144	        detected_pam_entries = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-68">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>155<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+154	            command = f&quot;grep -E &#x27;{module}&#x27; /etc/pam.d/* 2&gt;/dev/null&quot;
+155	            stdin, stdout, stderr = self.client.exec_command(command)
+156	            detected_status = &quot;Enabled&quot; if stdout.read().decode().strip() else &quot;Non trouvé&quot;
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-69">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>180<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+179	        command = &quot;ps -eo user,comm | awk &#x27;{print $1}&#x27; | sort | uniq -c&quot;
+180	        stdin, stdout, stderr = self.client.exec_command(command)
+181	        users_count = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-70">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>194<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+193	        command = &quot;find / -type f -perm /111 -exec getcap {} \\; 2&gt;/dev/null&quot; # commandes correcte.
+194	        stdin, stdout, stderr = self.client.exec_command(command)
+195	        capabilities = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-71">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>205<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+204	        command_listen = &quot;ss -tulnp | awk &#x27;$5 ~ /:25$/ {print $5}&#x27;&quot;
+205	        stdin, stdout, stderr = self.client.exec_command(command_listen)
+206	        listening_ports = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-72">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>210<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+209	        command_destination = &quot;postconf -h mydestination&quot;
+210	        stdin, stdout, stderr = self.client.exec_command(command_destination)
+211	        mydestination = stdout.read().decode().strip()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-73">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>248<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+247	        command = &quot;grep -E &#x27;^[a-zA-Z0-9._-]+:&#x27; /etc/aliases | awk -F&#x27;:&#x27; &#x27;{print $1}&#x27; 2&gt;/dev/null&quot;
+248	        stdin, stdout, stderr = self.client.exec_command(command)
+249	        aliases_output = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-74">
+<div class="issue-block issue-sev-low">
+    <b>hardcoded_password_string: </b> Possible hardcoded password: 'grep -E 'password_pbkdf2' /etc/grub.d/* /boot/grub/grub.cfg'<br>
+    <b>Test ID:</b> B105<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/259.html" target="_blank">CWE-259</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>271<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html</a><br>
+
+<div class="code">
+<pre>
+270	        command_check_superusers = &quot;grep -E &#x27;set\\s+superusers&#x27; /etc/grub.d/* /boot/grub/grub.cfg&quot;
+271	        command_check_password = &quot;grep -E &#x27;password_pbkdf2&#x27; /etc/grub.d/* /boot/grub/grub.cfg&quot;
+272	        
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-75">
+<div class="issue-block issue-sev-medium">
+    <b>paramiko_calls: </b> Possible shell injection via Paramiko call, check inputs are properly sanitized.<br>
+    <b>Test ID:</b> B601<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./test_analyse_moy.py" target="_blank">./test_analyse_moy.py</a><br>
+    <b>Line number: </b>320<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b601_paramiko_calls.html</a><br>
+
+<div class="code">
+<pre>
+319	        command = &quot;fls -l /etc/shadow&quot; # commandes correcte.
+320	        stdin, stdout, stderr = self.client.exec_command(command)
+321	        outpout = stdout.read().decode().strip().split(&quot;\n&quot;)
+</pre>
+</div>
+
+
+</div>
+</div>
+
+</div>
+
+</body>
+</html>
