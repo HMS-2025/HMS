@@ -1,5 +1,5 @@
 from Config import load_config, ssh_connect
-from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen, analyse_renf
+from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen, analyse_renforce
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
 from ApplicationRecommandations.AppRecommandationsMoyen import application_recommandations_moyen
