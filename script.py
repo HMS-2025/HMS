@@ -1,8 +1,9 @@
 from Config import load_config, ssh_connect
-from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen, analyse_renforce
+from AnalyseConfiguration.Analyseur import analyse_SSH, analyse_min, analyse_moyen, analyse_renf
 from ApplicationRecommandations.AppRecommandationsSSH import apply_selected_recommendationsSSH
 from ApplicationRecommandations.AppRecommandationsMin import application_recommandations_min
 from ApplicationRecommandations.AppRecommandationsMoyen import application_recommandations_moyen
+from ApplicationRecommandations.AppRecommandationsRenforce import  application_recommandations_renf
 from ApplicationRecommandations.Thematiques.Reseau import iptables
 from gui import Gui
 import argparse
@@ -116,6 +117,10 @@ def run_recommendations(app_type):
         print("\n--- Applying intermediate Recommendations ---\n")
         Gui("GenerationRapport/RapportAnalyse/analyse_moyen.yml", "GenerationRapport/RapportApplication/application_moyen.yml")
         application_recommandations_moyen(client)
+    elif app_type=="renf" : 
+        print("\n--- Applying reinforced Recommendations ---\n")
+        Gui("GenerationRapport/RapportAnalyse/analyse_renforce.yml", "GenerationRapport/RapportApplication/application_renforce.yml")
+        application_recommandations_renf(client)
     elif app_type=="Iptables" : 
         print("\n--- Applying iptables ---\n")
         iptables(client , 'test')
@@ -167,16 +172,19 @@ def interactive_menu():
                 print("\n===== Select Application Level =====")
                 print("1 - Minimal application")
                 print("2 - Intermediate application")
-                print("3 - Iptables")
-                print("4 - Back")
-                sub_choice = input("Select an option (1-3): ")
+                print("3 - reinforced application")
+                print("4 - Iptables")
+                print("5 - Back")
+                sub_choice = input("Select an option (1-4): ")
                 if sub_choice == "1":
                     run_recommendations("min")
                 if sub_choice == "2":
                     run_recommendations("inter")
                 if sub_choice == "3":
+                    run_recommendations("renf")
+                if sub_choice == "4":
                     run_recommendations("Iptables")
-                elif sub_choice == "4":
+                elif sub_choice == "5":
                     break
                 else : 
                     print("Invalid option, please try again.")
