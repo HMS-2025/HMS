@@ -362,28 +362,30 @@ def get_user_private_tmp(serveur, os_info):
     }
 
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        # Vérifie l'activation dans les fichiers PAM
+        # Check if pam_namespace is enabled in PAM configuration files
         for pam_file in ["/etc/pam.d/login", "/etc/pam.d/sshd"]:
             try:
                 output = execute_ssh_command(serveur, f"grep -Ei 'pam_namespace' {pam_file}")
                 if output:
                     result["pam_namespace"]["activated"] = True
                     break
-            except Exception:
-                continue
+            except Exception as e:
+                print(f"[get_user_private_tmp] Error reading PAM file '{pam_file}': {e}")
+                # Continue the loop even if an error occurred
 
-        # Vérifie la configuration dans namespace.conf
+        # Check if namespace.conf is properly configured
         try:
             output = execute_ssh_command(serveur, "grep -Ev '^\s*#|^\s*$' /etc/security/namespace.conf")
             if output:
                 result["pam_namespace"]["configured"] = True
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[get_user_private_tmp] Error reading namespace.conf: {e}")
 
         return result
     else:
         print("[get_user_private_tmp] Non-Ubuntu OS detected; skipping check.")
         return result
+
 
 
 def check_all_sticky_bit(serveur, os_info):
