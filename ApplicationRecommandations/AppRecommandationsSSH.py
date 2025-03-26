@@ -208,8 +208,8 @@ def apply_selected_recommendationsSSH(yaml_file, client):
     rollback_cmds.append("sudo systemctl restart ssh")
     full_rollback_command = f"if [ -f {rollback_flag_path} ]; then " + " && ".join(rollback_cmds) + "; fi"
 
-    # Schedule an automatic rollback (1 minute) if configuration validation fails
-    combined_command = f"echo \"{full_rollback_command}\" | at now + 1 minute  2>/dev/null"
+    # Schedule an automatic rollback (2 minutes) if configuration validation fails
+    combined_command = f"echo \"{full_rollback_command}\" | at now + 2 minutes 2>/dev/null"
     apply_command(combined_command, client)
     print("Rollback plan scheduled with the 'at' command (persists after reboot).")
     log_action("Rollback plan scheduled with the 'at' command (persists after reboot).")
