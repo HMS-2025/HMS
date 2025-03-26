@@ -676,7 +676,7 @@ def apply_network(serveur, niveau, report_data):
             "R79": (apply_r79, "Harden and monitor exposed services"),
         },
         "reinforced": {
-            "R71": (apply_R78, "Isolate network services: verify services are distributed into distinct slices")
+            "R78": (apply_R78, "Isolate network services: verify services are distributed into distinct slices")
         }
         
     }
