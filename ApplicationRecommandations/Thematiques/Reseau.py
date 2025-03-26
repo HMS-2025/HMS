@@ -25,7 +25,7 @@ def list_interfaces(client):
     """Lists the network interfaces available on the remote server."""
     print("Retrieving available network interfaces...")
     try:
-        stdin, stdout, stderr = client.exec_command("tcpdump -D")
+        stdin, stdout, stderr = client.exec_command("sudo tcpdump -D")
         output = stdout.read().decode()
         error = stderr.read().decode()
         
@@ -51,11 +51,11 @@ def capture_traffic(client, interface, duration, output_file):
     """
     print(f"Capturing traffic on interface {interface} for {duration} seconds (remote)...")
     try:
-        command = f"rm {output_file}"
+        command = f"sudo rm {output_file}"
         stdin, stdout, stderr = client.exec_command(command)
 
         # Remote tcpdump command to capture traffic
-        command = f"timeout {duration} tcpdump -i {interface} -w {output_file}"
+        command = f"sudo timeout {duration} tcpdump -i {interface} -w {output_file}"
         stdin, stdout, stderr = client.exec_command(command)
         stdout.channel.recv_exit_status()  # Wait for proper execution to finish
 
@@ -89,7 +89,7 @@ def get_open_ports(client):
     """
     Retrieves the list of open ports on the remote machine via SSH.
     """
-    stdin, stdout, stderr = client.exec_command("ss -tuln")
+    stdin, stdout, stderr = client.exec_command("sudo ss -tuln")
     output = stdout.read().decode()
     error = stderr.read().decode()
 
@@ -162,7 +162,7 @@ def execute_iptables_commands(client, source_ports_to_allow):
         backup_file = "/tmp/iptables-backup.rules"
 
         print(f"Backing up current IPTABLES rules to {backup_file}...")
-        stdin, stdout, stderr = client.exec_command(f"iptables-save > {backup_file}")
+        stdin, stdout, stderr = client.exec_command(f"sudo bash -c 'iptables-save > {backup_file}'")
         error = stderr.read().decode()
         if error:
             print(f"Error while backing up current rules: {error.strip()}")
@@ -293,7 +293,7 @@ def execute_iptables_commands(client, source_ports_to_allow):
         commands.append("iptables -A INPUT -j LOG --log-prefix 'IPTABLES DROPPED: '")
 
         # Step 7: Create the IPTABLES script
-        iptable_script = "/root/iptables_authorize.sh"
+        iptable_script = "/tmp/iptables_authorize.sh"
         print(f"Creating the script {iptable_script}...")
 
         # Define the blocklist sources
@@ -312,8 +312,8 @@ def execute_iptables_commands(client, source_ports_to_allow):
             confirm_download = input("\nDo you want to proceed with downloading and blocking these IPs? (yes/no): ").strip().lower()
             if confirm_download == "yes":
                 # Remove any existing blacklist file to start fresh
-                print("Removing any existing blacklist file from /root/blacklist.txt...")
-                stdin, stdout, stderr = client.exec_command("rm -f /root/blacklist.txt")
+                print("Removing any existing blacklist file from /tmp/blacklist.txt...")
+                stdin, stdout, stderr = client.exec_command("sudo rm -f /tmp/blacklist.txt")
                 stdout.channel.recv_exit_status()  # Wait for the command to complete
                 
                 # Handle errors in removal
@@ -324,7 +324,7 @@ def execute_iptables_commands(client, source_ports_to_allow):
                 # Download blocklists to the server
                 for url in blocklists:
                     print(f"Downloading blocklist from {url}...")
-                    stdin, stdout, stderr = client.exec_command(f"curl -s {url} >> /root/blacklist.txt")
+                    stdin, stdout, stderr = client.exec_command(f"sudo bash -c 'curl -s {url} >> /tmp/blacklist.txt' ")
                     stdout.channel.recv_exit_status()  # Wait for the download to complete
                     
                     # Handle errors in download
@@ -333,16 +333,16 @@ def execute_iptables_commands(client, source_ports_to_allow):
                         print(f"Error downloading blocklist from {url}: {error}")
                         continue
 
-                print("Downloaded and consolidated blocklists into /root/blacklist.txt.")
+                print("Downloaded and consolidated blocklists into /tmp/blacklist.txt.")
                 
                 # Add the script for processing the blocklist and injecting IPs into iptables
                 commands.append(
                     """
-if [[ -f /root/blacklist.txt ]]; then
+if [[ -f /tmp/blacklist.txt ]]; then
         while IFS= read -r ip; do
                 echo 'Blocking and logging for: \$ip'
                 iptables -w -A INPUT -s \$ip -j DROP
-        done < <(grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]{1,2}))?' /root/blacklist.txt | sort -u)
+        done < <(grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]{1,2}))?' /tmp/blacklist.txt | sort -u)
 else
     echo Blacklist file not found. Skipping IP blocking.
 fi
@@ -355,26 +355,28 @@ fi
             print("Skipping malicious IP blocking.")
 
       
-        stdin, stdout, stderr = client.exec_command(f"echo '#!/bin/bash' > {iptable_script}")
-        stdin, stdout, stderr = client.exec_command(f"chmod u+x {iptable_script}")
+        stdin, stdout, stderr = client.exec_command(f"echo '#!/bin/bash' | sudo tee {iptable_script} > /dev/null")
+        stdin, stdout, stderr = client.exec_command(f"sudo chmod u+x {iptable_script}")
         for command in commands:
-            client.exec_command(f"echo \"{command}\" >> {iptable_script}")
+            client.exec_command(f"sudo bash -c 'echo \"{command}\" >> {iptable_script}'")
 
         # Display the generated script
         print("\nGenerated IPTABLES script content:\n")
-        stdin, stdout, stderr = client.exec_command(f"cat {iptable_script}")
+        stdin, stdout, stderr = client.exec_command(f"sudo cat {iptable_script}")
         script_content = stdout.read().decode()
         print(script_content)
 
         # Step 8: Confirm execution of the script
         print("\n Downloading iptables script  \n")
+
+        
         download_pcap(client , iptable_script , './iptables.sh')
-        download_pcap(client , '/root/blacklist.txt' , './blacklist.txt' )
+        download_pcap(client , '/tmp/blacklist.txt' , './blacklist.txt' )
         
         execute_script = input("Do you want to execute this script to apply the new rules? (yes/no): ").strip().lower()
         if execute_script == "yes":
             print("Applying the new IPTABLES rules...")
-            stdin, stdout, stderr = client.exec_command(f"bash {iptable_script}")
+            stdin, stdout, stderr = client.exec_command(f"sudo bash {iptable_script}")
             output = stdout.read().decode()
             error = stderr.read().decode()
             if error:
