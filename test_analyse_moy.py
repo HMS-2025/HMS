@@ -4,6 +4,7 @@ import yaml
 import paramiko
 
 from Config import ssh_connect, load_config as load_config_ssh
+from AnalyseConfiguration.Analyseur import analyse_moyen
 from AnalyseConfiguration.Thematiques.Maintenance import execute_ssh_command
 from AnalyseConfiguration.Thematiques.JournalisationAudit import get_audit_log_status,get_auditd_configuration, get_admin_command_logging, get_audit_log_protection, get_log_rotation
 
@@ -16,48 +17,76 @@ def load_config(path):
 
 # Charger les références depuis Reference_moyen.yaml
 """Charge le fichier Reference_moyen.yaml et retourne son contenu."""
-reference_data = load_config("AnalyseConfiguration/Reference_moyen.yaml")
-
-
-class MiddleTest(unittest.TestCase):
-    client = None  # Variable de classe pour stocker le client SSH
-    reference_data = None  # Variable de classe pour stocker les références
-
-    @classmethod
-    def setUpClass(cls):
-        if cls.client is None:
-            raise ValueError("Le client SSH n'a pas été initialisé")
-        # Charger les références dans la classe
-        cls.reference_data = reference_data
-    #R34
+   
+class MiddleAnalysisTest(unittest.TestCase):
+    def __init__(self, client, methodName="run_tests"):
+        super().__init__(methodName)
+        self.client = client
+        self.reference_data=reference_data
+   
+   #R34
     def test_get_service_accounts(self):
         """Test de récupération des comptes de services"""
         print("\n*******Test des comptes de services ********")
-        stdin, stdout, stderr = self.client.exec_command("awk -F: '($3 < 1000) && ($1 != \"root\") {print $1}' /etc/passwd")
-        output = stdout.read().decode().strip()
-        expected_output = " j'ai Verifié en observant le output de l'execution directe sur la cible"  # Remplacez par la liste attendue
-        print(output)
-       # self.assertEqual(output, expected_output, "La liste des comptes de services ne correspond pas à l'attendu.")
-       #NB : Le test de cette fonction marche bien 
-         
-    #R39
+        #Insertion de compte service active pour le test        
+        #stdin, stdout, stderr=self.client.exec_command("sudo useradd -m -s /bin/false testmysql && sudo passwd -d testmysql")
+        #Activation du compte mysql pour le test
+        stdin, stdout, stderr=self.client.exec_command("sudo passwd -u mysql && sudo usermod -p $(openssl passwd -1 \"mysql\") mysql && sudo usermod -s /bin/bash mysql")
+
+        exit_status = stdout.channel.recv_exit_status()
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertIn("mysql", result["gestion_acces"]["R34"]["detected_elements"])        
+      
+       #Desactiver sudo passwd -l mysql && sudo usermod -s /usr/sbin/False mysql
+        stdin, stdout, stderr=self.client.exec_command("sudo passwd -l mysql && sudo usermod -s /usr/sbin/False mysql")
+        exit_status = stdout.channel.recv_exit_status()
+        #Apres descativation de ce compte, nous relancons le test pour s'assurer que ce compte n'est plus detecter comme étant active 
+         #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertNotIn("mysql", result["gestion_acces"]["R34"]["detected_elements"])     
+    
+   # R39
     def test_get_sudo_directives(self):
         print("\n*****Test des comptes de sudo******\n")
         """Test de récupération des directives sudo"""
-        stdin, stdout, stderr = self.client.exec_command("sudo grep -E '^Defaults' /etc/sudoers",get_pty=True)
-        output = stdout.read().decode().strip()
-        print(output)
-        expected_output = " j'ai Verifié en observant le output de l'execution directe sur la cible"  #
-       # self.assertEqual(output, expected_output, "Les directives sudo ne correspondent pas à l'attendu.")
-        #NB: Il faut jouter le parametre get_pty  à cette fonction d'une part et d'autre apporter ces modifications (chown root:root /usr/bin/sudo && chmod 4755 /usr/bin/sudo) car sans ça aucune reperation d'information s'effectue. Attention finalement l'allocation de ce pty blocke aussi l'execusion car il se trouve que cela a des comportements inatendus
-    #R40
-    def test_get_non_privileged_sudo_users(self):
+       
+         #Ajout de directive pour le test
+        stdin, stdout, stderr=self.client.exec_command("sudo echo \"Defaults\tenv_keep\t+=\t\"R39\"\" | sudo tee -a /etc/sudoers")
+        
+
+        exit_status = stdout.channel.recv_exit_status()
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertIn("Defaults\tenv_keep\t+=\tR39", result["gestion_acces"]["R39"]["detected_elements"])
+
+        #Suppression
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^Defaults\tenv_keep\t+=\tR39/d' /etc/sudoers")
+        #Retest
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertNotIn("Defaults\tenv_keep\t+=\tR39", result["gestion_acces"]["R39"]["detected_elements"])  
+
+
+
+    #Test Regle 40
+    def get_non_privileged_sudo_users(self):
         print("\n*****Test de recuperation des comptes privilegiers non sudo******\n")
-        stdin, stdout, stderr = self.client.exec_command("sudo grep -E '^[^#].*ALL=' /etc/sudoers | grep -E '\\(ALL.*\\)' | grep -Ev '(NOPASSWD|%sudo|root)'", get_pty=True)
-        output = stdout.read().decode().strip()
-        print("Resulat de test_get_non_privileged_sudo_users : \n" + output)
-        #expected_output :"variable" # les comptes attendu
-        #self.assertEqual(output,expected_output,"Erreur non correspondence de resultat à ce qui est attendu")
+        stdin, stdout, stderr = self.client.exec_command("sudo echo \"TestR40 ALL=(ALL) ALL\" | sudo tee -a /etc/sudoers")
+        exit_status = stdout.channel.recv_exit_status()
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertIn("TestR40 ALL=(ALL) ALL", result["gestion_acces"]["R40"]["detected_elements"])  
+        
+        #Suppression
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^TestR40/d' /etc/sudoers")
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertNotIn("TestR40 ALL=(ALL) ALL", result["gestion_acces"]["R40"]["detected_elements"])  
 
     #R42
     def test_get_negation_in_sudoers(self):
@@ -65,138 +94,155 @@ class MiddleTest(unittest.TestCase):
 
         #ajout de negation
         """ Ajout de negation """
-        #stdin, stdout, stderr = self.client.exec_command("echo 'TestNegoSudo ALL=(ALL:ALL) ALL, !/usr/bin/apt' | sudo tee -a /etc/sudoers")
-        #exit_status = stdout.channel.recv_exit_status()
-        #fin d'ajout """
-        #test
-        stdin, stdout, stderr = self.client.exec_command("sudo grep -E '!' /etc/sudoers", get_pty=True)
-        output = stdout.read().decode().strip()
-        print("Resultat test_get_negation_in_sudoers :\n" + output)
-        expected_output="TestNegoSudo ALL=(ALL:ALL) ALL, !/usr/bin/apt"
-        self.assertEqual(output,expected_output,"Erreur non correspondence de resultat à ce qui est attendu")
+        stdin, stdout, stderr = self.client.exec_command("echo 'TestR42 ALL=(ALL:ALL) ALL, !/usr/bin/apt' | sudo tee -a /etc/sudoers")
+        exit_status = stdout.channel.recv_exit_status()
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertIn("TestR42 ALL=(ALL:ALL) ALL, !/usr/bin/apt", result["gestion_acces"]["R42"]["detected_elements"])  
+        
+        #Suppression
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^TestR42/d' /etc/sudoers")
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertNotIn("TestR42 ALL=(ALL:ALL) ALL, !/usr/bin/apt", result["gestion_acces"]["R42"]["detected_elements"])  
 
-        #""" Clean """
-        #stdin, stdout, stderr = self.client.exec_command("sed -i '/^TestNegoSudo /d' /etc/sudoers")
-        #config_data = stdout.read().decode().strip()
-
-    #R43
+    #Regle 43
     #Commanade changer par un autre car ne recuperant pas les données concernées
     def test_get_strict_sudo_arguments(self):
         print("\n*****Test of Specify arguments in sudo specifications******\n")
-        stdin, stdout, stderr = self.client.exec_command("sudo grep -E 'ALL=.*[\\s!]' /etc/sudoers", get_pty=True)
+        #ajout de negation
+        """ Ajout de data de test """
+        stdin, stdout, stderr = self.client.exec_command("echo 'TestR43 ALL=(ALL) sudoedit /etc/hosts'| sudo tee -a /etc/sudoers")
+        exit_status = stdout.channel.recv_exit_status()
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertIn("TestR43 ALL=(ALL) sudoedit /etc/hosts", result["gestion_acces"]["R43"]["detected_elements"])  
+        
+        #Suppression
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^TestR43/d' /etc/sudoers")
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertNotIn("TestR43 ALL=(ALL) sudoedit /etc/hosts", result["gestion_acces"]["R43"]["detected_elements"])  
 
-        output = stdout.read().decode().strip()
-        print("Resutl of get_strict_sudo_arguments : \n" + output) # les comptes attendu
-        #self.assertEqual(output, expected_output, "Erreur non correspondence de resultat à ce qui est attendu")
-   
-    #R44
+    #Regle R44
     def test_get_sudoedit_usage(self):
         print("\n*****Test d'edition de sudo******\n")
-        #ajout cette ligne dans /etc/sudoers pour tester cette regles
-        #stdin, stdout, stderr = self.client.exec_command("echo 'Tubuntu ALL=(ALL) sudoedit /etc/hosts' | sudo tee -a /etc/sudoers")
-        #exit_status = stdout.channel.recv_exit_status()
-        #fin d'ajout """
+       
+        stdin, stdout, stderr = self.client.exec_command("echo 'TestR44 ALL=(ALL)  /etc/bin/nano /etc/hosts' | sudo tee -a /etc/sudoers")
+        exit_status = stdout.channel.recv_exit_status()
 
-        stdin, stdout, stderr = self.client.exec_command("sudo grep -E 'ALL=.*sudoedit' /etc/sudoers", get_pty=True)
-        output = stdout.read().decode().strip()
-        print("Resulat de get_sudoedit_usage : \n" + output)
-        expected_output = "ubuntu ALL=(ALL) sudoedit /etc/hosts" # les comptes attendu
-        self.assertEqual(output, expected_output, "Erreur non correspondence de resultat à ce qui est attendu")
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertIn("TestR44 ALL=(ALL)  /etc/bin/nano /etc/hosts", result["gestion_acces"]["R44"]["detected_elements"])  
+        
+        #Suppression
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^TestR44/d' /etc/sudoers")
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertNotIn("TestR44 ALL=(ALL)  /etc/bin/nano /etc/hosts", result["gestion_acces"]["R44"]["detected_elements"])  
 
-         #""" Clean """
-        #stdin, stdout, stderr = self.client.exec_command("sed -i '/^ubuntu ALL=(ALL) sudoedit /etc/hosts/d' /etc/sudoers")
-        #config_data = stdout.read().decode().strip()
-
-    #R50
+    #Regle 50
     def test_get_secure_permissions(self):
         print("\n*****Test of secure permission of the files *****\n")
-       #stdin, stdout, stderr = self.client.exec_command("sudo find / -type f -perm -0002 -ls 2>/dev/null", get_pty=True) #commande orgignal à decommnenter par la suite
+        stdin, stdout, stderr = self.client.exec_command("sudo cp /etc/gshadow /etc/gshadow.htms && sudo chmod 777 /etc/gshadow")
+        exit_status = stdout.channel.recv_exit_status()
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertTrue(any("/etc/gshadow" in item for item in result["gestion_acces"]["R50"]["detected_elements"]))
+        
+        #Repprise de permission orignales
+        stdin, stdout, stderr = self.client.exec_command("sudo mv /etc/gshadow.htms /etc/gshadow")
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertFalse(any("/etc/gshadow" in item for item in result["gestion_acces"]["R50"]["detected_elements"]))
+ 
 
-        stdin, stdout, stderr = self.client.exec_command("sudo find / -type f -perm -0002 -ls 2>/dev/null | head -n 20", get_pty=True)
+      
+      #Regle 52
 
-        output = stdout.read().decode().strip()
-        print("Resutl of permission : \n" + output) # les comptes attendu
-        #self.assertEqual(output, expected_output, "Erreur non correspondence de resultat à ce qui est attendu")
-    #R52
     def test_get_protected_sockets(self):
         print("\n*****Test of protected socket *****\n")
-        stdin, stdout, stderr = self.client.exec_command("sudo ss -xp | awk '{print $5}' | cut -d':' -f1 | sort -u", get_pty=True)
+        stdin, stdout, stderr = self.client.exec_command("sudo chmod 777  /run/systemd/notify")
+        exit_status = stdout.channel.recv_exit_status()
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertTrue(any("/run/systemd/notify 777" in item for item in result["gestion_acces"]["R52"]["detected_elements"]))
+        
+        #Repprise de permission orignales
+        stdin, stdout, stderr = self.client.exec_command("sudo chmod 750  /run/systemd/notify")
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertTrue(any("/run/systemd/notify 750" in item for item in result["gestion_acces"]["R52"]["detected_elements"]))
+       
+    
 
-        output = stdout.read().decode().strip()
-        print("Resutl of permission : \n" + output) 
-
-    #R55
+    #Regle 55 
     def test_get_user_private_tmp(self):
         print("\n*****Test of get_user_private_tmp (Isolate user temporary directories) *****\n")
-        stdin, stdout, stderr = self.client.exec_command("mount | grep ' /tmp'")
+        stdin, stdout, stderr = self.client.exec_command("echo \"session optional pam_mktemp.so\" | sudo tee -a /etc/pam.d/login")
+        exit_status = stdout.channel.recv_exit_status()
 
-        output = stdout.read().decode().strip()
-        print("Resutl of get_user_private_tmp : \n" + output) 
-    
-    #La cible HMS-prod de contiend aucun fichier pam_ladp dans /etc/pam.d, donc nous creons ce fihier pour  le test 
-    #echo "auth required pam_ldap.so" > /etc/pam.d/pam_ldap
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertIn("session optional pam_mktemp.so", result["gestion_acces"]["R55"]["detected_elements"])  
+        
+        #Suppression
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^session optional pam_mktemp.so/d' /etc/pam.d/login")
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertNotIn("session optional pam_mktemp.so", result["gestion_acces"]["R55"]["detected_elements"])  
 
-    #R67 
+
+
+ #######    Partie reseau    ##########
+    #Regle 67
     def test_check_pam_security(self):
-        expected_values = self.reference_data.get("R67", {}).get("expected", {})    
-        command_pam_auth = "grep -Ei 'pam_ldap' /etc/pam.d/* 2>/dev/null"
-        stdin, stdout, stderr = self.client.exec_command(command_pam_auth)
-        detected_pam_entries = stdout.read().decode().strip().split("\n")
-        print("\n*******Reusultat de la commande de test de check pam \n")
-        print(detected_pam_entries)
+        print("\n******* Test du check pam security   *********************\n")        
+        stdin, stdout, stderr = self.client.exec_command("echo \"account sufficient pam_ldap.so\" | sudo tee -a /etc/pam.d/sshd")
+        exit_status = stdout.channel.recv_exit_status()
 
-        detected_pam_module = "pam_ldap" if detected_pam_entries and any("pam_ldap" in line for line in detected_pam_entries) else "Non trouvé"
-    
-        security_modules = expected_values.get("security_modules", {})
-        detected_security_modules = {}
-    
-        for module in security_modules.keys():
-            command = f"grep -E '{module}' /etc/pam.d/* 2>/dev/null"
-            stdin, stdout, stderr = self.client.exec_command(command)
-            detected_status = "Enabled" if stdout.read().decode().strip() else "Non trouvé"
-            detected_security_modules[module] = detected_status
-    
-        detected_elements = {
-                      "detected_pam_modules": detected_pam_module,
-                      "security_modules": detected_security_modules
-                     }
-    
-        detected_list = [f"detected_pam_modules: {detected_elements['detected_pam_modules']}"]
-        for module, detected_status in detected_elements["security_modules"].items():
-          detected_list.append(f"{module}: {detected_status}")  
-
-        print("\n*************** Resultats des elements detécté******************\n")
-        print(detected_list)
-        ##renvoi des elements détéctés.
-        #return detected_list
-##### Fin ici des tests sur les regles moyen pour l'access 
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertIn("account sufficient pam_ldap.so", result["reseau"]["R67"]["detected_elements"]["pam_rules"])  
+        
+        #Suppression
+        stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^account sufficient pam_ldap.so/d' /etc/pam.d/sshd")
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertNotIn("account sufficient pam_ldap.so", result["reseau"]["R67"]["detected_elements"]["pam_rules"])  
 
 
-#Debut des tests pour les regles moyens  pour les services
+    #Debut des tests pour les regles moyens  pour les services
     #R35
     def test_check_unique_service_accounts(self):
-        """Checks if each service has a unique system account and correctly formats the results."""
-        command = "ps -eo user,comm | awk '{print $1}' | sort | uniq -c"
-        stdin, stdout, stderr = self.client.exec_command(command)
-        users_count = stdout.read().decode().strip().split("\n")
+        print("\n********** Test de  check_unique_service_accounts***********\n")
+        #verifier  si www-data est unique
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertTrue(any("www-data" in item for item in result["services"]["R35"]["detected_elements"]))
 
-        non_unique_accounts = [line.strip() for line in users_count if int(line.split()[0]) > 1]
-        print("\n**********Resultat de test de  check_unique_service_accounts***********\n")
-        print(non_unique_accounts )
-
-
+        
     # R63 - Disable non-essential service features
     #Attention cette fonction check_disabled_service_featurespresent une petite erreur l'antislash etant un caractere stpecial n'a pas été echaper juste avant le point virgule.
     def test_check_disabled_service_features(self):
         """Checks services with enabled Linux capabilities."""
-        #command = "find / -type f -perm /111 -exec getcap {} \; 2>/dev/null"
-        command = "find / -type f -perm /111 -exec getcap {} \\; 2>/dev/null" # commandes correcte.
-        stdin, stdout, stderr = self.client.exec_command(command)
-        capabilities = stdout.read().decode().strip().split("\n")
         print("\n**********Resultat de test de check_disabled_service_features***********\n")
-        print(capabilities )
+        #verifier la destection de /usr/bin/ping = cap_net_raw+ep qui est present
+        #Test
+        analyse_moyen(self.client)
+        result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
+        self.assertTrue(any("/usr/bin/ping = cap_net_raw+ep" in item for item in result["services"]["R63"]["detected_elements"]))
 
-    # R74 - Harden the local mail service
+
+     # R74 - Harden the local mail service
     def test_check_hardened_mail_service(self):
         """Checks if the mail service only accepts local connections and allows only local delivery."""
 
@@ -270,8 +316,8 @@ class MiddleTest(unittest.TestCase):
         command_check_superusers = "grep -E 'set\\s+superusers' /etc/grub.d/* /boot/grub/grub.cfg"
         command_check_password = "grep -E 'password_pbkdf2' /etc/grub.d/* /boot/grub/grub.cfg"
         
-        superusers_output = execute_ssh_command(self, command_check_superusers)
-        password_output = execute_ssh_command(self, command_check_password)
+        superusers_output = self.client.exec_command(command_check_superusers)
+        password_output = self.client.exec_command(command_check_password)
 
         print ("\n********Result du test     ************\n")
         print("\n superusers_output :\n")
@@ -325,8 +371,38 @@ class MiddleTest(unittest.TestCase):
 
 
 
-if __name__ == '__main__':
-    # Établir la connexion SSH
+
+    def run_tests(self):
+        """Exécuter les tests"""
+        suite = unittest.TestSuite()
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_service_accounts"))
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_sudo_directives"))
+        suite.addTest(MiddleAnalysisTest(self.client,"get_non_privileged_sudo_users"))
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_negation_in_sudoers"))
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_strict_sudo_arguments"))
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_strict_sudo_arguments"))
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_secure_permissions"))
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_protected_sockets"))
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_user_private_tmp"))
+        suite.addTest(MiddleAnalysisTest(self.client,"test_check_pam_security"))   
+        suite.addTest(MiddleAnalysisTest(self.client,"test_check_unique_service_accounts"))         
+        suite.addTest(MiddleAnalysisTest(self.client,"test_check_hardened_mail_service")) 
+        suite.addTest(MiddleAnalysisTest(self.client,"test_check_mail_aliases")) 
+        suite.addTest(MiddleAnalysisTest(self.client,"test_check_grub_password")) 
+        suite.addTest(MiddleAnalysisTest(self.client,"test_check_r33")) 
+        suite.addTest(MiddleAnalysisTest(self.client,"test_get_stored_passwords_protection"))
+        
+            
+        # Exécution des tests
+        runner = unittest.TextTestRunner()
+        runner.run(suite)
+
+
+# Création d'une suite de tests et ajout progressif
+if __name__ == "__main__":
+    #chargement des donnees de reference
+    reference_data = load_config("AnalyseConfiguration/Reference_moyen.yaml")
+   # Établir la connexion SSH
    # Charger la configuration SSH
     config = load_config_ssh("ssh.yaml")
     if not config:
@@ -343,11 +419,16 @@ if __name__ == '__main__':
     if not client:
         print("Échec de la connexion SSH")
 
-    # Assigner le client SSH à la variable de classe
-    MiddleTest.client = client
-
-    # Exécuter les tests
-    unittest.main()
+   # Lancer les tests
+    test_runner = MiddleAnalysisTest(client)
+    test_runner.run_tests()
 
     # Fermer la connexion SSH
     client.close()
+   
+
+
+
+
+
+
