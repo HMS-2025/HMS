@@ -62,7 +62,7 @@ def apply_r58(client, report):
         print("- No expected packages defined for rule R58.")
         return "Compliant"
     
-    installed_packages = r59_data.get("detected_elements", [])
+    installed_packages = r58_data.get("detected_elements", [])
       
     detected_elements = [pkg for pkg in installed_packages if pkg and pkg not in expected_packages]
 
