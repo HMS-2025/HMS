@@ -336,7 +336,11 @@ def apply_R65(serveur, report):
 # MAIN
 # ============================
 
+<<<<<<< HEAD
 def apply_services(client, niveau, report_data):
+=======
+def apply_services(client, niveau , report_data):
+>>>>>>> main
     fix_results = {}
     apply_data = report_data.get("services", None)
     if apply_data is None:
@@ -366,5 +370,9 @@ def apply_services(client, niveau, report_data):
                 print(f"-> Applying rule {rule_id}: {comment}")
                 function(client, apply_data)
 
+<<<<<<< HEAD
     print(f"\n Fixes applied - SERVICES - niveau {level.upper()}")
+=======
+    print(f"\n Fixes applied - SERVICES - Level {niveau.upper()}")
+>>>>>>> main
     return fix_results

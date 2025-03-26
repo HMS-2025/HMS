@@ -126,7 +126,7 @@ def run_recommendations(app_type):
         iptables(client , 'test')
     elif app_type == "ssh":
         print("\n--- Applying SSH Recommendations ---\n")
-        apply_selected_recommendationsSSH("GenerationRapport/RapportAnalyse/ssh_compliance_report.yaml", client)
+        apply_selected_recommendationsSSH("GenerationRapport/RapportAnalyse/analyse_ssh.yaml", client)
 
     client.close()
     print("\n--- Recommendations Applied ---\n")

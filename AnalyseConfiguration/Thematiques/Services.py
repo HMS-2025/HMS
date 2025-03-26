@@ -29,8 +29,21 @@ def check_compliance(rule_id, detected_values, reference_data):
             "detected_prohibited_elements": detected_prohibited_elements,
             "expected_elements": expected_values
         }
-    # Specific exception for R74: interfaces and local delivery
-    elif rule_id == "R74":
+    # Specific exception for rules R74 and R75 if no mail server detected
+    if rule_id == "R74":
+        if (not detected_values or
+            not detected_values.get("listen_interfaces") or
+            not detected_values.get("allow_local_delivery")):
+            # No mail server present: compliant by default
+            return {
+                "apply": True,
+                "status": "Compliant",
+                "detected_elements": {
+                    "listen_interfaces": [],
+                    "allow_local_delivery": []
+                },
+                "expected_elements": expected_values.get("hardened_mail_service", {})
+            }
         detected_interfaces = set(detected_values.get("listen_interfaces", []))
         expected_interfaces = set(expected_values.get("hardened_mail_service", {}).get("listen_interfaces", []))
         detected_local_delivery = set(detected_values.get("allow_local_delivery", []))
@@ -46,17 +59,35 @@ def check_compliance(rule_id, detected_values, reference_data):
                 "listen_interfaces": list(expected_interfaces),
             }
         }
-    # Specific case for R75: at least one expected alias must be detected
+
     elif rule_id == "R75":
+        postfix_installed = detected_values.get("postfix_installed", False)
+
+        # If postfix is ​​not installed: compliant by default
+        if not postfix_installed:
+            return {
+                "apply": True,
+                "status": "Compliant",
+                "detected_elements": {
+                    "postfix_installed": False
+                },
+                "expected_elements": expected_values.get("mail_aliases", [])
+            }
+
         detected_aliases = detected_values.get("detected_elements", [])
-        expected_aliases = expected_values.get("mail_aliases", [])
+        expected_aliases = expected_values.get("expected_elements", [])
         is_compliant = any(alias in detected_aliases for alias in expected_aliases)
+
         return {
             "apply": is_compliant,
             "status": "Compliant" if is_compliant else "Non-Compliant",
-            "detected_elements": detected_aliases,
+            "detected_elements": {
+                "aliases": detected_aliases,
+                "postfix_installed": True
+            },
             "expected_elements": expected_aliases
         }
+
     # Specific case for R10: Check that /proc/sys/kernel/modules_disabled == 1
     elif rule_id == "R10":
         is_compliant = (detected_values.get("detected_elements", "") == "1")
@@ -163,18 +194,37 @@ def check_hardened_mail_service(serveur, os_info):
 # Check for the presence of mail aliases for service accounts.
 def check_mail_aliases(serveur, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        command = "grep -E '^[a-zA-Z0-9._-]+:' /etc/aliases | awk -F':' '{print $1}' 2>/dev/null"
-        aliases_output = execute_ssh_command(serveur, command)
+        # Check if postfix is installed
+        command_check_postfix = "dpkg -l | grep postfix"
+        postfix_installed = execute_ssh_command(serveur, command_check_postfix)
+
+        postfix_present = bool(postfix_installed)
+        if not postfix_present:  # Postfix not detected: compliant by default
+            print("[check_mail_aliases] Postfix non détecté; règle conforme par défaut.")
+            return {
+                "detected_elements": [],
+                "expected_elements": [],
+                "postfix_installed": False
+            }
+
+        # Postfix is installed: check aliases
+        command_aliases = "grep -E '^[a-zA-Z0-9._-]+:' /etc/aliases | awk -F':' '{print $1}' 2>/dev/null"
+        aliases_output = execute_ssh_command(serveur, command_aliases)
+
         reference_data = load_reference_yaml("moyen")
         expected_aliases = reference_data.get("R75", {}).get("expected", {}).get("mail_aliases", [])
         detected_aliases = [alias.strip() for alias in aliases_output if alias.strip()]
+
         return {
             "detected_elements": detected_aliases,
-            "expected_elements": expected_aliases
+            "expected_elements": expected_aliases,
+            "postfix_installed": True
         }
     else:
         print("[check_mail_aliases] Non-Ubuntu OS; check skipped.")
-        return {}
+        return {
+            "postfix_installed": False
+        }
 
 # Verify that /proc/sys/kernel/modules_disabled contains the value 1.
 def check_kernel_modules_disabled(serveur, os_info):

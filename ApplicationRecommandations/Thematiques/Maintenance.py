@@ -121,7 +121,7 @@ def apply_r5(client, report):
         print("- R5: No action required.")
         return "Compliant"
 
-    response = input("Would you like to configure a secure GRUB password? (y/n): ").strip().lower()
+    response = input("Would you like to configure a secure GRUB password? (Warning: make sure to save the password carefully !!!)(y/n): ").strip().lower()
     if response == 'y':
         # Creating a secure password for GRUB
         grub_password = input("Enter the password to apply for GRUB: ").strip()

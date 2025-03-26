@@ -59,6 +59,33 @@ def check_compliance(rule_id, detected_values, reference_data):
                 "difference": difference or "None"
             } 
 
+    if rule_id == 'R12' : 
+        expected_values = reference_data.get(rule_id, {}).get("expected", {})
+        difference = {}
+        for (key , value) in expected_values.items() : 
+            if detected_values.get(key , None) != value :
+                difference[key] = detected_values.get(key , None)
+
+        return {
+            "apply": True if not difference else False ,
+            "status": "Compliant" if not difference else "Non-Compliant",
+            "expected_elements": expected_values or "None",
+            "detected_elements": difference or "None"
+        }
+    if rule_id == 'R13' : 
+        expected_values = reference_data.get(rule_id, {}).get("expected", {})
+        difference = {}
+        for (key , value) in expected_values.items() : 
+            if detected_values.get(key , None) != value :
+                difference[key] = detected_values.get(key , None)
+
+        return {
+            "apply": True if not difference else False ,
+            "status": "Compliant" if not difference else "Non-Compliant",
+            "expected_elements": expected_values or "None",
+            "detected_elements": difference or "None"
+        }
+    
 
     # For other rules, proceed with the default comparison.
     expected_values = reference_data.get(rule_id, {}).get("expected", {})

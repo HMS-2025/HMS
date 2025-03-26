@@ -1,54 +1,63 @@
 import os
-from ApplicationRecommandations.execute_command import execute_ssh_command
+import yaml
 
-# ============================
-# Fonction utilitaire commune
-# ============================
+#=========== Global ==========
+application_min = "./GenerationRapport/RapportApplication/application_min.yml"
+analyse_min = "./GenerationRapport/RapportAnalyse/analyse_min.yml"
 
-def save_yaml_fix_report_utilisateurs(data, output_file, rules, niveau):
-    if not data:
-        return
+application_moyen = "./GenerationRapport/RapportApplication/application_moyen.yml"
+analyse_moyen = "./GenerationRapport/RapportAnalyse/analyse_moyen.yml"
 
-    output_dir = "GenerationRapport/RapportCorrections"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, output_file)
 
-    with open(output_path,eau in niveaux and rule_id in niveaux[niveau]:
-                    comment = niveaux[niveau][rule_id][1]
-                    file.write(f"  {rule_id}:  # {comment} ({thematique})\n")
-                    file.write(f"    status: {status}\n")
+def execute_ssh_command(client, command):
+    """Execute an SSH command and return output and error."""
+    stdin, stdout, stderr = client.exec_command(command)
+    output = list(filter(None, stdout.read().decode().strip().split("\n")))
+    error = stderr.read().decode().strip()
+    return output, error
 
-    print(f"✅ Rapport des corrections UTILISATEURS généré : {output_path}")
+def update(application_file, analyse_file, thematique, rule):
+    with open(application_file, 'r', encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    data[thematique][rule]['apply'] = False
+    data[thematique][rule]['status'] = 'Compliant'
+    with open(application_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
-# ============================
-# RÈGLES UTILISATEURS "w", encoding="utf-8") as file:
-        file.write("corrections:\n")
+    with open(analyse_file, 'r', encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    data[thematique][rule]['apply'] = True
+    data[thematique][rule]['status'] = 'Compliant'
+    with open(analyse_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
-        for rule_id, status in data.items():
-            for thematique, niveaux in rules.items():
-                if niv
-# ============================
+def update_report(level, thematique, rule):
+    if level == 'min':
+        update(application_min, analyse_min, thematique, rule)
+    elif level == 'moyen':
+        update(application_moyen, analyse_moyen, thematique, rule)
+
 
 def apply_r32(serveur, report):
     """
     Applique la règle R32 : Expirer les sessions utilisateur locales inactives.
     """
-    r32_data = report.get("utilisateurs", {}).get("R32", {})
+    r32_data = report.get("R32", {})
 
-    if not r32_data.get("appliquer", False):
-        print("✅ R32 : Aucune action nécessaire.")
+    if not r32_data.get("apply", False):
+        print(" R32 : Aucune action nécessaire.")
         return "Conforme"
 
     print("🔧 Application de la règle R32 : Expiration des sessions locales...")
 
     fix_success = True
 
-    attendus = r32_data.get("éléments_attendus", {})
+    attendus = r32_data.get("expected_elements", {})
     tmout_value = attendus.get("TMOUT")
     logind_conf = attendus.get("logind_conf", {})
 
     if not tmout_value or not logind_conf:
-        print("❌ R32 : Données attendues manquantes dans le rapport !")
+        print(" R32 : Données attendues manquantes dans le rapport !")
         return "Erreur : Données manquantes"
 
     # Sauvegardes HMS
@@ -84,138 +93,72 @@ def apply_r32(serveur, report):
         execute_ssh_command(serveur, f"sudo sed -i '/^{param}/d' /etc/systemd/logind.conf")
         execute_ssh_command(serveur, f"echo '{param}={value}' | sudo tee -a /etc/systemd/logind.conf")
 
-    print("🔄 Redémarrage de systemd-logind...")
+    print(" Redémarrage de systemd-logind...")
     execute_ssh_command(serveur, "sudo systemctl restart systemd-logind")
 
-    print("✅ R32 : Expiration des sessions utilisateur locales configurée.")
-    return "Appliqué" if fix_success else "Erreur"
+    update_report('moyen', 'users', 'R32')
+
+    print(" R32 : Expiration des sessions utilisateur locales configurée.")
+    return "Appliqué" 
 
 def apply_r69(serveur, report):
     """
     Applique la règle R69 : Sécuriser les accès aux bases utilisateurs distantes.
     """
-    r69_data = report.get("utilisateurs", {}).get("R69", {})
+    r69_data = report.get("R69", {})
+    print(" R69: L'application de cette regle n'est pas prise en compte par notre script")
 
     if not r69_data.get("appliquer", False):
-        print("✅ R69 : Aucune action nécessaire.")
+        print(" R69 : Aucune action nécessaire.")
         return "Conforme"
+    
 
-    print("🔧 Application de la règle R69 : Sécurisation des accès aux bases utilisateurs distantes...")
 
-    uses_remote_db = r69_data.get("éléments_detectés", {}).get("uses_remote_db")
-    secure_connection = r69_data.get("éléments_detectés", {}).get("secure_connection")
-    binddn_user = r69_data.get("éléments_detectés", {}).get("binddn_user")
-    limited_rights = r69_data.get("éléments_detectés", {}).get("limited_rights")
-
-    if uses_remote_db in [None, "None"]:
-        print("➡️ Aucun annuaire distant détecté, aucune action requise.")
-        return "Conforme"
-
-    if secure_connection.lower() not in ["start_tls", "ssl", "tls"]:
-        print("🔧 Configuration TLS manquante : ajout de la sécurité TLS...")
-        execute_ssh_command(serveur, "sudo sed -i '/^TLS_CACERT/d' /etc/ldap/ldap.conf")
-        execute_ssh_command(serveur, "echo 'TLS_CACERT /etc/ssl/certs/ca-certificates.crt' | sudo tee -a /etc/ldap/ldap.conf")
-
-    if binddn_user == "Not properly defined":
-        print("🔧 BindDN incorrect : définition d'un utilisateur de liaison restreint...")
-        execute_ssh_command(serveur, "sudo sed -i '/^binddn/d' /etc/ldap/ldap.conf")
-        execute_ssh_command(serveur, "echo 'binddn cn=service_account,dc=example,dc=com' | sudo tee -a /etc/ldap/ldap.conf")
-
-    if limited_rights != "Yes":
-        print("🔧 Limitation des droits : vérification manuelle des ACL dans LDAP recommandée.")
-
-    execute_ssh_command(serveur, "sudo systemctl restart nslcd || true")
-    execute_ssh_command(serveur, "sudo systemctl restart sssd || true")
-
-    print("✅ R69 : Accès aux bases utilisateurs distantes sécurisés.")
     return "Appliqué"
 
 def apply_r70(serveur, report):
     """
     Applique la règle R70 : Séparer les comptes système et administrateurs de l'annuaire.
     """
-    r70_data = report.get("utilisateurs", {}).get("R70", {})
+    r70_data = report.get("R70", {})
+    print(" R70: L'application de cette regle n'est pas prise en compte par notre script")
+
 
     if not r70_data.get("appliquer", False):
-        print("✅ R70 : Aucune action nécessaire.")
+        print(" R70 : Aucune action nécessaire.")
         return "Conforme"
 
-    print("🔧 Application de la règle R70 : Séparation des comptes système et administrateurs...")
-
-    attendus = r70_data.get("éléments_attendus", {})
-    admin_users_attendus = attendus.get("admin_users", [])
-    ldap_users_attendus = attendus.get("ldap_users", [])
-
-    execute_ssh_command(serveur, "sudo cp -n /etc/security/access.conf /etc/security/access.conf.HMS.bak")
-    execute_ssh_command(serveur, "sudo cp -n /etc/pam.d/common-auth /etc/pam.d/common-auth.HMS.bak")
-    execute_ssh_command(serveur, "sudo cp -n /etc/pam.d/sshd /etc/pam.d/sshd.HMS.bak")
-
-    execute_ssh_command(serveur, "sudo sed -i '/HMS_R70/d' /etc/security/access.conf")
-
-    access_rules = []
-
-    access_rules.append("# HMS_R70: Règles de séparation des comptes système/admin")
-    access_rules.append("+:root:LOCAL")
-
-    if admin_users_attendus:
-        for admin_user in admin_users_attendus:
-            access_rules.append(f"+:{admin_user}:LOCAL")
-    else:
-        access_rules.append("# Aucun utilisateur admin spécifié dans les éléments attendus.")
-
-    if ldap_users_attendus:
-        for ldap_user in ldap_users_attendus:
-            access_rules.append(f"-:{ldap_user}:ALL")
-    else:
-        access_rules.append("# Aucun utilisateur LDAP spécifié, aucune restriction particulière.")
-
-    access_rules.append("-:ALL:ALL")
-
-    for rule in access_rules:
-        execute_ssh_command(serveur, f"echo '{rule}' | sudo tee -a /etc/security/access.conf")
-
-    modules_to_check = [
-        "/etc/pam.d/common-auth",
-        "/etc/pam.d/sshd"
-    ]
-
-    for pam_file in modules_to_check:
-        check_cmd = f"sudo grep -q 'pam_access.so' {pam_file} || echo 'account required pam_access.so' | sudo tee -a {pam_file}"
-        execute_ssh_command(serveur, check_cmd)
-
-    print("✅ R70 : Séparation des comptes système/admin appliquée avec succès.")
+    
     return "Appliqué"
 
 # ============================
 # FONCTION PRINCIPALE UTILISATEURS
 # ============================
 
-def apply_utilisateurs(serveur, niveau, report_data):
+def apply_user (serveur, niveau, report_data):
     if report_data is None:
         report_data = {}
 
-    fix_results = {}
+    apply_data = report_data.get("users", None)
+    if apply_data is None:
+        return
 
     rules = {
-        "utilisateurs": {
-            "moyen": {
-                "R32": (apply_r32, "Expirer les sessions utilisateur locales"),
-                "R69": (apply_r69, "Sécuriser les accès aux bases utilisateurs distantes"),
-                "R70": (apply_r70, "Séparer les comptes système et administrateurs de l'annuaire")
-            },
-            "renforce": {
-                
-            }
+    
+        "moyen": {
+            "R32": (apply_r32, "Expirer les sessions utilisateur locales"),
+            "R69": (apply_r69, "Sécuriser les accès aux bases utilisateurs distantes"),
+            "R70": (apply_r70, "Séparer les comptes système et administrateurs de l'annuaire")
+        },
+        "renforce": {
         }
+    
     }
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            if apply_data.get(rule_id, {}).get("apply", False):
+                print(f"-> Applying rule {rule_id}: {comment}")
+                function(serveur, apply_data)
 
-    if niveau in rules["utilisateurs"]:
-        for rule_id, (function, comment) in rules["utilisateurs"][niveau].items():
-            print(f"-> Application de la règle {rule_id} : {comment}")
-            fix_results[rule_id] = function(serveur, report_data)
-
-    output_file = f"fixes_{niveau}_utilisateurs.yml"
-    save_yaml_fix_report_utilisateurs(fix_results, output_file, rules, niveau)
-
-    print(f"\n✅ Correctifs appliqués - UTILISATEURS - Niveau {niveau.upper()} : {output_file}")
-    return fix_results
+    print(f"\n Correctifs appliqués - utilisateur - Niveau {niveau.upper()} :")
+    

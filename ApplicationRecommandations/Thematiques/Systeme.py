@@ -81,6 +81,7 @@ def apply_r8(client, report):
     print("Report updated for R8.")
 
 def apply_r9(client, report):
+    
     # Define the reference expected kernel settings
     expected_elements = {
         "kernel.dmesg_restrict": "1",

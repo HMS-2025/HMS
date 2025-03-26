@@ -230,3 +230,35 @@ R67:
       - "auth required pam_faillock.so preauth silent audit deny=5 unlock_time=300"
       - "auth required pam_faillock.so authfail audit deny=5 unlock_time=300"
       - "auth optional pam_pwquality.so retry=3 minlen=12 difok=2"
+
+R12:
+  description: "SetUp IPV4 configuration"
+  expected:
+    net.ipv4.ip_forward: '0'
+    net.ipv4.conf.all.accept_local: '0'
+    net.ipv4.conf.all.accept_redirects: '0'
+    net.ipv4.conf.default.accept_redirects: '0'
+    net.ipv4.conf.all.secure_redirects: '0'
+    net.ipv4.conf.default.secure_redirects: '0'
+    net.ipv4.conf.all.shared_media: '0'
+    net.ipv4.conf.default.shared_media: '0'
+    net.ipv4.conf.all.accept_source_route: '0'
+    net.ipv4.conf.default.accept_source_route: '0'
+    net.ipv4.conf.all.arp_filter: '1'
+    net.ipv4.conf.all.arp_ignore: '2'
+    net.ipv4.conf.all.route_localnet: '0'
+    net.ipv4.conf.all.drop_gratuitous_arp: '1'
+    net.ipv4.conf.default.rp_filter: '1'
+    net.ipv4.conf.all.rp_filter: '1'
+    net.ipv4.conf.default.send_redirects: '0'
+    net.ipv4.conf.all.send_redirects: '0'
+    net.ipv4.icmp_ignore_bogus_error_responses: '1'
+    net.ipv4.ip_local_port_range: "32768\t65535"
+    net.ipv4.tcp_rfc1337: '1'
+    net.ipv4.tcp_syncookies: '1'
+
+R13:
+  description: "Disable IPV6"
+  expected:
+    net.ipv6.conf.default.disable_ipv6: '1'
+    net.ipv6.conf.all.disable_ipv6: '1'

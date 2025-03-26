@@ -5,6 +5,9 @@ from ApplicationRecommandations.Thematiques.Maintenance import apply_maintenance
 from ApplicationRecommandations.Thematiques.MiseAJour import apply_mise_a_jour
 from ApplicationRecommandations.Thematiques.Systeme import apply_system
 from ApplicationRecommandations.Thematiques.Services import apply_services
+from ApplicationRecommandations.Thematiques.Reseau import apply_network
+from ApplicationRecommandations.Thematiques.Utilisateurs import apply_user
+from ApplicationRecommandations.Thematiques.JournalisationAudit import apply_logging_audit
 
 
 # Fonction de chargement des rapports d'analyse
@@ -22,8 +25,10 @@ def application_recommandations_moyen (client) :
 
     path_report="./GenerationRapport/RapportApplication/application_moyen.yml"
     report_data = load_analysis_report(path_report)
-    
 
+    print("\n[Correction] Journalisation et audit (niveau moyen)...")
+    apply_logging_audit(client, niveau="moyen", report_data=report_data)
+    
     print("\n[Correction] Gestion des accès (niveau moyen)...")
     apply_access_management(client, niveau="moyen", report_data=report_data)
 
@@ -41,4 +46,12 @@ def application_recommandations_moyen (client) :
 
     print("\n [Correction] services ( niveau moyen) ")
     apply_services(client, niveau="moyen", report_data=report_data)
+
+    print("\n [Correction] network ( niveau moyen) ")
+    apply_network(client, niveau="moyen", report_data=report_data)
+
+    print("\n [Correction] user ( niveau moyen) ")
+    apply_user(client, niveau="moyen", report_data=report_data)
+
+
 

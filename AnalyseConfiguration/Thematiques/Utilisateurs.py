@@ -53,8 +53,13 @@ def check_compliance(rule_id, detected_values, reference_data):
     if rule_id == "R32":
         discrepancies = {}
         is_compliant = True
+
         def compare_values(detected, expected, path=""):
-            nonlocal is_compliant
+            if detected in [None, "None", "Not defined", ""]:
+                discrepancies[path[:-1]] = {"detected": detected, "expected": expected}
+                is_compliant = False
+                return
+
             if isinstance(detected, dict) and isinstance(expected, dict):
                 for key in expected:
                     compare_values(detected.get(key, "Not defined"), expected[key], path + key + ".")
@@ -65,13 +70,18 @@ def check_compliance(rule_id, detected_values, reference_data):
                     if detected_converted > expected_converted:
                         discrepancies[path[:-1]] = {"detected": detected, "expected": expected}
                         is_compliant = False
+                else:
+                    if str(detected).strip().lower() != str(expected).strip().lower():
+                        discrepancies[path[:-1]] = {"detected": detected, "expected": expected}
+                        is_compliant = False
+
         expected_vals = reference_data.get(rule_id, {}).get("expected", {})
         compare_values(detected_values, expected_vals)
         return {
             "status": "Compliant" if is_compliant else "Non-Compliant",
             "apply": is_compliant,
             "detected_elements": detected_values or "None",
-            "expected_elements": expected_vals or "None"
+            "expected_elements": expected_vals or "None",
         }
     elif rule_id == "R70":
         local_users = set(detected_values.get("local_users", []))

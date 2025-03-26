@@ -1,10 +1,11 @@
 import yaml
 import re
-import subprocess
 import os
 import pyshark
 import ipaddress
 from collections import defaultdict
+import os
+
 
 def update_yaml(yaml_file, thematique ,  rule, clear_keys=[]):
     with open(yaml_file, 'r', encoding="utf-8") as file:
@@ -434,111 +435,87 @@ def iptables(client, yaml_file):
     analyze_pcap_and_generate_script(client, local_pcap_file)
 
 
-def apply_rule(rule_name, yaml_file, client , level):
-    if level =='min' : 
-        if rule_name == "R80":
-            iptables(client , yaml_file)
-        else:
-            print(f"Règle inconnue:{rule_name}")
-    elif level == "moyen": 
-        pass
-    else : 
-        pass
-def apply_recommandation_reseau(yaml_file, client , level):
-    try:
-        with open(yaml_file, 'r', encoding="utf-8") as file:
-            data = yaml.safe_load(file)  
-        if not data or 'network' not in data:
-            return
-        for rule, rule_data in data['network'].items():
-            if not rule_data.get('apply', False):
-                print(f"Règle {rule} déjà appliquée.")
-            else:
-                apply_rule(rule, yaml_file, client , level)
-                
-    except FileNotFoundError:
-        print(f"Fichier {yaml_file} non trouvé.")
-    except yaml.YAMLError as e:
-        print(f"Erreur lors de la lecture du fichier YAML : {e}")
-    except Exception as e:
-        print(f"Une erreur inattendue s'est produite : {e}")
+#=========== Global ==========
+application_min = "./GenerationRapport/RapportApplication/application_min.yml"
+analyse_min = "./GenerationRapport/RapportAnalyse/analyse_min.yml"
 
-######----------------------------------------PARTIE moyen--------------------------------------------------------------------------------------------------######
+application_moyen = "./GenerationRapport/RapportApplication/application_moyen.yml"
+analyse_moyen = "./GenerationRapport/RapportAnalyse/analyse_moyen.yml"
 
-import os
-#from ApplicationRecommandations.execute_command import execute_ssh_command # import non correcte
-##Ajout  de la fonction immediatement mais à enlever par la suite pour l'importer
 
-def execute_ssh_command(serveur, command):
-    stdin, stdout, stderr = serveur.exec_command(command)
-    return list(filter(None, stdout.read().decode().strip().split("\n")))
+def execute_ssh_command(client, command):
+    """Execute an SSH command and return output and error."""
+    stdin, stdout, stderr = client.exec_command(command)
+    output = list(filter(None, stdout.read().decode().strip().split("\n")))
+    error = stderr.read().decode().strip()
+    return output, error
 
-# ============================
-# Fonction utilitaire commune
-# ============================
+def update(application_file, analyse_file, thematique, rule):
+    with open(application_file, 'r', encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    data[thematique][rule]['apply'] = False
+    data[thematique][rule]['status'] = 'Compliant'
+    with open(application_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
-def save_yaml_fix_report_reseau(data, output_file, rules, niveau):
-    if not data:
-        return
+    with open(analyse_file, 'r', encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    data[thematique][rule]['apply'] = True
+    data[thematique][rule]['status'] = 'Compliant'
+    with open(analyse_file, 'w', encoding="utf-8") as file:
+        yaml.safe_dump(data, file)
 
-    output_dir = "GenerationRapport/RapportCorrections"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, output_file)
-
-    with open(output_path, "w", encoding="utf-8") as file:
-        file.write("corrections:\n")
-
-        for rule_id, status in data.items():
-            for thematique, niveaux in rules.items():
-                if niveau in niveaux and rule_id in niveaux[niveau]:
-                    comment = niveaux[niveau][rule_id][1]
-                    file.write(f"  {rule_id}:  # {comment} ({thematique})\n")
-                    file.write(f"    status: {status}\n")
-
-    print(f"✅ Rapport des corrections RESEAU généré : {output_path}")
+def update_report(level, thematique, rule):
+    if level == 'min':
+        update(application_min, analyse_min, thematique, rule)
+    elif level == 'moyen':
+        update(application_moyen, analyse_moyen, thematique, rule)
 
 # ============================
 # RÈGLES RESEAU
 # ============================
 
 def apply_r12(serveur, report):
-    r12_data = report.get("reseau", {}).get("R12", {})
+
+    r12_data = report.get("R12", {})
     if not r12_data.get("apply", False):
-        print("✅ R12 : Aucune action nécessaire.")
-        return "Conforme"
+        print(" R12: No action required.")
+        return "Compliant"
 
-    print("🔧 Application de la règle R12 : Configuration IPv4...")
+    print(" Applying rule R12: Configuring IPv4...")
 
-    ipv4_params = r12_data.get("expected_elements", {})
+    ipv4_params = r12_data.get("detected_elements", {})
     if not ipv4_params:
-        print("⚠️  R12 : Paramètres manquants !")
-        return "Erreur : Paramètres manquants"
+        print("⚠️  R12: No missing parameters!")
+        return
 
     execute_ssh_command(serveur, "sudo cp -n /etc/sysctl.conf /etc/sysctl.conf.HMS.bak")
 
     for param, value in ipv4_params.items():
-        print(f"➡️  Application de {param} = {value}")
+        print(f"Applying {param} = {value}")
         execute_ssh_command(serveur, f"sudo sysctl -w {param}={value}")
         execute_ssh_command(serveur, f"sudo sed -i '/^{param}/d' /etc/sysctl.conf")
         execute_ssh_command(serveur, f"echo '{param} = {value}' | sudo tee -a /etc/sysctl.conf > /dev/null")
 
     execute_ssh_command(serveur, "sudo sysctl -p")
-    print("✅ R12 : Paramètres IPv4 appliqués.")
-    return "Appliqué"
+    update_report('moyen', 'network', 'R12')
+
+    print(" R12: IPv4 parameters applied.")
+    return "Applied"
 
 def apply_r13(serveur, report):
-    r13_data = report.get("reseau", {}).get("R13", {})
+
+    r13_data = report.get("R13", {})
     if not r13_data.get("apply", False):
-        print("✅ R13 : Aucune action nécessaire.")
-        return "Conforme"
+        print(" R13: No action required.")
+        return "Compliant"
 
-    print("🔧 Application de la règle R13 : Désactivation IPv6...")
+    print(" Applying rule R13: Disabling IPv6...")
 
-    ipv6_disable_params = {
-        "net.ipv6.conf.all.disable_ipv6": "1",
-        "net.ipv6.conf.default.disable_ipv6": "1",
-        "net.ipv6.conf.lo.disable_ipv6": "1"
-    }
+    ipv6_disable_params = r13_data.get("detected_elements", {})
+    if not ipv6_disable_params:
+        print("⚠️  R13: No missing parameters!")
+        return
 
     execute_ssh_command(serveur, "sudo cp -n /etc/sysctl.conf /etc/sysctl.conf.HMS.bak")
 
@@ -548,23 +525,25 @@ def apply_r13(serveur, report):
         execute_ssh_command(serveur, f"echo '{param} = {value}' | sudo tee -a /etc/sysctl.conf > /dev/null")
 
     execute_ssh_command(serveur, "sudo sysctl -p")
-    print("✅ R13 : IPv6 désactivé.")
-    return "Appliqué"
+    update_report('moyen', 'network', 'R13')
+
+    print(" R13: IPv6 disabled.")
+
+    return "Applied"
 
 def apply_r67(serveur, report):
-    r67_data = report.get("reseau", {}).get("R67", {})
+    r67_data = report.get("R67", {})
     if not r67_data.get("apply", False):
-        print("✅ R67 : Aucune action nécessaire.")
-        return "Conforme"
+        print(" R67: No action required.")
+        return "Compliant"
 
-    print("🔧 Application de la règle R67 : Sécurisation de l'authentification distante PAM...")
+    print(" Applying rule R67: Securing remote authentication via PAM...")
 
-    expected_rules = r67_data.get("expected_elements", {}).get("pam_rules", [])
-    detected_rules = r67_data.get("detected_elements", {}).get("pam_rules", [])
-
+    expected_rules = r67_data.get("expected_elements", [])
+    detected_rules = r67_data.get("difference", [])
     if not expected_rules:
-        print("❌ R67 : Aucune règle PAM attendue trouvée dans le rapport !")
-        return "Erreur : données manquantes"
+        print("R67: No expected PAM rules found in the report!")
+        return "Error: Missing data"
 
     pam_files = [
         "/etc/pam.d/common-auth",
@@ -576,57 +555,41 @@ def apply_r67(serveur, report):
     for pam_file in pam_files:
         execute_ssh_command(serveur, f"sudo cp -n {pam_file} {pam_file}.HMS.bak")
 
-    missing_rules = [rule for rule in expected_rules if rule not in detected_rules]
+    if not detected_rules:
+        print(" R67: All expected PAM rules are already in place.")
+        return "Compliant"
 
-    if not missing_rules:
-        print("✅ R67 : Toutes les règles PAM attendues sont déjà en place.")
-        return "Conforme"
+    print(f"➡️ R67: Adding missing rules: {len(detected_rules)}")
 
-    print(f"➡️ R67 : Ajout des règles manquantes : {len(missing_rules)}")
-
-    for rule in missing_rules:
+    for rule in detected_rules:
         execute_ssh_command(serveur, f"echo '{rule}' | sudo tee -a /etc/pam.d/common-auth > /dev/null")
 
-    print("✅ R67 : Règles PAM ajoutées avec succès.")
-    return "Appliqué"
+    update_report('moyen', 'network', 'R67')
+
+    print(" R67: PAM rules successfully added.")
+    return "Applied"
 
 def apply_r79(serveur, report):
-    r79_data = report.get("reseau", {}).get("R79", {})
+
+    r79_data = report.get("R79", {})
     if not r79_data.get("apply", False):
-        print("✅ R79 : Aucune action nécessaire.")
-        return "Conforme"
+        print(" R79: No action required.")
+        return "Compliant"
 
-    services_to_harden = r79_data.get("detected_elements", {}).get("running_services", [])
+    print(" R79: Managed by the IPtables feature.")
 
-    if not services_to_harden:
-        print("✅ R79 : Aucun service exposé détecté.")
-        return "Conforme"
+    return "Applied"
 
-    print("🔧 Application de la règle R79 : Durcissement des services exposés...")
+def apply_r80(serveur, report):
 
-    for service in services_to_harden:
-        print(f"➡️  Restriction du service {service}")
-        execute_ssh_command(serveur, f"sudo systemctl disable {service}")
-        execute_ssh_command(serveur, f"sudo systemctl stop {service}")
+    r80_data = report.get("R80", {})
+    if not r80_data.get("apply", False):
+        print(" R80: No action required.")
+        return "Compliant"
 
-    print("✅ R79 : Services exposés désactivés.")
-    return "Appliqué"
-
-def apply_r81(serveur, report):
-    r81_data = report.get("reseau", {}).get("R81", {})
-    if not r81_data.get("apply", False):
-        print("✅ R81 : Aucune action nécessaire.")
-        return "Conforme"
-
-    print("🔧 Application de la règle R81 : Vérification des interfaces restreintes...")
-
-    interfaces = r81_data.get("detected_elements", {})
-
-    for iface, ip_info in interfaces.items():
-        print(f"➡️ Interface {iface} : IPv4={ip_info.get('ipv4')} IPv6={ip_info.get('ipv6')}")
-
-    print("✅ R81 : Interfaces réseau restreintes vérifiées.")
-    return "Appliqué"
+    print(" R80: Managed by the IPtables feature.")
+    
+    return "Applied"
 
 
 
@@ -697,37 +660,37 @@ def apply_R78(serveur, report):
 
 
 # ============================
-# FONCTION PRINCIPALE RESEAU
+# MAIN NETWORK FUNCTION
 # ============================
 
-def apply_reseau(serveur, niveau, report_data):
+def apply_network(serveur, niveau, report_data):
     if report_data is None:
         report_data = {}
 
-    fix_results = {}
-
+    apply_data = report_data.get("network", None)
+    if apply_data is None:
+        return
+    
     rules = {
-        "reseau": {
+        "reseau": { 
+            "min": {
+                   "R80": (apply_r80 , "reduce the attack surface")
+                    }, 
             "moyen": {
-                "R12": (apply_r12, "Paramétrer les options de configuration IPv4"),
-                "R13": (apply_r13, "Désactiver le plan IPv6"),
-                "R67": (apply_r67, "Sécuriser l'authentification distante par PAM"),
-                "R79": (apply_r79, "Durcir et surveiller les services exposés"),
-                "R81": (apply_r81, "Restreindre les interfaces réseau")
-            },
+                         "R12": (apply_r12, "Configure IPv4 options"),
+                         "R13": (apply_r13, "Disable the IPv6 plane"),
+                         "R67": (apply_r67, "Secure remote authentication via PAM"),
+                         "R79": (apply_r79, "Harden and monitor exposed services"),
+        },
             "renforce": {
                 "R71": (apply_R78, "Isolate network services: verify services are distributed into distinct slices")
             }
         }
     }
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
+            if apply_data.get(rule_id, {}).get("apply", False):
+                print(f"-> Applying rule {rule_id}: {comment}")
+                function(serveur, apply_data)
 
-    if niveau in rules["reseau"]:
-        for rule_id, (function, comment) in rules["reseau"][niveau].items():
-            print(f"-> Application de la règle {rule_id} : {comment}")
-            fix_results[rule_id] = function(serveur, report_data)
-
-    output_file = f"fixes_{niveau}_reseau.yml"
-    save_yaml_fix_report_reseau(fix_results, output_file, rules, niveau)
-
-    print(f"\n✅ Correctifs appliqués - RESEAU - Niveau {niveau.upper()} : {output_file}")
-    return fix_results
+    print(f"\n- Corrections applied - network - Level {niveau.upper()}")
