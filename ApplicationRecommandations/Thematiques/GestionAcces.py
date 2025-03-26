@@ -8,6 +8,8 @@ analyse_min = "./GenerationRapport/RapportAnalyse/analyse_min.yml"
 application_moyen = "./GenerationRapport/RapportApplication/application_moyen.yml"
 analyse_moyen = "./GenerationRapport/RapportAnalyse/analyse_moyen.yml"
 
+application_renforce = "./GenerationRapport/RapportApplication/application_renforce.yml"
+analyse_renforce = "./GenerationRapport/RapportAnalyse/analyse_renfore.yml"
 
 def execute_ssh_command(serveur, command):
     """Exécute une commande SSH sur le serveur distant et retourne la sortie."""
@@ -42,6 +44,8 @@ def update_report(level , thematique ,  rule, clear_keys=[]):
         update(application_min , analyse_min , thematique , rule)
     elif level ==  'moyen' :
         update(application_moyen , analyse_moyen , thematique , rule)
+    elif level ==  'renforce' :
+        update(application_renforce , analyse_renforce , thematique , rule)
 
 def apply_r30(serveur, report):
 
@@ -448,6 +452,360 @@ def apply_R67(serveur, report):
     print("- R67: PAM security rules have been successfully applied.")
 
 
+#######################################################################################
+#                                                                                     #
+#                        Gestion d'acces niveau renforcé                              #
+#                                                                                     #
+#######################################################################################
+#Regle 29 (NB pas de boot sur les vm donc valide pour les hoste)
+def apply_R29(serveur, report):
+    """Applique la règle R29 en restreignant l'accès au répertoire /boot et en modifiant /etc/fstab en toute sécurité."""
+
+    reference_data = {
+        "description": "Restrict access to /boot directory.",
+        "expected": {
+            "auto_mount": "noauto",
+            "permissions": "700",
+            "owner": "root",
+        },
+    }
+
+    r29_data = report.get("access_management", {}).get("R29", {})
+
+    if not r29_data.get("apply", False):
+        print("- R29: No action required.")
+        return "Compliant"
+
+    print("\n    Applying rule R29 (Restrict access to /boot directory)    \n")
+
+    # Vérifier les éléments détectés
+    detected_elements = r29_data.get("detected_elements", {})
+
+    if not detected_elements:
+        print("Rule R29: No elements detected for insecure /boot configuration.")
+        return
+
+    # Travailler sur une copie temporaire avant toute modification définitive
+    print("\n🔹 Création d'une copie temporaire de /etc/fstab...")
+    serveur.exec_command("sudo cp /etc/fstab /tmp/fstab.tmp_htms")
+
+    # Détecter automatiquement le périphérique /boot
+    command = "sudo lsblk -o NAME,UUID,MOUNTPOINT | grep ' /boot$' | awk '{gsub(/^[├└─ ]*/, \"\", $1); gsub(/^[├└─ ]*/, \"\", $2); print \"/dev/\" $1, $2}'"
+    _, stdout, stderr = serveur.exec_command(command)
+    output = stdout.read().decode().strip()
+    #output="/dev/sda-test uuid_test"  # Simulé pour test
+
+    if output:
+        device, device_uuid = output.split()
+        print(f"🔹 Périphérique de /boot détecté : {device} avec UUID : {device_uuid}")
+    else:
+        print("❌ Aucun périphérique de /boot détecté.")
+        return "Failed"
+
+    # Vérifier si UUID ou device sont déjà dans /etc/fstab
+    _, stdout, stderr = serveur.exec_command(f"grep -E '({device_uuid}|{device})' /tmp/fstab.tmp_htms")
+    fstab_entry = stdout.read().decode().strip()
+
+    if fstab_entry:
+        print(f"🔹 Une entrée existante pour {device} ou {device_uuid} est présente dans /etc/fstab.")
+        # Mise à jour en supprimant l'ancienne entrée
+        serveur.exec_command(f"grep -Ev '({device_uuid}|{device})' /tmp/fstab.tmp_htms | sudo tee /tmp/fstab.tmp_htms > /dev/null")
+    else:
+        print(f"🔹 Aucune entrée pour {device} ou {device_uuid} dans /etc/fstab.")
+
+    # Ajouter la ligne correcte avec noauto
+    serveur.exec_command(f"echo 'UUID={device_uuid} /boot ext4 defaults,noauto 0 2' | sudo tee -a /tmp/fstab.tmp_htms > /dev/null")
+
+    # Vérification de la syntaxe
+    _, stdout, stderr = serveur.exec_command("sudo mount -a -T /tmp/fstab.tmp_htms")
+
+    if stdout.channel.recv_exit_status() == 0:
+        print("✅ Syntaxe valide. Sauvegarde et application des modifications.")
+        serveur.exec_command("sudo cp /etc/fstab /etc/fstab.back_R29")
+        serveur.exec_command("sudo mv /tmp/fstab.tmp_htms /etc/fstab")
+        serveur.exec_command("sudo mount -o remount /boot")
+
+        # Vérifier et corriger les permissions de /boot
+        print("\n🔹 Vérification des permissions de /boot...")
+        if detected_elements.get("permissions") != reference_data["expected"]["permissions"]:
+            serveur.exec_command("sudo chmod 700 /boot")
+            print("✅ Permissions de /boot corrigées.")
+
+        if detected_elements.get("owner") != reference_data["expected"]["owner"]:
+            serveur.exec_command("sudo chown root:root /boot")
+            print("✅ Propriétaire de /boot corrigé.")
+
+        # Update the report
+        update_report('renforce', 'access_management', 'R29')
+        print("✅ R29 appliquée avec succès.")
+       
+    else:
+        print("❌ Erreur de syntaxe. Restauration de l'original.")
+        serveur.exec_command("sudo rm /tmp/fstab.tmp_htms")
+        return "Failed"
+
+
+###Regle 38
+def apply_R38(serveur, report):
+    """Applies rule R38 by restricting sudo usage through a dedicated group with exclusive execute permissions on the sudo binary."""
+
+    reference_data = {
+        "description": "Restrict sudo usage by creating a dedicated group with exclusive execute permissions on the sudo binary.",
+        "expected": {
+            "permissions": "4750",
+            "owner": "root",
+            "group": "sudogrp",
+        },
+    }
+
+    r38_data = report.get("access_management", {}).get("R38", {})
+
+    if not r38_data.get("apply", False):
+        print("- R38: No action required.")
+        return "Compliant"
+
+    print("\n    Applying rule R38 (Restrict sudo usage)    \n")
+
+    # Check for detected elements in the report
+    detected_elements = r38_data.get("detected_elements", {})
+
+    if not detected_elements:
+        print("Rule R38: No elements detected for sudo usage restriction.")
+        return "Failed"
+
+    permissions = detected_elements.get("permissions", "")
+    owner = detected_elements.get("owner", "")
+    group = detected_elements.get("group", "")
+
+    print(f"🔹 Current permissions: {permissions}, Owner: {owner}, Group: {group}")
+
+    # Backup the sudo file before any modification
+    print("🔹 Creating a backup of /usr/bin/sudo...")
+    serveur.exec_command("sudo rm -f /usr/bin/sudo.back_R38")  # Remove the old backup if it exists
+    serveur.exec_command("sudo cp /usr/bin/sudo /usr/bin/sudo.back_R38")
+
+    # Check if the sudogrp group exists
+    _, stdout, stderr = serveur.exec_command("getent group sudogrp")
+    group_output = stdout.read().decode().strip()
+    if not group_output:
+        print("🔹 The 'sudogrp' group does not exist. Creating the group...")
+        serveur.exec_command("sudo groupadd sudogrp")
+
+    # Ask the user for additional users (comma-separated)
+    additional_users_input = input("Enter additional users to add to the 'sudogrp' group, separated by commas (or press Enter to skip): ")
+    additional_users = [user.strip() for user in additional_users_input.split(",")] if additional_users_input else []
+
+    # Add root and the specified users to the sudogrp group
+    users_to_add = ["root"] + additional_users
+    for user in users_to_add:
+        print(f"🔹 Adding user '{user}' to the 'sudogrp' group...")
+
+        # Add the user to the sudogrp group
+        _, stdout, stderr = serveur.exec_command(f"sudo usermod -aG {reference_data['expected']['group']} {user}")
+        error_message = stderr.read().decode().strip()
+
+        if error_message:
+            print(f"❌ Error adding user '{user}' to the 'sudogrp' group: {error_message}")
+        else:
+            print(f"✅ User '{user}' added to the 'sudogrp' group.")
+    #Changer group
+    if group != reference_data["expected"]["group"]:
+        print(f"🔹 Changing the group of /usr/bin/sudo to {reference_data['expected']['group']}.")
+        _, stdout, stderr=serveur.exec_command(f"sudo chown :{reference_data['expected']['group']} /usr/bin/sudo")
+        if error_message:
+            print(f"❌ Erreur lors de la modification du groupe de /usr/bin/sudo : {error_message}")
+        else:
+            print(f"✅ Groupe de /usr/bin/sudo modifié avec succès.")
+
+    # If the permissions, owner, or group are not compliant, modify them
+    if permissions != reference_data["expected"]["permissions"]:
+        print(f"🔹 Changing the permissions of /usr/bin/sudo to {reference_data['expected']['permissions']}.")
+        serveur.exec_command(f"sudo chmod {reference_data['expected']['permissions']} /usr/bin/sudo")
+
+    if owner != reference_data["expected"]["owner"]:
+        print(f"🔹 Changing the owner of /usr/bin/sudo to {reference_data['expected']['owner']}.")
+        serveur.exec_command(f"sudo chown {reference_data['expected']['owner']} /usr/bin/sudo")
+    
+    # Update the report
+    update_report('renforce', 'access_management', 'R38')    
+    print("✅ R38 successfully applied.")
+   
+# Regle 41
+def apply_R41(serveur, report):
+    """Applique la règle R41 en ajoutant les directives NOEXEC au fichier sudoers pour restreindre certaines commandes."""
+
+    # Définition des commandes restreintes avec NOEXEC
+    expected_elements = [
+        "Cmnd_Alias  NOEXEC_CMDS = /bin/vi, /usr/bin/vi, /bin/vim, /usr/bin/vim, /bin/nano, /usr/bin/nano, /bin/emacs, /usr/bin/emacs",
+        "%sudo       ALL=(ALL:ALL) NOEXEC: NOEXEC_CMDS"
+    ]
+
+    r41_data = report.get("access_management", {}).get("R41", {})
+
+    if not r41_data.get("apply", False):
+        print("- R41: No action required.")
+        return "Compliant"
+
+    print("\n    Applying rule R41 (Restrict process execution with NOEXEC)    \n")
+
+    detected_elements = r41_data.get("detected_elements", [])
+
+    # Vérifier les éléments manquants
+    missing_elements = expected_elements if not detected_elements else [
+        line for line in expected_elements if line not in detected_elements
+    ]
+
+    if not missing_elements:
+        print("✅ R41 is already correctly applied.")
+        return "Compliant"
+
+    print(f"🔹 Adding NOEXEC directives to /etc/sudoers: {missing_elements}")
+
+    # Sauvegarde du fichier sudoers avant modification
+    print("🔹 Creating a backup of /etc/sudoers...")
+    serveur.exec_command("sudo cp /etc/sudoers /etc/sudoers.back_R41")
+
+    # Copier sudoers vers un fichier temporaire
+    temp_file = "/tmp/sudoers_modif_R41"
+    serveur.exec_command(f"sudo cp /etc/sudoers {temp_file}")
+
+    # Ajouter les directives manquantes au fichier temporaire
+    directives_to_add = "\n".join(missing_elements)
+    serveur.exec_command(f"echo '{directives_to_add}' | sudo tee -a {temp_file} > /dev/null")
+
+    # Vérifier la syntaxe du fichier temporaire avant de l'appliquer
+    _, stdout, stderr = serveur.exec_command(f"sudo visudo -c -f {temp_file}")
+    error_message = stderr.read().decode().strip()
+
+    if error_message:
+        print(f"❌ Syntax error in modified sudoers file: {error_message}")
+        print("🚨 The original sudoers file remains unchanged.")
+        print(f"🔹 Removing temporary file: {temp_file}")
+        serveur.exec_command(f"sudo rm -f {temp_file}")
+        return "Failed"
+
+    # Appliquer la configuration validée
+    serveur.exec_command(f"sudo cp {temp_file} /etc/sudoers")
+    # Update the report
+    update_report('renforce', 'access_management', 'R41')  
+    print("✅ R41 applied successfully.")
+
+    # Suppression du fichier temporaire après succès
+    serveur.exec_command(f"sudo rm -f {temp_file}")
+    
+
+#Regle 57
+def apply_R57(serveur, report):
+    """Applique la règle R57 pour limiter les exécutables avec setuid/setgid root aux stricts nécessaires."""
+
+    r57_data = report.get("access_management", {}).get("R57", {})
+
+    if not r57_data.get("apply", False):
+        print("- R57: No action required.")
+        return "Compliant"
+
+    print("\n    Applying rule R57 (Restrict setuid/setgid executables)    \n")
+
+    unauthorized_files = r57_data.get("unauthorized_elements", [])
+
+    if not unauthorized_files:
+        print("✅ R57: No unauthorized setuid/setgid files found.")
+        return "Compliant"
+
+    file_count = len(unauthorized_files)
+
+    print(f"🔍 Found {file_count} unauthorized setuid/setgid files:")
+
+    # Affichage des fichiers
+    if file_count <= 20:
+        for file in unauthorized_files:
+            print(f"   - {file}")
+    else:
+        for file in unauthorized_files[:20]:  # Affiche les 20 premiers
+            print(f"   - {file}")
+        
+        # Sauvegarde des fichiers détectés dans un fichier temporaire sur le serveur
+        temp_file = "/tmp/unauthorized_setuid_files"
+        file_list = "\n".join(unauthorized_files)
+        serveur.exec_command(f"echo '{file_list}' | sudo tee {temp_file} > /dev/null")
+
+    print("\n📌 To manually check all setuid/setgid files, run:")
+    print(f"   🔹 find / -perm -4000 -o -perm -2000 2>/dev/null\n")
+    input("\nPress Enter to continue...")
+
+    # Commande de révocation des permissions setuid/setgid
+    revoke_cmd = " ".join(f"sudo chmod u-s,g-s {file}" for file in unauthorized_files)
+   
+    # Demande de confirmation utilisateur
+    choice = input("❓ Do you want to revoke these permissions? (y=yes / n=no): ").strip().lower()
+    if choice == "y":
+        print("🔹 Revoking setuid/setgid permissions from unauthorized files...")
+        serveur.exec_command(revoke_cmd)
+        # Update the report
+        update_report('renforce', 'access_management', 'R57')  
+        print("✅ Rule 57 : Setuid/setgid permissions revoked.")       
+    else:
+        print("⚠️ No changes made. Manual review required.")
+        return "Review Required"
+
+#Regle 64
+def apply_R64(serveur, report):
+    """Applique la règle R64 pour restreindre les services et exécutables aux privilèges minimaux requis."""
+
+    r64_data = report.get("access_management", {}).get("R64", {})
+
+    if not r64_data.get("apply", False):
+        print("- R64: No action required.")
+        return "Compliant"
+
+    print("\n    Applying rule R64 (Restrict services and executables to minimal privileges)    \n")
+
+    unauthorized_files = r64_data.get("unauthorized_elements", [])
+
+    if not unauthorized_files:
+        print("✅ R64: All services and executables use minimal required privileges.")
+        return "Compliant"
+
+    file_count = len(unauthorized_files)
+
+    print(f"🔍 Found {file_count} services/executables with excessive privileges:")
+
+    # Affichage des fichiers
+    if file_count <= 20:
+        for file in unauthorized_files:
+            print(f"   - {file}")
+    else:
+        for file in unauthorized_files[:20]:  # Affiche les 20 premiers
+            print(f"   - {file}")
+        print("\n⚠️ Too many files to display! Run the following command to see them all:")
+        print("   🔹 cat /tmp/unauthorized_privilege_files\n")
+
+        # Sauvegarde des fichiers détectés dans un fichier temporaire sur le serveur
+        temp_file = "/tmp/unauthorized_privilege_files"
+        file_list = "\n".join(unauthorized_files)
+        serveur.exec_command(f"echo '{file_list}' | sudo tee {temp_file} > /dev/null")
+
+    print("\n📌 To manually check all files with excessive privileges, run:")
+    print(f"   🔹 ps -eo euser,egroup,uid,gid,comm\n")
+    input("\nPress Enter to continue...")
+
+    # Commande de restriction des privilèges excessifs
+    restrict_cmd = " ".join(f"sudo chmod o-rwx {file}" for file in unauthorized_files)
+    # Demande de confirmation utilisateur
+    choice = input("❓ Do you want to restrict privileges on these services/executables? (y=yes / n=no): ").strip().lower()
+    if choice == "y":
+        print("🔹 Restricting privileges on unauthorized services/executables...")
+        serveur.exec_command(restrict_cmd)
+        # Update the report
+        update_report('renforce', 'access_management', 'R64')  
+        print("✅ Rule 64 : Privileges restricted.")        
+    else:
+        print("⚠️ No changes made. Manual review required.")
+        return "Review Required"
+
+######################    Fin de gestion acess niveau renforcé    ##########################
+
+
 def apply_access_management(serveur, niveau, report_data):
     """Applies access management rules based on the specified level."""
     if report_data is None:
@@ -472,11 +830,14 @@ def apply_access_management(serveur, niveau, report_data):
             "R44": (apply_R44, "Edit files securely with sudo"),
             "R50": (apply_R50, "Restrict access permissions to sensitive files and directories"),
             "R52": (apply_R52, "Ensure named pipes and sockets have restricted permissions"),
-            "R55": (apply_R55, "Isolate user temporary directories"),
-            "R67": (apply_R67, "Ensure remote authentication via PAM")
+            "R55": (apply_R55, "Isolate user temporary directories")            
         },
-        "avancé": {
-            # To be completed as needed
+        "renforce": {
+            "R29" : (apply_R29, "Restrict access to /boot directory"),
+            "R38" : (apply_R38, "Restrict sudo to a dedicated group"),
+            "R41" : (apply_R41, "Check sudo directives using NOEXEC"),
+            "R57" : (apply_R57, "Avoid executables with setuid root and setgid root"),
+            "R64" : (apply_R64, "Configure services with minimal privileges")
         }
     }
 

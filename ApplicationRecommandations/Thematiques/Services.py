@@ -8,6 +8,9 @@ application_moyen = "./GenerationRapport/RapportApplication/application_moyen.ym
 analyse_moyen = "./GenerationRapport/RapportAnalyse/analyse_moyen.yml"
 
 
+application_renforce = "./GenerationRapport/RapportApplication/application_renforce.yml"
+analyse_renforce = "./GenerationRapport/RapportAnalyse/analyse_renfore.yml"
+
 def execute_ssh_command(client, command):
     """Execute an SSH command and return output and error."""
     stdin, stdout, stderr = client.exec_command(command)
@@ -35,6 +38,8 @@ def update_report(level, thematique, rule):
         update(application_min, analyse_min, thematique, rule)
     elif level == 'moyen':
         update(application_moyen, analyse_moyen, thematique, rule)
+    elif level == 'renforce':
+        update(application_renforce, analyse_renforce, thematique, rule)
 
 # ============================
 # RULES - MINIMAL
@@ -155,11 +160,183 @@ def apply_r75(serveur, report):
 
     print("\n⚠️ This rule's application is not yet supported.\n")
 
+
+
+#######################################################################################
+#                                                                                     #
+#                          service niveau renforcé                                    #
+#                                                                                     #
+#######################################################################################
+def apply_R10(serveur, report):
+    """
+    Applies rule R10 by ensuring that the kernel modules loading is set according to the expected value.
+    If the detected value differs from the expected value, the script will update the configuration to match the expected value.
+    A backup of the configuration file is created before making changes.
+    """
+    
+    r10_data = report.get("services", {}).get("R10", {})
+
+    if not r10_data.get("apply", False):
+        print("- R10: No action required.")
+        return "Compliant"
+
+    print("\n    Applying rule R10 (Disable kernel modules loading)    \n")
+
+    detected_elements = r10_data.get("detected_elements", '')
+    expected_elements = r10_data.get("expected_elements", '1')
+
+    if detected_elements == expected_elements:
+        print("✅ Kernel modules loading is already set as expected.")
+        return "Compliant"
+
+    print(f"⚠️ Detected kernel modules loading is '{detected_elements}', expected: '{expected_elements}'")
+
+    try:
+        # Créer une sauvegarde du fichier de configuration actuel
+        print("🔹 Creating a backup of the configuration file...")
+        serveur.exec_command("sudo cp /etc/modprobe.d/blacklist.conf /etc/modprobe.d/blacklist.conf.back_R10")
+
+        # Copier le fichier de configuration actuel dans un fichier temporaire
+        temp_file = "/tmp/blacklist_temp.conf"
+        serveur.exec_command(f"sudo cp /etc/modprobe.d/blacklist.conf {temp_file}")
+
+        # Si la valeur détectée est différente de la valeur attendue, on met à jour la configuration
+        if detected_elements != expected_elements:
+            print(f"⚙️ Modifying kernel module loading configuration to '{expected_elements}'...")
+
+            # Modifier le fichier temporaire pour correspondre à la valeur attendue
+            modify_cmd = f"sudo sh -c \"echo 'kernel modules loading: {expected_elements}' >> {temp_file}\""
+            print(f"🔹 Executing: {modify_cmd}")
+            _, stdout, stderr = serveur.exec_command(modify_cmd)
+            sed_error = stderr.read().decode().strip()
+            if sed_error:
+                print(f"❌ Error modifying the temporary file: {sed_error}")
+                serveur.exec_command(f"sudo rm -f {temp_file}")
+                return "Failed"
+
+            # Vérification que le fichier temporaire a bien été mis à jour avec la valeur attendue
+            _, stdout, stderr = serveur.exec_command(f"grep 'kernel modules loading: {expected_elements}' {temp_file}")
+            modified_line = stdout.read().decode().strip()
+            if modified_line != f"kernel modules loading: {expected_elements}":
+                print(f"❌ Configuration verification failed. Expected: 'kernel modules loading: {expected_elements}', Got: '{modified_line}'")
+                print("🔹 Deleting the temporary file...")
+                serveur.exec_command(f"sudo rm -f {temp_file}")
+                return "Failed"
+
+            print(f"✅ Kernel module loading configuration has been updated to '{expected_elements}'.")
+
+        # Remplacer le fichier de configuration par le fichier temporaire modifié
+        print("🔹 Replacing the original configuration with the modified temporary file...")
+        serveur.exec_command(f"sudo cp {temp_file} /etc/modprobe.d/blacklist.conf")
+
+        # Supprimer le fichier temporaire
+        print("🔹 Deleting the temporary file...")
+        serveur.exec_command(f"sudo rm -f {temp_file}")
+
+        #update report
+        update_report('renforce', 'services', 'R10')
+        print("✅ Rule R10 applied successfully.")
+        
+
+    except Exception as e:
+        print(f"❌ An unexpected error occurred: {str(e)}")
+        return "Failed"
+
+#Regle 65
+def apply_R65(serveur, report):
+    """
+    Applies rule R65 by checking the confinement of certain services.
+    Since no expected elements are defined, it checks for the presence of specific services
+    and provides a report. If there are more than 20 services, it only shows the commands 
+    for confining or deconfing services for manual execution.
+    """    
+    r65_data = report.get("services", {}).get("R65", {})
+    
+    if not r65_data.get("apply", False):
+        print("- R65: No action required.")
+        return "Compliant"
+
+    print("\n    Applying rule R65 (Check service confinement)    \n")
+    
+    detected_services = r65_data.get("detected_elements", [])
+    
+    if not detected_services:
+        print("⚠️ No detected services found.")
+        return "Failed"
+
+    # Si plus de 20 services sont détectés, on affiche seulement les commandes pour confiner/déconfiner
+    if len(detected_services) > 20:
+        print(f"⚠️ More than 20 services detected. Displaying confinement/deconfing commands for manual execution:\n")
+        print(f"To confine a service with AppArmor:  sudo aa-enforce <service_name>")
+        print(f"To deconfine a service with AppArmor: sudo aa-complain <service_name>")
+        input("\nPress Enter to continue...")
+        return "Success"
+
+    # Vérification du confinement des services
+    confinement_status = {}
+    
+    for service in detected_services:
+        # Vérifier si le service est confiné par AppArmor
+        apparmor_check_cmd = f"sudo aa-status | grep '{service}'"
+        _, stdout, stderr = serveur.exec_command(apparmor_check_cmd)
+        
+        if stdout.read().decode().strip():
+            confinement_status[service] = "Confiné"
+        else:
+            confinement_status[service] = "Non confiné"
+    
+    print("\n🔒 Service confinement status:")
+    for service, status in confinement_status.items():
+        print(f"  - {service}: {status}")
+
+    # Proposer de confiner ou déconfiner chaque service individuellement en fonction de son état
+    for service in detected_services:
+        current_status = confinement_status[service]
+        print(f"\n🔧 Service : {service} \t Status: {current_status}")    
+       
+        if current_status == "Confiné":
+            print("  - Action: You can deconfine this service.")
+            action = input("  Type 'd' to deconfine, or 's' to skip: ").strip().lower()
+            if action == 'd':
+                print(f"Deconfining the service '{service}' with AppArmor...")
+                deconfine_cmd = f"sudo aa-complain {service}"
+                serveur.exec_command(deconfine_cmd)
+                print(f"Service '{service}' is now deconfined.")
+            elif action == 's':
+                print(f"Skipping the service '{service}'.")
+            else:
+                print("Invalid input. Skipping this service.")
+        
+        elif current_status == "Non confiné":
+            print("  - Action: You can confine this service.")
+            action = input("  Type 'c' to confine, or 's' to skip: ").strip().lower()
+            if action == 'c':
+                print(f"Confining the service '{service}' with AppArmor...")
+                confine_cmd = f"sudo aa-enforce {service}"
+                serveur.exec_command(confine_cmd)
+                print(f"Service '{service}' is now confined.")
+            elif action == 's':
+                print(f"Skipping the service '{service}'.")
+            else:
+                print("Invalid input. Skipping this service.")
+
+    #update report
+    update_report('renforce', 'services', 'R65')
+    print("✅ Rule R65 applied successfully. Confinement check completed.")
+    
+    # Attendre que l'utilisateur appuie sur Entrée pour continuer
+    input("\nPress Enter to continue...")
+  
+
+########################## Partie  serice ############################################
+
+
+
 # ============================
 # MAIN
 # ============================
 
-def apply_services(client, level, report_data):
+def apply_services(client, niveau, report_data):
     fix_results = {}
     apply_data = report_data.get("services", None)
     if apply_data is None:
@@ -174,15 +351,20 @@ def apply_services(client, level, report_data):
             "R63": (apply_r63, "Disable non-essential capabilities"),
             "R74": (apply_r74, "Harden the local mail service"),
             "R75": (apply_r75, "Configure mail aliases for service accounts")
+        },
+        "renforce": {
+            "R10": (apply_R10, "Disable kernel modules loading"),
+            "R65": (apply_R65, "Check service confinement"),
+            
         }
     }
 
     apply_data = report_data.get("services", {})
-    if level in rules:
-        for rule_id, (function, comment) in rules[level].items():
+    if niveau in rules:
+        for rule_id, (function, comment) in rules[niveau].items():
             if apply_data.get(rule_id, {}).get("apply", False):
                 print(f"-> Applying rule {rule_id}: {comment}")
                 function(client, apply_data)
 
-    print(f"\n Fixes applied - SERVICES - Level {level.upper()}")
+    print(f"\n Fixes applied - SERVICES - niveau {level.upper()}")
     return fix_results

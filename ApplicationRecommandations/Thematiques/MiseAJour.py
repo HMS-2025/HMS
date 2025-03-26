@@ -7,6 +7,10 @@ analyse_min = "./GenerationRapport/RapportAnalyse/analyse_min.yml"
 application_moyen = "./GenerationRapport/RapportApplication/application_moyen.yml"
 analyse_moyen = "./GenerationRapport/RapportAnalyse/analyse_moyen.yml"
 
+
+application_renforce = "./GenerationRapport/RapportApplication/application_renforce.yml"
+analyse_renforce = "./GenerationRapport/RapportAnalyse/analyse_renfore.yml"
+
 def execute_ssh_command(client, command):
     """Execute an SSH command and return output and error."""
     stdin, stdout, stderr = client.exec_command(command)
@@ -34,6 +38,8 @@ def update_report(level, thematique, rule):
         update(application_min, analyse_min, thematique, rule)
     elif level == 'moyen':
         update(application_moyen, analyse_moyen, thematique, rule)
+    elif level == 'renforce':
+        update(application_renforce, analyse_renforce, thematique, rule)
 
 def apply_r61(client, report):
     r61_data = report.get("R61", {})
