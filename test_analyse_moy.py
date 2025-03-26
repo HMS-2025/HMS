@@ -37,7 +37,7 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertIn("mysql", result["gestion_acces"]["R34"]["detected_elements"])        
+        self.assertIn("mysql", result["access_management"]["R34"]["detected_elements"])        
       
        #Desactiver sudo passwd -l mysql && sudo usermod -s /usr/sbin/False mysql
         stdin, stdout, stderr=self.client.exec_command("sudo passwd -l mysql && sudo usermod -s /usr/sbin/False mysql")
@@ -46,7 +46,7 @@ class MiddleAnalysisTest(unittest.TestCase):
          #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertNotIn("mysql", result["gestion_acces"]["R34"]["detected_elements"])     
+        self.assertNotIn("mysql", result["access_management"]["R34"]["detected_elements"])     
     
    # R39
     def test_get_sudo_directives(self):
@@ -61,14 +61,14 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertIn("Defaults\tenv_keep\t+=\tR39", result["gestion_acces"]["R39"]["detected_elements"])
+        self.assertIn("Defaults\tenv_keep\t+=\tR39", result["access_management"]["R39"]["detected_elements"])
 
         #Suppression
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^Defaults\tenv_keep\t+=\tR39/d' /etc/sudoers")
         #Retest
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertNotIn("Defaults\tenv_keep\t+=\tR39", result["gestion_acces"]["R39"]["detected_elements"])  
+        self.assertNotIn("Defaults\tenv_keep\t+=\tR39", result["access_management"]["R39"]["detected_elements"])  
 
 
 
@@ -80,13 +80,13 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertIn("TestR40 ALL=(ALL) ALL", result["gestion_acces"]["R40"]["detected_elements"])  
+        self.assertIn("TestR40 ALL=(ALL) ALL", result["access_management"]["R40"]["detected_elements"])  
         
         #Suppression
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^TestR40/d' /etc/sudoers")
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertNotIn("TestR40 ALL=(ALL) ALL", result["gestion_acces"]["R40"]["detected_elements"])  
+        self.assertNotIn("TestR40 ALL=(ALL) ALL", result["access_management"]["R40"]["detected_elements"])  
 
     #R42
     def test_get_negation_in_sudoers(self):
@@ -99,13 +99,13 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertIn("TestR42 ALL=(ALL:ALL) ALL, !/usr/bin/apt", result["gestion_acces"]["R42"]["detected_elements"])  
+        self.assertIn("TestR42 ALL=(ALL:ALL) ALL, !/usr/bin/apt", result["access_management"]["R42"]["detected_elements"])  
         
         #Suppression
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^TestR42/d' /etc/sudoers")
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertNotIn("TestR42 ALL=(ALL:ALL) ALL, !/usr/bin/apt", result["gestion_acces"]["R42"]["detected_elements"])  
+        self.assertNotIn("TestR42 ALL=(ALL:ALL) ALL, !/usr/bin/apt", result["access_management"]["R42"]["detected_elements"])  
 
     #Regle 43
     #Commanade changer par un autre car ne recuperant pas les données concernées
@@ -118,13 +118,13 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertIn("TestR43 ALL=(ALL) sudoedit /etc/hosts", result["gestion_acces"]["R43"]["detected_elements"])  
+        self.assertIn("TestR43 ALL=(ALL) sudoedit /etc/hosts", result["access_management"]["R43"]["detected_elements"])  
         
         #Suppression
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^TestR43/d' /etc/sudoers")
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertNotIn("TestR43 ALL=(ALL) sudoedit /etc/hosts", result["gestion_acces"]["R43"]["detected_elements"])  
+        self.assertNotIn("TestR43 ALL=(ALL) sudoedit /etc/hosts", result["access_management"]["R43"]["detected_elements"])  
 
     #Regle R44
     def test_get_sudoedit_usage(self):
@@ -136,13 +136,13 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertIn("TestR44 ALL=(ALL)  /etc/bin/nano /etc/hosts", result["gestion_acces"]["R44"]["detected_elements"])  
+        self.assertIn("TestR44 ALL=(ALL)  /etc/bin/nano /etc/hosts", result["access_management"]["R44"]["detected_elements"])  
         
         #Suppression
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^TestR44/d' /etc/sudoers")
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertNotIn("TestR44 ALL=(ALL)  /etc/bin/nano /etc/hosts", result["gestion_acces"]["R44"]["detected_elements"])  
+        self.assertNotIn("TestR44 ALL=(ALL)  /etc/bin/nano /etc/hosts", result["access_management"]["R44"]["detected_elements"])  
 
     #Regle 50
     def test_get_secure_permissions(self):
@@ -152,13 +152,13 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertTrue(any("/etc/gshadow" in item for item in result["gestion_acces"]["R50"]["detected_elements"]))
+        self.assertTrue(any("/etc/gshadow" in item for item in result["access_management"]["R50"]["detected_elements"]))
         
         #Repprise de permission orignales
         stdin, stdout, stderr = self.client.exec_command("sudo mv /etc/gshadow.htms /etc/gshadow")
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertFalse(any("/etc/gshadow" in item for item in result["gestion_acces"]["R50"]["detected_elements"]))
+        self.assertFalse(any("/etc/gshadow" in item for item in result["access_management"]["R50"]["detected_elements"]))
  
 
       
@@ -171,13 +171,13 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertTrue(any("/run/systemd/notify 777" in item for item in result["gestion_acces"]["R52"]["detected_elements"]))
+        self.assertTrue(any("/run/systemd/notify 777" in item for item in result["access_management"]["R52"]["detected_elements"]))
         
         #Repprise de permission orignales
         stdin, stdout, stderr = self.client.exec_command("sudo chmod 750  /run/systemd/notify")
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertTrue(any("/run/systemd/notify 750" in item for item in result["gestion_acces"]["R52"]["detected_elements"]))
+        self.assertTrue(any("/run/systemd/notify 750" in item for item in result["access_management"]["R52"]["detected_elements"]))
        
     
 
@@ -190,13 +190,13 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertIn("session optional pam_mktemp.so", result["gestion_acces"]["R55"]["detected_elements"])  
+        self.assertIn("session optional pam_mktemp.so", result["access_management"]["R55"]["detected_elements"])  
         
         #Suppression
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^session optional pam_mktemp.so/d' /etc/pam.d/login")
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertNotIn("session optional pam_mktemp.so", result["gestion_acces"]["R55"]["detected_elements"])  
+        self.assertNotIn("session optional pam_mktemp.so", result["access_management"]["R55"]["detected_elements"])  
 
 
 
@@ -210,13 +210,13 @@ class MiddleAnalysisTest(unittest.TestCase):
         #Test
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertIn("account sufficient pam_ldap.so", result["reseau"]["R67"]["detected_elements"]["pam_rules"])  
+        self.assertIn("account sufficient pam_ldap.so", result["network"]["R67"]["detected_elements"]["pam_rules"])  
         
         #Suppression
         stdin, stdout, stderr = self.client.exec_command("sudo sed -i '/^account sufficient pam_ldap.so/d' /etc/pam.d/sshd")
         analyse_moyen(self.client)
         result = load_config("GenerationRapport/RapportAnalyse/analyse_moyen.yml")
-        self.assertNotIn("account sufficient pam_ldap.so", result["reseau"]["R67"]["detected_elements"]["pam_rules"])  
+        self.assertNotIn("account sufficient pam_ldap.so", result["network"]["R67"]["detected_elements"]["pam_rules"])  
 
 
     #Debut des tests pour les regles moyens  pour les services
