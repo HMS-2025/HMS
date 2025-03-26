@@ -62,11 +62,8 @@ def apply_r58(client, report):
         print("- No expected packages defined for rule R58.")
         return "Compliant"
     
-    installed_packages, error = execute_ssh_command(client, "dpkg -l | awk '{print $2}'")
-    if error:
-        print(f"Error: {error}")
-        return
-    
+    installed_packages = r59_data.get("detected_elements", [])
+      
     detected_elements = [pkg for pkg in installed_packages if pkg and pkg not in expected_packages]
 
     if detected_elements and ask_for_approval("R58", detected_elements):
@@ -123,6 +120,9 @@ def apply_r5(client, report):
 
     response = input("Would you like to configure a secure GRUB password? (Warning: make sure to save the password carefully !!!)(y/n): ").strip().lower()
     if response == 'y':
+        print("\n⚠️ WARNING: The GRUB password is crucial! Losing it may prevent access to GRUB.")
+        print(f"🔑 Your GRUB password: {grub_password}")
+        input("Remember this password,you are responsable if you lost it. Press enter to continue")
         # Creating a secure password for GRUB
         grub_password = input("Enter the password to apply for GRUB: ").strip()
         # Check if 'grub-mkpasswd-pbkdf2' exists before using it
