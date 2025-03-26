@@ -10,10 +10,12 @@ def execute_ssh_command(serveur, command):
 
 def check_compliance(rule_id, detected_values, reference_data):
     if rule_id == 'R44':
+        violations = detected_values.get("violations") if detected_values else None
+        is_non_compliant = bool(violations)  
         return {
-            "apply": bool(detected_values),
-            "status": "Compliant" if detected_values else "Non-Compliant",
-            "detected_elements": detected_values or "None"
+            "apply": not is_non_compliant,  
+            "status": "Non-Compliant" if is_non_compliant else "Compliant",
+            "detected_elements": detected_values if is_non_compliant else "None"
         }
     elif rule_id == 'R52':
         expected_list = reference_data.get(rule_id, {}).get("expected", [])
