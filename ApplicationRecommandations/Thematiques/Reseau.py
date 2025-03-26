@@ -591,6 +591,68 @@ def apply_r80(serveur, report):
     
     return "Applied"
 
+
+#######################################################################################
+#                                                                                     #
+#                        Reseau niveau renforcé                                       #
+#                                                                                     #
+#######################################################################################
+
+#Nous lui affichons de la commande deplacement de ces services reseau, car les deplacer automatiquement reste crtique pour le bon fonctionnement de son systeme complet
+def apply_R78(serveur, report):
+    """
+    Applies rule R78 by checking if network services are distributed into distinct slices.
+    Ensures no slice contains 50% or more of the services.
+    If the slice contains too many services, it suggests corrective actions.
+    """
+    
+    r78_data = report.get("network", {}).get("R78", {})
+    
+    if not r78_data.get("apply", False):
+        print("- R78: No action required.")
+        return "Compliant"
+
+    print("\n    Applying rule R78 (Isolate network services)    \n")
+    
+    detected_slices = r78_data.get("detected_elements", {})
+    
+    if not detected_slices:
+        print("⚠️ No detected slices found.")
+        return "Failed"
+
+    # Calcul du nombre total de services détectés
+    total_services = sum(len(services) for services in detected_slices.values())
+
+    print("🔍 Detected slices and services:")
+    for slice_name, services in detected_slices.items():
+        print(f"  - Slice: {slice_name} (Contains {len(services)} services)")
+        for service in services:
+            print(f"    - {service}")
+
+    # Vérifier si une tranche contient 50% ou plus des services
+    threshold = total_services / 2
+    problematic_slices = []
+
+    for slice_name, services in detected_slices.items():
+        if len(services) >= threshold:
+            problematic_slices.append(slice_name)
+
+    if problematic_slices:
+        print("\n⚠️ The following slices contain 50% or more of the services:")
+        for slice_name in problematic_slices:
+            print(f"  - {slice_name} (Contains {len(detected_slices[slice_name])} services)")
+
+        # Suggest corrective action
+        print("\n🔧 For manually moving, execute : sudo systemctl set-property <service_name> Slice=<target_slice>")
+        input("\nPress Enter to continue...")
+        return "Non-Compliant"
+
+    else:
+        print("✅ Rule R78 applied successfully. All services are correctly distributed into distinct slices.")
+        return "Compliant"
+
+
+################ Fin niveau renforce #######################
 # ============================
 # MAIN NETWORK FUNCTION
 # ============================
@@ -614,7 +676,9 @@ def apply_network(serveur, niveau, report_data):
             "R79": (apply_r79, "Harden and monitor exposed services"),
         },
         "reinforced": {
+            "R71": (apply_R78, "Isolate network services: verify services are distributed into distinct slices")
         }
+        
     }
     if niveau in rules:
         for rule_id, (function, comment) in rules[niveau].items():
