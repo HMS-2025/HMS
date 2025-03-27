@@ -5,7 +5,7 @@ import shutil
 import paramiko
 import yaml
 
-# Checks if the 'john' directory exists in the current folder and that the expected binary is present in john/run.
+# Checks if the 'john' directory exists and that the expected binary is present in john/run.
 def is_john_installed():
     john_binary = os.path.join(os.getcwd(), "john", "run", "john")
     return os.path.exists(john_binary)
@@ -15,7 +15,7 @@ def install_john():
     if os.path.exists("john"):
         john_binary = os.path.join(os.getcwd(), "john", "run", "john")
         if os.path.exists(john_binary):
-            print("[John] The 'john' directory is already present in the current folder.")
+            print("[John] The 'john' directory is already present in the current directory.")
             return
         else:
             print("[John] The 'john' directory already exists but does not contain a usable installation.")
@@ -89,7 +89,7 @@ def run_john_generated(hash_file):
     print(f"[John] Launching attack with generated wordlist on: {abs_hash_file}")
     generated_wordlist = os.path.join(os.getcwd(), "liste générée")
     if not os.path.exists(generated_wordlist):
-        print("[John] The generated wordlist does not exist. Please generate it first (option 4).")
+        print("[John] The generated wordlist does not exist. Please generate it first (option 3).")
         return
     john_run_dir = os.path.join(os.getcwd(), "john", "run")
     john_binary = os.path.join(john_run_dir, "john")
@@ -144,7 +144,7 @@ def generate_full_variants(word, start_year=2000, end_year=2030):
                 full_variants.add(y + special + variant)
     return list(full_variants)
 
-# Generates a complete wordlist from user-provided words and the "cassage" file.
+# Generates a complete wordlist from a user-provided list of words and the "cassage" file.
 def generate_wordlist():
     words_input = input("Enter a list of words or accounts (separated by spaces): ")
     words_raw = words_input.split()
@@ -178,41 +178,17 @@ def generate_wordlist():
     except Exception as e:
         print(f"Error writing the wordlist: {e}")
 
-# Displays the cracking menu with only the generated wordlist option.
-def menu_crack():
-    cassage_path = os.path.join(os.getcwd(), "cassage")
-    if not os.path.exists("john"):
-        print("[John] The 'john' directory is not present in the current folder. Please install it (option 1) before starting the cracking.")
-        return
-    if not os.path.exists(cassage_path):
-        print("[John] The 'cassage' file does not exist. Please first retrieve the shadow file and extract the hashes.")
-        return
-
-    while True:
-        print("\n=== John The Ripper Cracking Menu ===")
-        print("1 - Attack with generated wordlist")
-        print("2 - Return to main menu")
-        choice = input("Your choice (1-2): ")
-
-        if choice == "1":
-            run_john_generated(cassage_path)
-        elif choice == "2":
-            break
-        else:
-            print("Invalid option. Please try again.")
-
-# Displays the main menu and handles user input.
+# Main menu
 def menu_principal():
     cassage_path = os.path.join(os.getcwd(), "cassage")
     while True:
         print("\n=== Main Menu ===")
         print("1 - Install John The Ripper")
         print("2 - Retrieve the shadow file (via SSH)")
-        print("3 - Crack the hashes (attack with generated wordlist)")
-        print("4 - Generate a complete wordlist from a list of words")
-        print("5 - Crack the hashes with the generated wordlist")
-        print("6 - Quit")
-        choice = input("Your choice (1-6): ")
+        print("3 - Generate a complete wordlist from a list of words")
+        print("4 - Crack the hashes using the generated wordlist")
+        print("5 - Quit")
+        choice = input("Your choice (1-5): ")
 
         if choice == "1":
             install_john()
@@ -234,13 +210,14 @@ def menu_principal():
                 save_hashes_from_shadow(local_shadow_path, cassage_path)
                 client.close()
         elif choice == "3":
-            menu_crack()
-        elif choice == "4":
             generate_wordlist()
-        elif choice == "5":
+        elif choice == "4":
             run_john_generated(cassage_path)
-        elif choice == "6":
+        elif choice == "5":
             print("Goodbye.")
             break
         else:
             print("Invalid option. Please try again.")
+
+if __name__ == "__main__":
+    menu_principal()
