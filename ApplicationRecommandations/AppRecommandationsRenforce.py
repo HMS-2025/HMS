@@ -44,4 +44,4 @@ def application_recommandations_renf(client) :
     apply_services(client, niveau="renforce", report_data=report_data)
 
     print("\n [Correction] logging ( niveau renforce) ")
-    apply_logging(client, niveau="renforce", report_data=report_data)
+    apply_logging_audit(client, niveau="renforce", report_data=report_data)
