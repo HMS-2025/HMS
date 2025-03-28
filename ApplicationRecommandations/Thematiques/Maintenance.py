@@ -112,55 +112,81 @@ def apply_r59(client, report):
                 print(f"{repo} kept.")
         update_report('min', 'maintenance', 'R59')
 
-def apply_r5(client, report):
-    r5_data = report.get("R5", {})
-    if not r5_data.get("apply", False):
-        print("- R5: No action required.")
-        return "Compliant"
 
-    response = input("Would you like to configure a secure GRUB password? (Warning: make sure to save the password carefully !!!)(y/n): ").strip().lower()
-    if response == 'y':
-        print("\n⚠️ WARNING: The GRUB password is crucial! Losing it may prevent access to GRUB.")
-        print(f"🔑 Your GRUB password: {grub_password}")
-        input("Remember this password,you are responsable if you lost it. Press enter to continue")
-        # Creating a secure password for GRUB
-        grub_password = input("Enter the password to apply for GRUB: ").strip()
-        # Check if 'grub-mkpasswd-pbkdf2' exists before using it
+def apply_r5(client, report):
+    try:
+        # Charger la configuration SSH
+        config = load_config_ssh("ssh.yaml")
+        admin_user = config.get("username")  #Recuperation de admin
+        
+        r5_data = report.get("R5", {})
+        if not r5_data.get("apply", False):
+            print("- R5: No action required.")
+            return "Compliant"
+
+        response = input("Would you like to configure a secure GRUB password? (y/n): ").strip().lower()
+        if response != 'y':
+            print("No changes applied.")
+            return
+
+        # Demander un mot de passe sécurisé
+        while True:
+            grub_password = input(f"Enter the password for GRUB admin '{admin_user}': ").strip()
+            if grub_password:
+                break
+            print("Error: Password cannot be empty!")
+
+        print("\n WARNING: The GRUB password is crucial! Losing it may prevent access to GRUB.")
+        print(f" Your GRUB password: {grub_password}")
+        input("Remember this password. Press Enter to continue...")
+
+        # Vérifier si grub-mkpasswd-pbkdf2 est installé
         check_command, err = execute_ssh_command(client, "which grub-mkpasswd-pbkdf2")
         if err or not check_command:
-            user_response = input("'grub-mkpasswd-pbkdf2' is not installed. Would you like to install it now? (y/n): ").strip().lower()
+            user_response = input("'grub-mkpasswd-pbkdf2' is not installed. Install it now? (y/n): ").strip().lower()
             if user_response == 'y':
-                print("Installing 'grub-common' package...")
-                install_output, install_error = execute_ssh_command(client, "sudo apt-get install -y grub-common")
+                _, install_error = execute_ssh_command(client, "sudo apt-get install -y grub-common")
+                if install_error:
+                    print(f"Error installing grub-common: {install_error}")
+                    return
             else:
                 print("Package not installed. Cannot configure GRUB password.")
                 return
 
-        # Generate the password hash
+        # Générer le hash PBKDF2
         print("Generating PBKDF2 hash for GRUB...")
         hash_output, err = execute_ssh_command(client, f"echo -e '{grub_password}\n{grub_password}' | grub-mkpasswd-pbkdf2")
-        if err:
+        if err or not hash_output:
             print(f"Error generating the hash: {err}")
             return
 
-        # Extract the line containing 'password_pbkdf2'
+        # Extraire le hash
+        hashed_pass = None
         for line in hash_output:
             if "grub.pbkdf2" in line:
                 hashed_pass = line.strip()
                 break
-        else:
+        
+        if not hashed_pass:
             print("Error: Hash not found.")
             return
 
-        # Apply changes to /etc/grub.d/40_custom
-        execute_ssh_command(client, f"sudo bash -c \"echo 'set superusers=\\\"admin\\\"' >> /etc/grub.d/40_custom\"")
-        execute_ssh_command(client, f"sudo bash -c \"echo 'password_pbkdf2 admin {hashed_pass}' >> /etc/grub.d/40_custom\"")
+        # Vérifier et créer le fichier 40_custom si nécessaire
+        execute_ssh_command(client, "sudo touch /etc/grub.d/40_custom")
+        execute_ssh_command(client, "sudo chmod +x /etc/grub.d/40_custom")
+
+        # Ajouter la configuration GRUB dans /etc/grub.d/40_custom (et non directement dans grub.cfg)
+        execute_ssh_command(client, f"sudo bash -c \"echo 'set superusers=\\\"{admin_user}\\\"' >> /etc/grub.d/40_custom\"")
+        execute_ssh_command(client, f"sudo bash -c \"echo 'password_pbkdf2 {admin_user} {hashed_pass}' >> /etc/grub.d/40_custom\"")
+
+        # Mettre à jour GRUB (ce qui régénère /boot/grub/grub.cfg)
         execute_ssh_command(client, "sudo update-grub")
 
-        print("GRUB password successfully configured.")
-    else:
-        print("No changes applied.")
-
+        print(f" GRUB password successfully configured for user '{admin_user}'.")
+    
+    except Exception as e:
+        print(f" An unexpected error occurred: {str(e)}")
+    
     update_report('moyen', 'maintenance', 'R5')
 
 
