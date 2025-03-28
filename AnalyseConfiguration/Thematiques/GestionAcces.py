@@ -153,6 +153,17 @@ def check_compliance(rule_id, detected_values, reference_data):
                 "unexpected_elements": unexpected_elements or None,
                 "missing_elements": missing_elements or None
             }
+    elif rule_id == 'R56':
+        expected_list = reference_data.get('R56', {}).get("expected", [])
+        print(expected_list)
+        detected_filtered = [item for item in detected_values if item not in expected_list] if detected_values else []
+        is_compliant = len(detected_filtered) == 0  
+        return {
+            "apply": is_compliant,
+            "status": "Compliant" if is_compliant else "Non-Compliant",
+            "expected_elements": expected_list if expected_list else "None",
+            "detected_elements": detected_filtered if detected_filtered else "None"
+        }
     elif rule_id == 'R57':
         expected_execs = set(reference_data.get('R57', {}).get('expected', []))
         detected_execs = set(detected_values) if detected_values else set()

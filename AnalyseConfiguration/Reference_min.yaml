@@ -8,7 +8,9 @@ R53:
 
 R56:
   description: "Avoid using executables with special setuid and setgid permissions"
-  expected: []  # No file should have setuid/setgid permissions
+  expected:     # No file should have setuid/setgid permissions
+    - /usr/bin/bsd-write
+    - /usr/bin/su
 
 
 R59:
