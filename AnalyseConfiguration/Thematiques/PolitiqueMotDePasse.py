@@ -113,7 +113,7 @@ def get_password_policy(serveur, os_info):
         # 1. Check password policy in PAM
         pam_policy_raw = execute_remote_command(
             serveur,
-            "sudo grep -v '^[[:space:]]*#' /etc/pam.d/common-password | grep -E 'pam_pwquality.so|pam_unix.so'",
+            "sudo grep -v '^[[:space:]]*#' /etc/pam.d/common-password | grep -E 'password requisite pam_pwquality.so retry=3 minlen=12 difok=3'",
             "Detected", 
             "No PAM policy detected"
         )
@@ -137,7 +137,7 @@ def get_password_policy(serveur, os_info):
         # 3. Check if faillock is enabled
         faillock_raw = execute_remote_command(
             serveur,
-            "sudo grep '^deny\\s*=' /etc/security/faillock.conf 2>/dev/null | awk -F= '{print $2}' | tr -d ' '",
+            "sudo grep '^deny=' /etc/security/faillock.conf 2>/dev/null | awk -F= '{print $2}' | tr -d ' '",
             "Detected", "-1"
         )
         try:

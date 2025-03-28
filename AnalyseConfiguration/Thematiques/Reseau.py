@@ -206,7 +206,7 @@ def analyse_reseau(server, niveau, reference_data=None, os_info=None):
     report = {}
     rules = {
         "min": {
-            "R80": (get_interfaces_with_ips, "Check network interfaces with IP"),
+            #"R80": (get_interfaces_with_ips, "Check network interfaces with IP"),
         },
         "moyen": {
             "R12": (check_ipv4_configuration, "Configure IPv4 options (manual modifications required)"),

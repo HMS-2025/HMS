@@ -64,12 +64,14 @@ def apply_r31(serveur, report):
     else:
         print(f"Rule already present: {rule}")
         
-    execute_ssh_command(serveur, "sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS\t90/' /etc/login.defs")
+    execute_ssh_command(serveur, "sudo chage -M 90 $(whoami)")
+    
     execute_ssh_command(
         serveur,
-        "sudo sed -i 's/^deny=.*/deny=3/' /etc/security/faillock.conf || "
-        "echo 'deny=3' | sudo tee -a /etc/security/faillock.conf"
-    )
+        "sudo sed -i 's/^deny=.*/deny=3/' /etc/security/faillock.conf")
+            
+    execute_ssh_command(serveur ,"echo 'deny=3' | sudo tee -a /etc/security/faillock.conf")
+
 
     print("- R31: Password policy updated.")
     update_report('min', 'password', 'R31')

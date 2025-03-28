@@ -95,6 +95,7 @@ def apply_r56(serveur, report):
 
     for file_path in dangerous_files:
         print(f"- Removing setuid/setgid permissions on {file_path}...")
+        print(f"sudo chmod -s {file_path}")
         execute_ssh_command(serveur, f"sudo chmod -s {file_path}")
 
     print("- R56: All dangerous files have been secured.")
@@ -162,6 +163,7 @@ full sudo privileges (ALL), these privileges are revoked. However, if a user has
 specific restrictions (e.g., access to /usr/bin/apt), their configuration is preserved.
 The /etc/sudoers file is modified accordingly, and a report is updated to reflect
 compliance status.
+
 """
 
 def apply_R40(serveur, report):

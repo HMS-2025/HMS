@@ -25,7 +25,7 @@ def list_interfaces(client):
     """Lists the network interfaces available on the remote server."""
     print("Retrieving available network interfaces...")
     try:
-        stdin, stdout, stderr = client.exec_command("tcpdump -D")
+        stdin, stdout, stderr = client.exec_command("sudo tcpdump -D")
         output = stdout.read().decode()
         error = stderr.read().decode()
         
@@ -51,11 +51,11 @@ def capture_traffic(client, interface, duration, output_file):
     """
     print(f"Capturing traffic on interface {interface} for {duration} seconds (remote)...")
     try:
-        command = f"rm {output_file}"
+        command = f"sudo rm {output_file}"
         stdin, stdout, stderr = client.exec_command(command)
 
         # Remote tcpdump command to capture traffic
-        command = f"timeout {duration} tcpdump -i {interface} -w {output_file}"
+        command = f"sudo timeout {duration} tcpdump -i {interface} -w {output_file}"
         stdin, stdout, stderr = client.exec_command(command)
         stdout.channel.recv_exit_status()  # Wait for proper execution to finish
 
@@ -89,7 +89,7 @@ def get_open_ports(client):
     """
     Retrieves the list of open ports on the remote machine via SSH.
     """
-    stdin, stdout, stderr = client.exec_command("ss -tuln")
+    stdin, stdout, stderr = client.exec_command("sudo ss -tuln")
     output = stdout.read().decode()
     error = stderr.read().decode()
 
@@ -162,7 +162,7 @@ def execute_iptables_commands(client, source_ports_to_allow):
         backup_file = "/tmp/iptables-backup.rules"
 
         print(f"Backing up current IPTABLES rules to {backup_file}...")
-        stdin, stdout, stderr = client.exec_command(f"iptables-save > {backup_file}")
+        stdin, stdout, stderr = client.exec_command(f"sudo bash -c 'iptables-save > {backup_file}'")
         error = stderr.read().decode()
         if error:
             print(f"Error while backing up current rules: {error.strip()}")
@@ -293,7 +293,7 @@ def execute_iptables_commands(client, source_ports_to_allow):
         commands.append("iptables -A INPUT -j LOG --log-prefix 'IPTABLES DROPPED: '")
 
         # Step 7: Create the IPTABLES script
-        iptable_script = "/root/iptables_authorize.sh"
+        iptable_script = "/tmp/iptables_authorize.sh"
         print(f"Creating the script {iptable_script}...")
 
         # Define the blocklist sources
@@ -302,79 +302,29 @@ def execute_iptables_commands(client, source_ports_to_allow):
         ]
 
         # Prompt the user
-        add_blocklist = input("Do you want to block malicious IP addresses using external sources? (yes/no): ").strip().lower()
-        if add_blocklist == "yes":
-            # Inform the user about the sources
-            print("\nThe following sources will be used to retrieve malicious IP addresses:")
-            for url in blocklists:
-                print(f"- {url}")
-            
-            confirm_download = input("\nDo you want to proceed with downloading and blocking these IPs? (yes/no): ").strip().lower()
-            if confirm_download == "yes":
-                # Remove any existing blacklist file to start fresh
-                print("Removing any existing blacklist file from /root/blacklist.txt...")
-                stdin, stdout, stderr = client.exec_command("rm -f /root/blacklist.txt")
-                stdout.channel.recv_exit_status()  # Wait for the command to complete
-                
-                # Handle errors in removal
-                error = stderr.read().decode().strip()
-                if error:
-                    print(f"Error while removing existing blacklist file: {error}")
-
-                # Download blocklists to the server
-                for url in blocklists:
-                    print(f"Downloading blocklist from {url}...")
-                    stdin, stdout, stderr = client.exec_command(f"curl -s {url} >> /root/blacklist.txt")
-                    stdout.channel.recv_exit_status()  # Wait for the download to complete
-                    
-                    # Handle errors in download
-                    error = stderr.read().decode().strip()
-                    if error:
-                        print(f"Error downloading blocklist from {url}: {error}")
-                        continue
-
-                print("Downloaded and consolidated blocklists into /root/blacklist.txt.")
-                
-                # Add the script for processing the blocklist and injecting IPs into iptables
-                commands.append(
-                    """
-if [[ -f /root/blacklist.txt ]]; then
-        while IFS= read -r ip; do
-                echo 'Blocking and logging for: \$ip'
-                iptables -w -A INPUT -s \$ip -j DROP
-        done < <(grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]{1,2}))?' /root/blacklist.txt | sort -u)
-else
-    echo Blacklist file not found. Skipping IP blocking.
-fi
-                    """
-                )
-                print("Added malicious IP blocking rules to the iptables script.")
-            else:
-                print("Aborted malicious IP blocking process.")
-        else:
-            print("Skipping malicious IP blocking.")
-
       
-        stdin, stdout, stderr = client.exec_command(f"echo '#!/bin/bash' > {iptable_script}")
-        stdin, stdout, stderr = client.exec_command(f"chmod u+x {iptable_script}")
+        stdin, stdout, stderr = client.exec_command(f"echo '#!/bin/bash' | sudo tee {iptable_script} > /dev/null")
+        stdin, stdout, stderr = client.exec_command(f"sudo chmod u+x {iptable_script}")
         for command in commands:
-            client.exec_command(f"echo \"{command}\" >> {iptable_script}")
+            client.exec_command(f"sudo bash -c 'echo \"{command}\" >> {iptable_script}'")
 
         # Display the generated script
         print("\nGenerated IPTABLES script content:\n")
-        stdin, stdout, stderr = client.exec_command(f"cat {iptable_script}")
+        stdin, stdout, stderr = client.exec_command(f"sudo cat {iptable_script}")
         script_content = stdout.read().decode()
         print(script_content)
 
         # Step 8: Confirm execution of the script
         print("\n Downloading iptables script  \n")
+
+        
         download_pcap(client , iptable_script , './iptables.sh')
-        download_pcap(client , '/root/blacklist.txt' , './blacklist.txt' )
+        download_pcap(client , '/tmp/blacklist.txt' , './blacklist.txt' )
         
         execute_script = input("Do you want to execute this script to apply the new rules? (yes/no): ").strip().lower()
         if execute_script == "yes":
             print("Applying the new IPTABLES rules...")
-            stdin, stdout, stderr = client.exec_command(f"bash {iptable_script}")
+            stdin, stdout, stderr = client.exec_command(f"sudo bash {iptable_script}")
             output = stdout.read().decode()
             error = stderr.read().decode()
             if error:
@@ -512,7 +462,7 @@ def apply_r13(serveur, report):
 
     print(" Applying rule R13: Disabling IPv6...")
 
-    ipv6_disable_params = r13_data.get("detected_elements", {})
+    ipv6_disable_params = r13_data.get("expected_elements", {})
     if not ipv6_disable_params:
         print("⚠️  R13: No missing parameters!")
         return
@@ -591,68 +541,6 @@ def apply_r80(serveur, report):
     
     return "Applied"
 
-
-#######################################################################################
-#                                                                                     #
-#                        Reseau niveau renforcé                                       #
-#                                                                                     #
-#######################################################################################
-
-#Nous lui affichons de la commande deplacement de ces services reseau, car les deplacer automatiquement reste crtique pour le bon fonctionnement de son systeme complet
-def apply_R78(serveur, report):
-    """
-    Applies rule R78 by checking if network services are distributed into distinct slices.
-    Ensures no slice contains 50% or more of the services.
-    If the slice contains too many services, it suggests corrective actions.
-    """
-    
-    r78_data = report.get("network", {}).get("R78", {})
-    
-    if not r78_data.get("apply", False):
-        print("- R78: No action required.")
-        return "Compliant"
-
-    print("\n    Applying rule R78 (Isolate network services)    \n")
-    
-    detected_slices = r78_data.get("detected_elements", {})
-    
-    if not detected_slices:
-        print("⚠️ No detected slices found.")
-        return "Failed"
-
-    # Calcul du nombre total de services détectés
-    total_services = sum(len(services) for services in detected_slices.values())
-
-    print("🔍 Detected slices and services:")
-    for slice_name, services in detected_slices.items():
-        print(f"  - Slice: {slice_name} (Contains {len(services)} services)")
-        for service in services:
-            print(f"    - {service}")
-
-    # Vérifier si une tranche contient 50% ou plus des services
-    threshold = total_services / 2
-    problematic_slices = []
-
-    for slice_name, services in detected_slices.items():
-        if len(services) >= threshold:
-            problematic_slices.append(slice_name)
-
-    if problematic_slices:
-        print("\n⚠️ The following slices contain 50% or more of the services:")
-        for slice_name in problematic_slices:
-            print(f"  - {slice_name} (Contains {len(detected_slices[slice_name])} services)")
-
-        # Suggest corrective action
-        print("\n🔧 For manually moving, execute : sudo systemctl set-property <service_name> Slice=<target_slice>")
-        input("\nPress Enter to continue...")
-        return "Non-Compliant"
-
-    else:
-        print("✅ Rule R78 applied successfully. All services are correctly distributed into distinct slices.")
-        return "Compliant"
-
-
-################ Fin niveau renforce #######################
 # ============================
 # MAIN NETWORK FUNCTION
 # ============================
@@ -667,7 +555,7 @@ def apply_network(serveur, niveau, report_data):
     
     rules = {
         "min": {
-            "R80": (apply_r80 , "reduce the attack surface")
+            #"R80": (apply_r80 , "reduce the attack surface")
         }, 
         "moyen": {
             "R12": (apply_r12, "Configure IPv4 options"),
@@ -676,9 +564,7 @@ def apply_network(serveur, niveau, report_data):
             "R79": (apply_r79, "Harden and monitor exposed services"),
         },
         "reinforced": {
-            "R78": (apply_R78, "Isolate network services: verify services are distributed into distinct slices")
         }
-        
     }
     if niveau in rules:
         for rule_id, (function, comment) in rules[niveau].items():

@@ -240,14 +240,14 @@ def get_standard_users(serveur, os_info):
 
 def get_recent_users(serveur, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        return set(execute_ssh_command(serveur, "last -s -60days -F | awk '{print $1}' | grep -v 'wtmp' | sort | uniq"))
+        return set(execute_ssh_command(serveur, "last -w -s -60days -F | awk '{print $1}' | grep -v 'wtmp' | sort | uniq"))
     else:
         print("[get_recent_users] Non-Ubuntu OS detected; recent users not retrieved.")
         return set()
 
 def get_disabled_users(serveur, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
-        return set(execute_ssh_command(serveur, "awk -F: '($2 ~ /^!|^\\*/) {print $1}' /etc/shadow"))
+        return set(execute_ssh_command(serveur, "sudo awk -F: '($2 ~ /^!|^\\*/) {print $1}' /etc/shadow"))
     else:
         print("[get_disabled_users] Non-Ubuntu OS detected; disabled users not retrieved.")
         return set()
@@ -265,8 +265,15 @@ def find_orphan_files(serveur, os_info):
 def find_files_with_setuid_setgid(serveur, os_info):
     if os_info and os_info.get("distro", "").lower() == "ubuntu":
         ro_mounts = execute_ssh_command(serveur, "findmnt -r -n -o TARGET")
-        exclusions = ' '.join([f"-path '{mount}/*' -prune -o" for mount in ro_mounts])
+
+        # Construire les exclusions (lecture seule et /usr/bin/sudo)
+        exclusions = " ".join([f"-path '{mount}/*' -prune -o" for mount in ro_mounts])
+        exclusions += " -path '/usr/bin/sudo' -prune -o"
+
+        # Construire la commande find avec exclusions
         find_command = f"find / {exclusions} -type f -perm /6000 -print 2>/dev/null"
+
+        # Exécuter la commande sur le serveur
         return execute_ssh_command(serveur, find_command)
     else:
         print("[find_files_with_setuid_setgid] Non-Ubuntu OS detected; search skipped.")
